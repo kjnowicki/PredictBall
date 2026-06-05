@@ -5,19 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"predictball_api/models"
-	footballdata "predictball_api/models/football-data"
+	"net/url"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
 
 type PredictballAPIService struct {
-	APIKey         string
-	BaseURL        string
-	HTTPClient     *http.Client
-	mu             sync.RWMutex
-	cachedSchedule []models.Match
-	cacheExpiresAt time.Time
+	APIKey     string
+	BaseURL    string
+	HTTPClient *http.Client
+	mu         sync.RWMutex
+	FootballDataService
 }
 
 func NewFootballAPIService(apiKey string) *PredictballAPIService {
@@ -28,9 +28,75 @@ func NewFootballAPIService(apiKey string) *PredictballAPIService {
 	}
 }
 
-func (s *PredictballAPIService) fetchAPI(ctx context.Context, path string, target any) error {
-	url := fmt.Sprintf("%s/%s", s.BaseURL, path)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+func readCache(s *PredictballAPIService, baseName string, target any) bool {
+	s.mu.RLock()
+	files, err := filepath.Glob(baseName + "_*.json")
+	if err != nil || len(files) == 0 {
+		s.mu.RUnlock()
+		return false
+	}
+
+	var bestFile string
+	var bestExp time.Time
+	for _, f := range files {
+		var expUnix int64
+		if _, err := fmt.Sscanf(filepath.Base(f), baseName+"_%d.json", &expUnix); err == nil {
+			exp := time.Unix(expUnix, 0)
+			if exp.After(bestExp) {
+				bestExp = exp
+				bestFile = f
+			}
+		}
+	}
+
+	var data []byte
+	var readErr error
+	if time.Now().Before(bestExp) {
+		data, readErr = os.ReadFile(bestFile)
+	}
+	s.mu.RUnlock()
+
+	if len(files) > 1 {
+		s.mu.Lock()
+		for _, f := range files {
+			if f != bestFile {
+				_ = os.Remove(f)
+			}
+		}
+		s.mu.Unlock()
+	}
+
+	if readErr == nil && len(data) > 0 {
+		if err := json.Unmarshal(data, target); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+func writeCache(s *PredictballAPIService, baseName string, data any, duration time.Duration) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if oldFiles, err := filepath.Glob(baseName + "_*.json"); err == nil {
+		for _, f := range oldFiles {
+			_ = os.Remove(f)
+		}
+	}
+
+	exp := time.Now().Add(duration)
+	newCacheFile := fmt.Sprintf("%s_%d.json", baseName, exp.Unix())
+	if b, err := json.Marshal(data); err == nil {
+		_ = os.WriteFile(newCacheFile, b, 0644)
+	}
+}
+
+func (s *PredictballAPIService) fetchAPI(ctx context.Context, path string, query url.Values, target any) error {
+	reqURL := fmt.Sprintf("%s/%s", s.BaseURL, path)
+	if len(query) > 0 {
+		reqURL = fmt.Sprintf("%s?%s", reqURL, query.Encode())
+	}
+	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
 	if err != nil {
 		return err
 	}
@@ -47,112 +113,4 @@ func (s *PredictballAPIService) fetchAPI(ctx context.Context, path string, targe
 	}
 
 	return json.NewDecoder(resp.Body).Decode(target)
-}
-
-func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context) ([]models.Match, error) {
-	s.mu.RLock()
-	if time.Now().Before(s.cacheExpiresAt) && s.cachedSchedule != nil {
-		matches := s.cachedSchedule
-		s.mu.RUnlock()
-		return matches, nil
-	}
-	s.mu.RUnlock()
-
-	var apiData struct {
-		Filters   any `json:"filters"`
-		ResultSet struct {
-			Count  int    `json:"count"`
-			First  string `json:"first"`
-			Last   string `json:"last"`
-			Played int    `json:"played"`
-		} `json:"resultSet"`
-		Competition footballdata.Competition `json:"competition"`
-		Matches     []footballdata.Match     `json:"matches"`
-	}
-
-	if err := s.fetchAPI(ctx, "matches", &apiData); err != nil {
-		return nil, err
-	}
-
-	var schedule []models.Match
-	for _, m := range apiData.Matches {
-		var homeScore, awayScore int
-		if m.Score.FullTime.Home != nil {
-			homeScore = *m.Score.FullTime.Home
-		}
-		if m.Score.FullTime.Away != nil {
-			awayScore = *m.Score.FullTime.Away
-		}
-
-		var scorers []models.Player
-		for _, g := range m.Goals {
-			scorers = append(scorers, models.Player{
-				ID:   g.Scorer.ID,
-				Name: g.Scorer.Name,
-			})
-		}
-
-		var startTime time.Time
-		if t, err := time.Parse(time.RFC3339, m.UtcDate); err == nil {
-			startTime = t
-		}
-
-		schedule = append(schedule, models.Match{
-			ID:         m.ID,
-			HomeTeamID: m.HomeTeam.ID,
-			AwayTeamID: m.AwayTeam.ID,
-			StartTime:  startTime,
-			Status:     models.MatchStatus(m.Status),
-			MatchDetails: models.MatchDetails{
-				HomeScore: homeScore,
-				AwayScore: awayScore,
-				Scorers:   scorers,
-			},
-		})
-	}
-
-	s.mu.Lock()
-	s.cachedSchedule = schedule
-	s.cacheExpiresAt = time.Now().Add(30 * time.Minute)
-	s.mu.Unlock()
-
-	return schedule, nil
-}
-
-// =========================================================================
-// NOTE: Go will force you to implement ALL the other methods from the
-// APIService interface (GetMatchDetails, GetUser, PutUser, etc.) on this struct,
-// otherwise it won't compile.
-// For now, you can stub the rest out like this so it compiles:
-// =========================================================================
-
-func (s *PredictballAPIService) GetMatchDetails(ctx context.Context, matchID string) (*models.MatchDetails, error) {
-	return nil, nil
-}
-func (s *PredictballAPIService) GetUser(ctx context.Context, userID string) (*models.User, error) {
-	return nil, nil
-}
-func (s *PredictballAPIService) PutUser(ctx context.Context, user models.User) (*models.User, error) {
-	return nil, nil
-}
-func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, leagueID string) (*models.PredictionLeague, error) {
-	return nil, nil
-}
-func (s *PredictballAPIService) PutPredictionLeague(ctx context.Context, league models.PredictionLeague) (*models.PredictionLeague, error) {
-	return nil, nil
-}
-func (s *PredictballAPIService) GetPrediction(ctx context.Context, predictionID string) (*models.Prediction, error) {
-	return nil, nil
-}
-func (s *PredictballAPIService) PutPrediction(ctx context.Context, prediction models.Prediction) (*models.Prediction, error) {
-	return nil, nil
-}
-func (s *PredictballAPIService) UpdatePrediction(ctx context.Context, predictionID string, prediction models.Prediction) (*models.Prediction, error) {
-	return nil, nil
-}
-func (s *PredictballAPIService) GetScoringSystem(ctx context.Context) (*models.ScoringSystem, error) {
-	return nil, nil
-}
-func (s *PredictballAPIService) GetTeamSquad(ctx context.Context, teamID string) (*models.TeamSquad, error) {
-	return nil, nil
 }

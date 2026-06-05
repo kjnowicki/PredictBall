@@ -6,15 +6,22 @@ import (
 	"os"
 	"predictball_api/handlers"
 	"predictball_api/services"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	apiKey := os.Getenv("football_data_token") // Or whatever it is called in your .env
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("Warning: No .env file found")
+	}
+
+	apiKey := os.Getenv("football_data_token")
 	if apiKey == "" {
 		log.Fatal("football_data_token environment variable is not set")
 	}
 
-	svc := services.NewTemplateService()
+	svc := services.NewFootballAPIService(apiKey)
 	h := handlers.NewAPIHandler(svc)
 
 	mux := http.NewServeMux()
