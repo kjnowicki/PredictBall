@@ -12,7 +12,7 @@ func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context) ([]models.
 		return schedule, nil
 	}
 
-	apiData, err := s.FootballDataService.GetMatches(ctx, []string{"2026"})
+	apiData, err := s.FootballDataService.GetMatches(ctx, map[string]string{"season": "2026"})
 	if err != nil {
 		return nil, err
 	}

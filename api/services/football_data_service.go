@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/url"
 	footballdata "predictball_api/models/football-data"
-	"strings"
 )
 
 type FootballDataService struct {
@@ -18,10 +17,10 @@ type MatchesResponse struct {
 	Matches     []footballdata.Match     `json:"matches"`
 }
 
-func (s *FootballDataService) GetMatches(ctx context.Context, seasons []string) (*MatchesResponse, error) {
+func (s *FootballDataService) GetMatches(ctx context.Context, params map[string]string) (*MatchesResponse, error) {
 	queryParams := url.Values{}
-	if len(seasons) > 0 {
-		queryParams.Set("seasons", strings.Join(seasons, ","))
+	for k, v := range params {
+		queryParams.Set(k, v)
 	}
 
 	var apiData MatchesResponse
