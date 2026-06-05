@@ -15,7 +15,7 @@ func NewAPIHandler(svc services.APIService) *APIHandler {
 	return &APIHandler{Service: svc}
 }
 
-func WriteJSON(w http.ResponseWriter, status int, data interface{}) {
+func WriteJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(data)

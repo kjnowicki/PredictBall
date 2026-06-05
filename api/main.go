@@ -3,11 +3,17 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"predictball_api/handlers"
 	"predictball_api/services"
 )
 
 func main() {
+	apiKey := os.Getenv("football_data_token") // Or whatever it is called in your .env
+	if apiKey == "" {
+		log.Fatal("football_data_token environment variable is not set")
+	}
+
 	svc := services.NewTemplateService()
 	h := handlers.NewAPIHandler(svc)
 

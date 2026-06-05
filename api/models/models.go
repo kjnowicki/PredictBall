@@ -3,52 +3,65 @@ package models
 import "time"
 
 type User struct {
-	ID       string `json:"id"`
+	ID       int    `json:"id"`
 	Username string `json:"username"`
-	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 type Match struct {
-	ID        string    `json:"id"`
-	HomeTeam  string    `json:"homeTeam"`
-	AwayTeam  string    `json:"awayTeam"`
-	StartTime time.Time `json:"startTime"`
-	Status    string    `json:"status"` // SCHEDULED, IN_PLAY, FINISHED
+	ID         int         `json:"id"`
+	HomeTeamID int         `json:"homeTeamId"`
+	AwayTeamID int         `json:"awayTeamId"`
+	StartTime  time.Time   `json:"startTime"`
+	Status     MatchStatus `json:"status"`
+	MatchDetails
 }
 
+type MatchStatus string
+
+const (
+	StatusScheduled    MatchStatus = "SCHEDULED"
+	StatusLive         MatchStatus = "LIVE"
+	StatusFinished     MatchStatus = "FINISHED"
+	StatusLineupsReady MatchStatus = "LINEUPS-READY"
+)
+
 type MatchDetails struct {
-	Match
-	HomeScore int `json:"homeScore"`
-	AwayScore int `json:"awayScore"`
+	HomeScore int      `json:"homeScore"`
+	AwayScore int      `json:"awayScore"`
+	Scorers   []Player `json:"scorers"`
 }
 
 type PredictionLeague struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	JoinCode string `json:"joinCode"`
 }
 
 type Prediction struct {
-	ID        string `json:"id"`
-	UserID    string `json:"userId"`
-	MatchID   string `json:"matchId"`
-	HomeScore int    `json:"homeScore"`
-	AwayScore int    `json:"awayScore"`
+	ID        int `json:"id"`
+	UserID    int `json:"userId"`
+	MatchID   int `json:"matchId"`
+	HomeScore int `json:"homeScore"`
+	AwayScore int `json:"awayScore"`
+	ScorerID  int `json:"scorerId"`
 }
 
 type ScoringSystem struct {
-	ID               string `json:"id"`
-	ExactScorePoints int    `json:"exactScorePoints"`
-	ResultPoints     int    `json:"resultPoints"`
+	ScoreDif       int `json:"scoreDif"`
+	ScoreExact     int `json:"scoreExact"`
+	ScoreHomeExact int `json:"scoreHomeExact"`
+	ScoreAwayExact int `json:"scoreAwayExact"`
+	Scorer         int `json:"scorer"`
 }
 
 type Player struct {
-	ID       string `json:"id"`
+	ID       int    `json:"id"`
 	Name     string `json:"name"`
 	Position string `json:"position"`
 }
 
 type TeamSquad struct {
-	TeamID  string   `json:"teamId"`
+	TeamID  int      `json:"teamId"`
 	Players []Player `json:"players"`
 }
