@@ -9,12 +9,12 @@ type User struct {
 }
 
 type Match struct {
-	ID         int         `json:"id"`
-	HomeTeamID int         `json:"homeTeamId"`
-	AwayTeamID int         `json:"awayTeamId"`
-	StartTime  time.Time   `json:"startTime"`
-	Status     MatchStatus `json:"status"`
-	MatchDetails
+	ID           int         `json:"id"`
+	HomeTeamID   int         `json:"homeTeamId"`
+	AwayTeamID   int         `json:"awayTeamId"`
+	StartTime    time.Time   `json:"startTime"`
+	Status       MatchStatus `json:"status"`
+	MatchDetails `json:"matchDetails"`
 }
 
 type MatchStatus string
@@ -27,9 +27,11 @@ const (
 )
 
 type MatchDetails struct {
-	HomeScore int      `json:"homeScore"`
-	AwayScore int      `json:"awayScore"`
-	Scorers   []Player `json:"scorers"`
+	HomeScore  int       `json:"homeScore"`
+	HomeLineup TeamSquad `json:"homeLineup"`
+	AwayScore  int       `json:"awayScore"`
+	AwayLineup TeamSquad `json:"awayLineup"`
+	Scorers    []Player  `json:"scorers"`
 }
 
 type PredictionLeague struct {
