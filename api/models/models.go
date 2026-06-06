@@ -65,3 +65,9 @@ type TeamSquad struct {
 	TeamID  int      `json:"teamId"`
 	Players []Player `json:"players"`
 }
+
+type TeamDetails struct {
+	TeamID int    `json:"teamId"`
+	Name   string `string:"teamName"`
+	Crest  string `string:"crestUrl"`
+}

@@ -49,3 +49,11 @@ func (s *FootballDataService) GetMatches(ctx context.Context, params map[string]
 	}
 	return &apiData, nil
 }
+
+func (s *FootballDataService) GetTeamDetails(ctx context.Context, teamID int, params map[string]string) (*footballdata.Team, error) {
+	var apiData footballdata.Team
+	if err := s.fetchCached(ctx, fmt.Sprintf("teams/%d", teamID), params, &apiData); err != nil {
+		return nil, err
+	}
+	return &apiData, nil
+}

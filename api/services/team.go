@@ -2,9 +2,9 @@ package services
 
 import (
 	"context"
-	"predictball_api/models"
+	footballdata "predictball_api/models/football-data"
 )
 
-func (s *PredictballAPIService) GetTeamSquad(ctx context.Context, teamID string) (*models.TeamSquad, error) {
-	return nil, nil
+func (s *PredictballAPIService) GetTeam(ctx context.Context, teamID int) (*footballdata.Team, error) {
+	return s.FootballDataService.GetTeamDetails(ctx, teamID, map[string]string{})
 }
