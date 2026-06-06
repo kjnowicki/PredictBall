@@ -3,10 +3,10 @@ package services
 import (
 	"context"
 	"predictball_api/models"
+	footballdata "predictball_api/models/football-data"
 	"time"
 )
 
-// TemplateService provides mock/templated data for the API
 type TemplateService struct{}
 
 func NewTemplateService() *TemplateService {
@@ -74,12 +74,6 @@ func (s *TemplateService) GetScoringSystem(ctx context.Context) (*models.Scoring
 	return &models.ScoringSystem{ScoreDif: 1, ScoreExact: 3, ScoreHomeExact: 1, ScoreAwayExact: 1, Scorer: 2}, nil
 }
 
-func (s *TemplateService) GetTeamSquad(ctx context.Context, teamID string) (*models.TeamSquad, error) {
-	return &models.TeamSquad{
-		TeamID: 1,
-		Players: []models.Player{
-			{ID: 1, Name: "Bukayo Saka", Position: "Forward"},
-			{ID: 2, Name: "Martin Odegaard", Position: "Midfielder"},
-		},
-	}, nil
+func (s *TemplateService) GetTeam(ctx context.Context, teamID int) (*footballdata.Team, error) {
+	return &footballdata.Team{}, nil
 }

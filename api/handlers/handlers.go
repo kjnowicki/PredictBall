@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"predictball_api/models"
 	"predictball_api/services"
+	"strconv"
 )
 
 type APIHandler struct {
@@ -136,9 +137,14 @@ func (h *APIHandler) HandleGetScoringSystem(w http.ResponseWriter, r *http.Reque
 	WriteJSON(w, http.StatusOK, system)
 }
 
-func (h *APIHandler) HandleGetTeamSquad(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	squad, err := h.Service.GetTeamSquad(r.Context(), id)
+func (h *APIHandler) HandleGetTeamDetails(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "invalid team ID", http.StatusBadRequest)
+		return
+	}
+	squad, err := h.Service.GetTeam(r.Context(), id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -161,5 +167,5 @@ func RegisterRoutes(mux *http.ServeMux, h *APIHandler) {
 	mux.HandleFunc("PATCH /prediction/{id}", h.HandleUpdatePrediction)
 
 	mux.HandleFunc("GET /scoring-system", h.HandleGetScoringSystem)
-	mux.HandleFunc("GET /team-squad/{id}", h.HandleGetTeamSquad)
+	mux.HandleFunc("GET /team-details/{id}", h.HandleGetTeamDetails)
 }
