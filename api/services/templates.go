@@ -15,8 +15,56 @@ func NewTemplateService() *TemplateService {
 
 func (s *TemplateService) GetMatchSchedule(ctx context.Context) ([]models.Match, error) {
 	return []models.Match{
-		{ID: 1, HomeTeamID: 10, AwayTeamID: 20, StartTime: time.Now().Add(24 * time.Hour), Status: models.StatusScheduled},
-		{ID: 2, HomeTeamID: 30, AwayTeamID: 40, StartTime: time.Now().Add(48 * time.Hour), Status: models.StatusScheduled},
+		{
+			ID:         1,
+			HomeTeamID: 10,
+			AwayTeamID: 20,
+			StartTime:  time.Now().Add(24 * time.Hour),
+			Status:     models.StatusScheduled,
+			MatchDetails: models.MatchDetails{
+				HomeScore: 0,
+				AwayScore: 0,
+				HomeLineup: models.TeamSquad{
+					TeamID: 10,
+					Players: []models.Player{
+						{ID: 1, Name: "Bukayo Saka", Position: "Forward"},
+						{ID: 2, Name: "Declan Rice", Position: "Midfielder"},
+					},
+				},
+				AwayLineup: models.TeamSquad{
+					TeamID: 20,
+					Players: []models.Player{
+						{ID: 3, Name: "Phil Foden", Position: "Midfielder"},
+						{ID: 4, Name: "Erling Haaland", Position: "Forward"},
+					},
+				},
+				Scorers: []models.Player{},
+			},
+		},
+		{
+			ID:         2,
+			HomeTeamID: 30,
+			AwayTeamID: 40,
+			StartTime:  time.Now().Add(48 * time.Hour),
+			Status:     models.StatusScheduled,
+			MatchDetails: models.MatchDetails{
+				HomeScore: 0,
+				AwayScore: 0,
+				HomeLineup: models.TeamSquad{
+					TeamID: 30,
+					Players: []models.Player{
+						{ID: 5, Name: "Mohamed Salah", Position: "Forward"},
+					},
+				},
+				AwayLineup: models.TeamSquad{
+					TeamID: 40,
+					Players: []models.Player{
+						{ID: 6, Name: "Son Heung-min", Position: "Forward"},
+					},
+				},
+				Scorers: []models.Player{},
+			},
+		},
 	}, nil
 }
 
@@ -24,8 +72,23 @@ func (s *TemplateService) GetMatchDetails(ctx context.Context, matchID string) (
 	return &models.MatchDetails{
 		HomeScore: 2,
 		AwayScore: 1,
+		HomeLineup: models.TeamSquad{
+			TeamID: 10,
+			Players: []models.Player{
+				{ID: 1, Name: "Bukayo Saka", Position: "Forward"},
+				{ID: 2, Name: "Declan Rice", Position: "Midfielder"},
+			},
+		},
+		AwayLineup: models.TeamSquad{
+			TeamID: 20,
+			Players: []models.Player{
+				{ID: 3, Name: "Phil Foden", Position: "Midfielder"},
+				{ID: 4, Name: "Erling Haaland", Position: "Forward"},
+			},
+		},
 		Scorers: []models.Player{
 			{ID: 1, Name: "Bukayo Saka", Position: "Forward"},
+			{ID: 3, Name: "Phil Foden", Position: "Midfielder"},
 		},
 	}, nil
 }
@@ -75,5 +138,18 @@ func (s *TemplateService) GetScoringSystem(ctx context.Context) (*models.Scoring
 }
 
 func (s *TemplateService) GetTeam(ctx context.Context, teamID int) (*footballdata.Team, error) {
-	return &footballdata.Team{}, nil
+	return &footballdata.Team{
+		ID:          teamID,
+		Name:        "Mocked FC",
+		ShortName:   "Mocked",
+		Tla:         "MOC",
+		Crest:       "https://example.com/crest.png",
+		Address:     "123 Fake Street",
+		Website:     "https://mockedfc.com",
+		Founded:     1899,
+		ClubColors:  "Red / White",
+		Venue:       "Mock Stadium",
+		MarketValue: 15000000,
+		LastUpdated: time.Now().Format(time.RFC3339),
+	}, nil
 }
