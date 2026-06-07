@@ -1,0 +1,14 @@
+.about-container {
+  max-width: 800px;  /* Limits the maximum width of the content */
+  margin: 2rem auto; /* Adds a gap at the top and centers the container horizontally */
+  padding: 0 1rem;   /* Adds a little padding so it doesn't touch the screen edges on mobile */
+}
+
+/* Optional: add some spacing between the sections inside the card */
+.about-section {
+  margin-bottom: 1.5rem;
+}
+
+.about-section:last-child {
+  margin-bottom: 0;
+}
