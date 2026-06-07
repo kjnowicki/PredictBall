@@ -1,1 +1,82 @@
-<p>profile.page works!</p>
+<div class="profile-container">
+  <!-- Side Navigation -->
+  <mat-card class="sidebar">
+    <mat-action-list>
+      <button mat-list-item (click)="activeTab.set('password')" [class.active-tab]="activeTab() === 'password'">
+        <mat-icon matListItemIcon>lock</mat-icon>
+        <span matListItemTitle>Change Password</span>
+      </button>
+      <button mat-list-item (click)="activeTab.set('displayName')" [class.active-tab]="activeTab() === 'displayName'">
+        <mat-icon matListItemIcon>person</mat-icon>
+        <span matListItemTitle>Display Name</span>
+      </button>
+      <mat-divider></mat-divider>
+      <button mat-list-item (click)="activeTab.set('delete')" [class.active-tab]="activeTab() === 'delete'" class="delete-tab">
+        <mat-icon matListItemIcon color="warn">delete_forever</mat-icon>
+        <span matListItemTitle color="warn">Delete Account</span>
+      </button>
+    </mat-action-list>
+  </mat-card>
+
+  <!-- Content Area -->
+  <mat-card class="content">
+    @if (activeTab() === 'password') {
+      <mat-card-header>
+        <mat-card-title>Change Password</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <form (ngSubmit)="onChangePassword()" class="profile-form">
+          <mat-form-field appearance="outline">
+            <mat-label>Old Password</mat-label>
+            <input matInput type="password" [(ngModel)]="passwordData.oldPassword" name="oldPassword" autocomplete="current-password" required>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>New Password</mat-label>
+            <input matInput type="password" [(ngModel)]="passwordData.newPassword" name="newPassword" autocomplete="new-password" required>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Confirm New Password</mat-label>
+            <input matInput type="password" [(ngModel)]="passwordData.confirmPassword" name="confirmPassword" autocomplete="new-password" required>
+          </mat-form-field>
+          <div class="form-actions">
+            <button mat-raised-button color="primary" type="submit">Update Password</button>
+          </div>
+        </form>
+      </mat-card-content>
+    } @else if (activeTab() === 'displayName') {
+      <mat-card-header>
+        <mat-card-title>Change Display Name</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <form (ngSubmit)="onChangeDisplayName()" class="profile-form">
+          <mat-form-field appearance="outline">
+            <mat-label>New Display Name</mat-label>
+            <input matInput type="text" [(ngModel)]="displayNameData.newDisplayName" name="newDisplayName" required>
+          </mat-form-field>
+          <div class="form-actions">
+            <button mat-raised-button color="primary" type="submit">Update Display Name</button>
+          </div>
+        </form>
+      </mat-card-content>
+    } @else if (activeTab() === 'delete') {
+      <mat-card-header>
+        <mat-card-title class="warn-text">Delete Account</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="warning-container">
+          <mat-icon color="warn">warning</mat-icon>
+          <p>Warning: This action is permanent and cannot be undone. All your data will be lost.</p>
+        </div>
+        <form (ngSubmit)="onDeleteAccount()" class="profile-form">
+          <mat-form-field appearance="outline">
+            <mat-label>Confirm Password to Delete</mat-label>
+            <input matInput type="password" [(ngModel)]="deleteData.confirmPassword" name="deleteConfirmPassword" required>
+          </mat-form-field>
+          <div class="form-actions">
+            <button mat-raised-button color="warn" type="submit">Permanently Delete Account</button>
+          </div>
+        </form>
+      </mat-card-content>
+    }
+  </mat-card>
+</div>
