@@ -16,6 +16,11 @@ import { TopNavigation } from './top-navigation/top-navigation';
       height: 100vh;
       background-color: rgba(0, 0, 0, 0.5);
       z-index: 1000;
+      animation: fadeIn 0.2s ease-out forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
   `]
 })
