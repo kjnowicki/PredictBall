@@ -1,39 +1,53 @@
-<div style="display: flex; justify-content: space-evenly; align-items: flex-start; padding: 2rem;">
-  <div style="width: 40%;">
-    <h2>Login</h2>
-    <form (ngSubmit)="onLogin()">
-      <div style="margin-bottom: 1rem;">
-        <label for="login-username">Email:</label>
-        <input type="text" id="login-username" name="username" autocomplete="username" [(ngModel)]="loginData.username" required style="width: 100%;">
-      </div>
-      <div style="margin-bottom: 1rem;">
-        <label for="login-password">Password:</label>
-        <input type="password" id="login-password" name="password" autocomplete="current-password" [(ngModel)]="loginData.password" required style="width: 100%;">
-      </div>
-      <button type="submit">Login</button>
-    </form>
-  </div>
+<div [style.display]="'flex'"
+     [style.flex-direction]="isMobile() ? 'column' : 'row'"
+     [style.justify-content]="'space-evenly'"
+     [style.align-items]="isMobile() ? 'center' : 'flex-start'"
+     [style.padding]="'2rem'"
+     [style.gap]="'2rem'">
 
-  <div style="width: 40%;">
-    <h2>Register</h2>
-    <form (ngSubmit)="onRegister()">
-      <div style="margin-bottom: 1rem;">
-        <label for="reg-display-name">Display Name:</label>
-        <input type="text" id="reg-display-name" name="display-name" autocomplete="name" [(ngModel)]="registerData.displayName" required style="width: 100%;">
-      </div>
-      <div style="margin-bottom: 1rem;">
-        <label for="reg-username">Username:</label>
-        <input type="text" id="reg-username" name="username" autocomplete="username" [(ngModel)]="registerData.username" required style="width: 100%;">
-      </div>
-      <div style="margin-bottom: 1rem;">
-        <label for="reg-password">Password:</label>
-        <input type="password" id="reg-password" name="password" autocomplete="new-password" [(ngModel)]="registerData.password" required style="width: 100%;">
-      </div>
-      <div style="margin-bottom: 1rem;">
-        <label for="reg-confirm-password">Confirm Password:</label>
-        <input type="password" id="reg-confirm-password" name="confirm-password" autocomplete="new-password" [(ngModel)]="registerData.password" required style="width: 100%;">
-      </div>
-      <button type="submit">Register</button>
-    </form>
-  </div>
+  <mat-card [style.width]="isMobile() ? '100%' : '40%'" [style.max-width]="isMobile() ? '400px' : 'none'">
+    <mat-card-header>
+      <mat-card-title>Login</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <form (ngSubmit)="onLogin()" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
+        <mat-form-field appearance="outline">
+          <mat-label>Email</mat-label>
+          <input matInput type="text" id="login-username" name="username" autocomplete="username" [(ngModel)]="loginData.username" required>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Password</mat-label>
+          <input matInput type="password" id="login-password" name="password" autocomplete="current-password" [(ngModel)]="loginData.password" required>
+        </mat-form-field>
+        <button mat-raised-button color="primary" type="submit">Login</button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card [style.width]="isMobile() ? '100%' : '40%'" [style.max-width]="isMobile() ? '400px' : 'none'">
+    <mat-card-header>
+      <mat-card-title>Register</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <form (ngSubmit)="onRegister()" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
+        <mat-form-field appearance="outline">
+          <mat-label>Display Name</mat-label>
+          <input matInput type="text" id="reg-display-name" name="display-name" autocomplete="name" [(ngModel)]="registerData.displayName" required>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Username</mat-label>
+          <input matInput type="text" id="reg-username" name="username" autocomplete="username" [(ngModel)]="registerData.username" required>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Password</mat-label>
+          <input matInput type="password" id="reg-password" name="password" autocomplete="new-password" [(ngModel)]="registerData.password" required>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Confirm Password</mat-label>
+          <input matInput type="password" id="reg-confirm-password" name="confirm-password" autocomplete="new-password" [(ngModel)]="registerData.password" required>
+        </mat-form-field>
+        <button mat-raised-button color="accent" type="submit">Register</button>
+      </form>
+    </mat-card-content>
+  </mat-card>
 </div>
