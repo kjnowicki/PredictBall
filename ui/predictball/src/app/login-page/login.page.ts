@@ -6,12 +6,11 @@ import { Router } from '@angular/router';
   selector: 'app-login',
   templateUrl: './login.page.html',
   imports: [FormsModule],
-  styleUrls: ['./login.page.css'] // Adjust if you are using scss/less
+  styleUrls: ['./login.page.css']
 })
 export class LoginPage {
-  // Models to capture form input via ngModel
-  loginData = { email: '', password: '' };
-  registerData = { email: '', password: '' };
+  loginData = { username: '', password: '' };
+  registerData = { displayName: '', username: '', password: '' };
 
   constructor(private router: Router) {}
 
