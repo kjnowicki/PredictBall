@@ -36,6 +36,8 @@ export class TopNavigation {
     { initialValue: false }
   );
 
+  toolbarHeight = 56; // Standard Material toolbar height on mobile
+
   @Output() sidenavOpenedChange = new EventEmitter<boolean>();
   @ViewChild('sidenav') sidenav?: MatSidenav;
 

@@ -1,6 +1,6 @@
 @if (isMobile()) {
   <mat-sidenav-container style="background: none; z-index: 1001;" [hasBackdrop]="false">
-    <mat-sidenav #sidenav mode="over" [fixedInViewport]="true" style="width: 250px; border-right: 2px solid black; z-index: 1001;" (openedChange)="sidenavOpenedChange.emit($event)">
+    <mat-sidenav #sidenav mode="over" [fixedInViewport]="true" [fixedTopGap]="toolbarHeight" style="width: 250px; border-right: 2px solid black; z-index: 1001;" (openedChange)="sidenavOpenedChange.emit($event)">
       <mat-nav-list>
         <a mat-list-item routerLink="/home" routerLinkActive="active" (click)="sidenav.close()">Home</a>
         <a mat-list-item routerLink="/profile" routerLinkActive="active" (click)="sidenav.close()">Profile</a>
