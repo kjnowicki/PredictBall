@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, TemplateRef, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { PredictionTileComponent } from '../prediction-tile-component/prediction.tile.component';
@@ -7,10 +7,13 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
+import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatButtonModule } from '@angular/material/button';
 
 interface Competition {
   id: string;
   name: string;
+  points: number;
 }
 
 interface League {
@@ -38,6 +41,8 @@ interface Task {
     MatFormFieldModule,
     MatSelectModule,
     MatTableModule,
+    MatDialogModule,
+    MatButtonModule,
   ],
   templateUrl: './home.page.html',
   styleUrl: './home.page.css',
@@ -45,8 +50,8 @@ interface Task {
 export class HomePage implements OnInit {
 // Mock Data: Replace with actual service calls
   competitions: Competition[] = [
-    { id: 'comp1', name: 'Premier League 2023/24' },
-    { id: 'comp2', name: 'Champions League 2023/24' }
+    { id: 'comp1', name: 'Premier League 2023/24', points: 120 },
+    { id: 'comp2', name: 'Champions League 2023/24', points: 45 }
   ];
 
   leagues: League[] = [
@@ -62,10 +67,12 @@ export class HomePage implements OnInit {
 
   selectedCompetitionId = signal('');
   selectedTask: Task | null = null;
-  isModalOpen = false;
 
   leaguesDisplayedColumns: string[] = ['name', 'position'];
   tasksDisplayedColumns: string[] = ['matchName', 'date', 'status'];
+
+  readonly dialog = inject(MatDialog);
+  @ViewChild('taskDialog') taskDialog!: TemplateRef<any>;
 
   ngOnInit(): void {
     if (this.competitions.length > 0) {
@@ -83,11 +90,11 @@ export class HomePage implements OnInit {
 
   openTaskModal(task: Task): void {
     this.selectedTask = task;
-    this.isModalOpen = true;
+    this.dialog.open(this.taskDialog);
   }
 
   closeModal(): void {
-    this.isModalOpen = false;
+    this.dialog.closeAll();
     this.selectedTask = null;
   }
 }

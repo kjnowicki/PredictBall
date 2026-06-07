@@ -22,6 +22,7 @@
             currentCompetition.name
           }}</a>
         </h3>
+        <p class="current-points">Current points: {{ currentCompetition.points }}</p>
       </div>
       }
 
@@ -98,14 +99,14 @@
   </mat-card>
 </div>
 
-@if (isModalOpen) {
-<div class="modal-overlay" (click)="closeModal()">
-  <div class="modal-content" (click)="$event.stopPropagation()">
-    <button class="close-btn" (click)="closeModal()">✖</button>
-    <h2 style="margin-top: 0;">Task Details</h2>
+<ng-template #taskDialog>
+  <h2 mat-dialog-title>Task Details</h2>
+  <mat-dialog-content>
     @if (selectedTask) {
         <app-prediction-tile [matchId]="selectedTask.matchId"></app-prediction-tile>
     }
-  </div>
-</div>
-}
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="closeModal()">Close</button>
+  </mat-dialog-actions>
+</ng-template>
