@@ -3,6 +3,10 @@ import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { PredictionTileComponent } from '../prediction-tile-component/prediction.tile.component';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
+import { MatTableModule } from '@angular/material/table';
 
 interface Competition {
   id: string;
@@ -25,7 +29,16 @@ interface Task {
 
 @Component({
   selector: 'app-home.page',
-  imports: [FormsModule, RouterLink, CommonModule, PredictionTileComponent],
+  imports: [
+    FormsModule,
+    RouterLink,
+    CommonModule,
+    PredictionTileComponent,
+    MatCardModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatTableModule,
+  ],
   templateUrl: './home.page.html',
   styleUrl: './home.page.css',
 })
@@ -50,6 +63,9 @@ export class HomePage implements OnInit {
   selectedCompetitionId = signal('');
   selectedTask: Task | null = null;
   isModalOpen = false;
+
+  leaguesDisplayedColumns: string[] = ['name', 'position'];
+  tasksDisplayedColumns: string[] = ['matchName', 'date', 'status'];
 
   ngOnInit(): void {
     if (this.competitions.length > 0) {

@@ -1,75 +1,101 @@
 <div class="home-container">
-  
-  <div class="column">
-    <h2>Your Leagues</h2>
-    
-    <div class="competition-selector" style="margin-bottom: 1rem;">
-      <label for="competitionSelect">Select Competition: </label>
-      <select id="competitionSelect" [(ngModel)]="selectedCompetitionId">
-        <option *ngFor="let comp of competitions" [value]="comp.id">{{ comp.name }}</option>
-      </select>
-    </div>
+  <mat-card class="column">
+    <mat-card-header>
+      <mat-card-title>Your Leagues</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="competition-selector">
+        <mat-form-field>
+          <mat-label>Select Competition</mat-label>
+          <mat-select [(ngModel)]="selectedCompetitionId">
+            @for (comp of competitions; track comp.id) {
+            <mat-option [value]="comp.id">{{ comp.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
 
-    @if (currentCompetition) {
-    <div style="margin-bottom: 1rem;">
-      <h3>
-        <a [routerLink]="['/competition', currentCompetition.id]">{{ currentCompetition.name }}</a>
-      </h3>
-    </div>
-    }
+      @if (currentCompetition) {
+      <div class="current-competition-link">
+        <h3>
+          <a [routerLink]="['/competition', currentCompetition.id]">{{
+            currentCompetition.name
+          }}</a>
+        </h3>
+      </div>
+      }
 
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>League</th>
-          <th>Position</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (league of filteredLeagues; track league) {
-        <tr>
-          <td>{{ league.name }}</td>
-          <td>{{ league.position }}</td>
-        </tr>
-        }
-        @if (filteredLeagues.length == 0) {
-        <tr>
-          <td colspan="2" class="empty-state">No leagues found for this competition.</td>
-        </tr>
-        }
-      </tbody>
-    </table>
-  </div>
+      <table mat-table [dataSource]="filteredLeagues" class="data-table">
+        <!-- League Column -->
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef>League</th>
+          <td mat-cell *matCellDef="let league">{{ league.name }}</td>
+        </ng-container>
 
-  <div class="column">
-    <h2>Your Tasks</h2>
-    <table class="data-table tasks-table">
-      <thead>
-        <tr>
-          <th>Match</th>
-          <th>Date</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (task of tasks; track task) {
-        <tr (click)="openTaskModal(task)" class="task-row">
-          <td>{{ task.matchName }}</td>
-          <td>{{ task.date }}</td>
-          <td>
-            <span class="badge" [ngClass]="task.status">{{ task.status | titlecase }}</span>
+        <!-- Position Column -->
+        <ng-container matColumnDef="position">
+          <th mat-header-cell *matHeaderCellDef>Position</th>
+          <td mat-cell *matCellDef="let league">{{ league.position }}</td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="leaguesDisplayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: leaguesDisplayedColumns"></tr>
+
+        <!-- Row shown when there is no data. -->
+        <tr class="mat-row" *matNoDataRow>
+          <td class="mat-cell" colspan="2">
+            No leagues found for this competition.
           </td>
-        </tr> 
-        }
-        @if (tasks.length === 0) {
-        <tr>
-          <td colspan="3" class="empty-state">No pending tasks. You're all caught up!</td>
         </tr>
-        }
-      </tbody>
-    </table>
-  </div>
+      </table>
+    </mat-card-content>
+  </mat-card>
 
+  <mat-card class="column">
+    <mat-card-header>
+      <mat-card-title>Your Tasks</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <table mat-table [dataSource]="tasks" class="data-table tasks-table">
+        <!-- Match Column -->
+        <ng-container matColumnDef="matchName">
+          <th mat-header-cell *matHeaderCellDef>Match</th>
+          <td mat-cell *matCellDef="let task">{{ task.matchName }}</td>
+        </ng-container>
+
+        <!-- Date Column -->
+        <ng-container matColumnDef="date">
+          <th mat-header-cell *matHeaderCellDef>Date</th>
+          <td mat-cell *matCellDef="let task">{{ task.date }}</td>
+        </ng-container>
+
+        <!-- Status Column -->
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let task">
+            <span class="badge" [ngClass]="task.status">{{
+              task.status | titlecase
+            }}</span>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="tasksDisplayedColumns"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: tasksDisplayedColumns"
+          (click)="openTaskModal(row)"
+          class="task-row"
+        ></tr>
+
+        <!-- Row shown when there is no data. -->
+        <tr class="mat-row" *matNoDataRow>
+          <td class="mat-cell" colspan="3">
+            No pending tasks. You're all caught up!
+          </td>
+        </tr>
+      </table>
+    </mat-card-content>
+  </mat-card>
 </div>
 
 @if (isModalOpen) {

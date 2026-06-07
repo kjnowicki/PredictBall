@@ -1,8 +1,10 @@
 <div style="width: 100%; display: flex; justify-content: center; background-color: #f5f5f5;">
-  <nav mat-tab-nav-bar>
+  <nav mat-tab-nav-bar [tabPanel]="tabPanel">
     <a mat-tab-link routerLink="/home" routerLinkActive #rlaHome="routerLinkActive" [active]="rlaHome.isActive">Home</a>
     <a mat-tab-link routerLink="/profile" routerLinkActive #rlaProfile="routerLinkActive" [active]="rlaProfile.isActive">Profile</a>
     <a mat-tab-link routerLink="/competitions" routerLinkActive #rlaCompetitions="routerLinkActive" [active]="rlaCompetitions.isActive">Competitions</a>
     <a mat-tab-link routerLink="/about" routerLinkActive #rlaAbout="routerLinkActive" [active]="rlaAbout.isActive">About</a>
   </nav>
 </div>
+
+<mat-tab-nav-panel #tabPanel></mat-tab-nav-panel>
