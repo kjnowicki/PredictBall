@@ -1,0 +1,46 @@
+<div style="display: flex; gap: 2rem; padding: 2rem; align-items: flex-start; flex-wrap: wrap;">
+  <!-- Main column for ranking -->
+  <mat-card style="flex: 3; min-width: 300px;">
+    <mat-card-header>
+      <mat-card-title>League Standings</mat-card-title>
+    </mat-card-header>
+    <mat-card-content style="padding-top: 1rem;">
+      <table mat-table [dataSource]="players" style="width: 100%;">
+        <ng-container matColumnDef="position">
+          <th mat-header-cell *matHeaderCellDef>#</th>
+          <td mat-cell *matCellDef="let player">{{ player.position }}</td>
+        </ng-container>
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef>Player</th>
+          <td mat-cell *matCellDef="let player">{{ player.name }}</td>
+        </ng-container>
+        <ng-container matColumnDef="points">
+          <th mat-header-cell *matHeaderCellDef>Points</th>
+          <td mat-cell *matCellDef="let player">{{ player.points }}</td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+      </table>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Side column for settings -->
+  <mat-card style="flex: 1; min-width: 250px;">
+    <mat-card-header>
+      <mat-card-title>Quick Settings</mat-card-title>
+    </mat-card-header>
+    <mat-card-content style="padding-top: 1rem; text-align: center;">
+      @if (isMyLeague) {
+        <p>Invite friends with this code:</p>
+        <h3 style="letter-spacing: 2px;">{{ leagueJoinCode }}</h3>
+      } @else {
+        <p>Have a join code?</p>
+        <mat-form-field appearance="outline" style="width: 100%;">
+          <mat-label>Join Code</mat-label>
+          <input matInput [(ngModel)]="joinCodeInput" placeholder="Enter code">
+        </mat-form-field>
+        <button mat-raised-button color="primary" (click)="joinLeague()" style="width: 100%;">Join League</button>
+      }
+    </mat-card-content>
+  </mat-card>
+</div>

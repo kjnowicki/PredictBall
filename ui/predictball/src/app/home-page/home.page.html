@@ -30,7 +30,9 @@
         <!-- League Column -->
         <ng-container matColumnDef="name">
           <th mat-header-cell *matHeaderCellDef>League</th>
-          <td mat-cell *matCellDef="let league">{{ league.name }}</td>
+          <td mat-cell *matCellDef="let league">
+            <a [routerLink]="['/league', league.id]">{{ league.name }}</a>
+          </td>
         </ng-container>
 
         <!-- Position Column -->

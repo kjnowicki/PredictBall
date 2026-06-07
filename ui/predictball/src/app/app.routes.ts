@@ -23,6 +23,7 @@ export const routes: Routes = [
   { path: '', redirectTo: 'home', pathMatch: 'full' },
   { path: 'home', canActivate: [authGuard], loadComponent: () => import('./home-page/home.page').then(m => m.HomePage) },
   { path: 'login', loadComponent: () => import('./login-page/login.page').then(m => m.LoginPage) },
+  { path: 'league/:id', canActivate: [authGuard], loadComponent: () => import('./league-page/league-page').then(m => m.LeaguePage) },
   { path: 'competition/:id', canActivate: [authGuard], loadComponent: () => import('./competition-page/competition.page').then(m => m.CompetitionPage) },
   { path: 'competitions', canActivate: [authGuard], loadComponent: () => import('./competitions-page/competitions-page').then(m => m.CompetitionsPage) },
   { path: 'profile', canActivate: [authGuard], loadComponent: () => import('./profile-page/profile.page').then(m => m.ProfilePage) },
