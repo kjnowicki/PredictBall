@@ -1,1 +1,39 @@
-<p>competition.page works!</p>
+<div style="margin: 2rem;">
+  <mat-card>
+    <mat-card-header style="margin-bottom: 1rem;">
+      <mat-card-title>{{ competitionName }}</mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+      <mat-tab-group>
+        <mat-tab label="Predictions">
+          <div style="padding-top: 1.5rem;">
+            <h2>Predictions</h2>
+            <p>Your predictions will appear here.</p>
+          </div>
+        </mat-tab>
+
+        <mat-tab label="Leagues">
+          <div style="padding-top: 1.5rem;">
+            <h2>Leagues</h2>
+            <p>Leagues information goes here.</p>
+          </div>
+        </mat-tab>
+
+        <mat-tab label="Teams">
+          <div style="padding-top: 1.5rem;">
+            <h2>Teams</h2>
+            <p>Participating teams go here.</p>
+          </div>
+        </mat-tab>
+
+        <mat-tab label="About">
+          <div style="padding-top: 1.5rem;">
+            <h2>About</h2>
+            <p>Details and rules about the competition go here.</p>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card-content>
+  </mat-card>
+</div>
