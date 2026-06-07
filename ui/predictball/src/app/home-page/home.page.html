@@ -1,1 +1,77 @@
-<p>home.page works!</p>
+<div class="home-container">
+  
+  <!-- Column 1: Your Leagues -->
+  <div class="column">
+    <h2>Your Leagues</h2>
+    
+    <div class="competition-selector" style="margin-bottom: 1rem;">
+      <label for="competitionSelect">Select Competition: </label>
+      <select id="competitionSelect" [(ngModel)]="selectedCompetitionId">
+        <option *ngFor="let comp of competitions" [value]="comp.id">{{ comp.name }}</option>
+      </select>
+    </div>
+
+    <div *ngIf="currentCompetition" style="margin-bottom: 1rem;">
+      <h3>
+        <a [routerLink]="['/competition', currentCompetition.id]">{{ currentCompetition.name }}</a>
+      </h3>
+    </div>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>League</th>
+          <th>Position</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let league of filteredLeagues">
+          <td>{{ league.name }}</td>
+          <td>{{ league.position }}</td>
+        </tr>
+        <tr *ngIf="filteredLeagues.length === 0">
+          <td colspan="2" class="empty-state">No leagues found for this competition.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Column 2: Your Tasks -->
+  <div class="column">
+    <h2>Your Tasks</h2>
+    <table class="data-table tasks-table">
+      <thead>
+        <tr>
+          <th>Match</th>
+          <th>Date</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let task of tasks" (click)="openTaskModal(task)" class="task-row">
+          <td>{{ task.matchName }}</td>
+          <td>{{ task.date }}</td>
+          <td>
+            <span class="badge" [ngClass]="task.status">{{ task.status | titlecase }}</span>
+          </td>
+        </tr>
+        <tr *ngIf="tasks.length === 0">
+          <td colspan="3" class="empty-state">No pending tasks. You're all caught up!</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- Modal overlay for prediction-tile-component -->
+<div class="modal-overlay" *ngIf="isModalOpen" (click)="closeModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <button class="close-btn" (click)="closeModal()">✖</button>
+    <h2 style="margin-top: 0;">Task Details</h2>
+    @if (selectedTask) {
+        <app-prediction-tile *ngIf="selectedTask" [matchId]="selectedTask.matchId"></app-prediction-tile>
+    }
+    
+  </div>
+</div>

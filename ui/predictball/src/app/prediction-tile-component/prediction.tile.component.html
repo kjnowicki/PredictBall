@@ -1,1 +1,46 @@
-<p>prediction.tile.component works!</p>
+<mat-card>
+  <!-- Row 1: Team Names -->
+  <mat-card-header>
+    <mat-card-title>{{ homeTeam }} vs {{ awayTeam }}</mat-card-title>
+    <mat-card-subtitle>Match ID: {{ matchId }}</mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    <!-- Row 2: Home & Away goals prediction input -->
+    <div class="prediction-row">
+      <mat-form-field appearance="outline">
+        <mat-label>Home Goals</mat-label>
+        <input matInput type="number" min="0" [(ngModel)]="homeGoalsPrediction">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Away Goals</mat-label>
+        <input matInput type="number" min="0" [(ngModel)]="awayGoalsPrediction">
+      </mat-form-field>
+    </div>
+
+    <!-- Row 3: Scorer select input -->
+    <div class="prediction-row">
+      <mat-form-field appearance="outline" style="width: 100%;">
+        <mat-label>Scorer</mat-label>
+        <mat-select [(ngModel)]="selectedScorer">
+          @for (scorer of scorers; track scorer) {
+            <mat-option [value]="scorer">{{ scorer }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <!-- Row 4: 3 toggle icons (Placeholder for now) -->
+    <div class="prediction-row">
+      <mat-icon>sports_soccer</mat-icon>
+      <mat-icon>star_border</mat-icon>
+      <mat-icon>favorite_border</mat-icon>
+    </div>
+
+    <!-- Row 5: Scored points -->
+    <div class="prediction-row">
+      <strong>Points: </strong> {{ scoredPoints !== null ? scoredPoints : '-' }}
+    </div>
+  </mat-card-content>
+</mat-card>
