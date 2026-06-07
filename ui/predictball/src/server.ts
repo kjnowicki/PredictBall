@@ -36,6 +36,30 @@ app.use(
 );
 
 /**
+ * Authentication Middleware for Server-Side Rendering
+ * Evaluates the HTTP cookie before handing off to Angular.
+ */
+app.use((req, res, next) => {
+  const cookies = req.headers.cookie || '';
+  const isAuthenticated = cookies.includes('isAuthenticated=true');
+  const path = req.originalUrl.split('?')[0];
+
+  // Define public routes that bypass authentication
+  const publicRoutes = ['/login', '/about'];
+  const isPublicRoute = publicRoutes.some(route => path === route || path.startsWith(`${route}/`));
+
+  if (!isAuthenticated && !isPublicRoute) {
+    return res.redirect('/login');
+  }
+
+  if (isAuthenticated && path.startsWith('/login')) {
+    return res.redirect('/home'); // Reverse guard: authenticated users shouldn't see login
+  }
+
+  next();
+});
+
+/**
  * Handle all other requests by rendering the Angular application.
  */
 app.use((req, res, next) => {
