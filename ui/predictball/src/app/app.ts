@@ -6,8 +6,20 @@ import { TopNavigation } from './top-navigation/top-navigation';
   selector: 'app-root',
   imports: [RouterOutlet, TopNavigation],
   templateUrl: './app.html',
-  styleUrl: './app.css'
+  styleUrl: './app.css',
+  styles: [`
+    .app-sidenav-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+    }
+  `]
 })
 export class App {
   protected readonly title = signal('predictball');
+  isSidenavOpen = signal(false);
 }

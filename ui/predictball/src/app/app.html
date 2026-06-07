@@ -1,2 +1,5 @@
-<app-top-navigation></app-top-navigation>
+<app-top-navigation #topNav (sidenavOpenedChange)="isSidenavOpen.set($event)"></app-top-navigation>
+@if (isSidenavOpen()) {
+  <div class="app-sidenav-backdrop" (click)="topNav.closeSidenav()"></div>
+}
 <router-outlet />
