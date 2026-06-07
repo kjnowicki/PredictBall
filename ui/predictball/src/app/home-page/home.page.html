@@ -1,6 +1,5 @@
 <div class="home-container">
   
-  <!-- Column 1: Your Leagues -->
   <div class="column">
     <h2>Your Leagues</h2>
     
@@ -11,11 +10,13 @@
       </select>
     </div>
 
-    <div *ngIf="currentCompetition" style="margin-bottom: 1rem;">
+    @if (currentCompetition) {
+    <div style="margin-bottom: 1rem;">
       <h3>
         <a [routerLink]="['/competition', currentCompetition.id]">{{ currentCompetition.name }}</a>
       </h3>
     </div>
+    }
 
     <table class="data-table">
       <thead>
@@ -25,18 +26,21 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let league of filteredLeagues">
+        @for (league of filteredLeagues; track league) {
+        <tr>
           <td>{{ league.name }}</td>
           <td>{{ league.position }}</td>
         </tr>
-        <tr *ngIf="filteredLeagues.length === 0">
+        }
+        @if (filteredLeagues.length == 0) {
+        <tr>
           <td colspan="2" class="empty-state">No leagues found for this competition.</td>
         </tr>
+        }
       </tbody>
     </table>
   </div>
 
-  <!-- Column 2: Your Tasks -->
   <div class="column">
     <h2>Your Tasks</h2>
     <table class="data-table tasks-table">
@@ -48,30 +52,34 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let task of tasks" (click)="openTaskModal(task)" class="task-row">
+        @for (task of tasks; track task) {
+        <tr (click)="openTaskModal(task)" class="task-row">
           <td>{{ task.matchName }}</td>
           <td>{{ task.date }}</td>
           <td>
             <span class="badge" [ngClass]="task.status">{{ task.status | titlecase }}</span>
           </td>
-        </tr>
-        <tr *ngIf="tasks.length === 0">
+        </tr> 
+        }
+        @if (tasks.length === 0) {
+        <tr>
           <td colspan="3" class="empty-state">No pending tasks. You're all caught up!</td>
         </tr>
+        }
       </tbody>
     </table>
   </div>
 
 </div>
 
-<!-- Modal overlay for prediction-tile-component -->
-<div class="modal-overlay" *ngIf="isModalOpen" (click)="closeModal()">
+@if (isModalOpen) {
+<div class="modal-overlay" (click)="closeModal()">
   <div class="modal-content" (click)="$event.stopPropagation()">
     <button class="close-btn" (click)="closeModal()">✖</button>
     <h2 style="margin-top: 0;">Task Details</h2>
     @if (selectedTask) {
-        <app-prediction-tile *ngIf="selectedTask" [matchId]="selectedTask.matchId"></app-prediction-tile>
+        <app-prediction-tile [matchId]="selectedTask.matchId"></app-prediction-tile>
     }
-    
   </div>
 </div>
+}
