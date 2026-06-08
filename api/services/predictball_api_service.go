@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"predictball_api/models"
 	"sync"
 	"time"
 )
@@ -18,14 +19,23 @@ type PredictballAPIService struct {
 	HTTPClient *http.Client
 	mu         sync.RWMutex
 	FootballDataService
+
+	users             map[string]models.User
+	predictions       map[string]models.Prediction
+	predictionLeagues map[string]models.PredictionLeague
 }
 
 func NewFootballAPIService(apiKey string) *PredictballAPIService {
-	return &PredictballAPIService{
-		APIKey:     apiKey,
-		BaseURL:    "https://api.football-data.org/v4",
-		HTTPClient: &http.Client{Timeout: 10 * time.Second},
+	svc := &PredictballAPIService{
+		APIKey:            apiKey,
+		BaseURL:           "https://api.football-data.org/v4",
+		HTTPClient:        &http.Client{Timeout: 10 * time.Second},
+		users:             make(map[string]models.User),
+		predictions:       make(map[string]models.Prediction),
+		predictionLeagues: make(map[string]models.PredictionLeague),
 	}
+	svc.FootballDataService.apiClient = svc
+	return svc
 }
 
 func readCache(s *PredictballAPIService, baseName string, target any) bool {
