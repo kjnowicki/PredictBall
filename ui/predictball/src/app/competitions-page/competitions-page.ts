@@ -1,6 +1,6 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -48,6 +48,8 @@ export class CompetitionsPage implements OnInit {
   private leagueService = inject(PredictionLeagueService);
   private userService = inject(UserService);
   private document = inject(DOCUMENT);
+  private cdr = inject(ChangeDetectorRef);
+  private router = inject(Router);
   private userId: string | null = null;
 
   ngOnInit() {
@@ -68,7 +70,7 @@ export class CompetitionsPage implements OnInit {
           id: c.id,
           name: c.name,
           playersCount: 0,
-          currentStage: c.currentSeason?.currentMatchday ? `Matchday ${c.currentSeason.currentMatchday}` : 'Unknown',
+          currentStage: c.currentSeason?.currentMatchday != null ? `Matchday ${c.currentSeason.currentMatchday}` : 'Unknown',
           score: 0,
           globalRank: 0
         }));
@@ -94,10 +96,11 @@ export class CompetitionsPage implements OnInit {
   }
 
   updateTables() {
-    this.myCompetitions.data = this.myCompetitionsData;
+    this.myCompetitions.data = [...this.myCompetitionsData];
     
     const myCompIds = new Set(this.myCompetitionsData.map(c => c.id));
     this.availableCompetitions.data = this.allCompetitionsData.filter(c => !myCompIds.has(c.id));
+    this.cdr.detectChanges();
   }
 
   applyFilterMyComps(event: Event) {
@@ -113,8 +116,10 @@ export class CompetitionsPage implements OnInit {
   joinCompetition(comp: Competition) {
     if (!this.userId) return;
     this.leagueService.joinGlobalLeague(comp.id, this.userId).subscribe(() => {
+      comp.playersCount++;
       this.myCompetitionsData.push({ ...comp, score: 0, globalRank: 0 });
       this.updateTables();
+      this.router.navigate(['/competition', comp.id]);
     });
   }
 }
