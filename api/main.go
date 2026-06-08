@@ -37,14 +37,14 @@ func main() {
 	mockPort := ":8081"
 
 	go func() {
-		log.Printf("Starting server on port %s", mockPort)
-		if err := http.ListenAndServe(mockPort, wrapperHandler); err != nil {
+		log.Printf("Starting server on port %s", port)
+		if err := http.ListenAndServe(port, wrapperHandler); err != nil {
 			log.Fatalf("Server failed to start: %v", err)
 		}
 	}()
 
-	log.Printf("Starting server on port %s", port)
-	if err := http.ListenAndServe(port, mockWrapperHandler); err != nil {
+	log.Printf("Starting server on port %s", mockPort)
+	if err := http.ListenAndServe(mockPort, mockWrapperHandler); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }
