@@ -12,6 +12,7 @@ type User struct {
 
 type Match struct {
 	ID           int         `json:"id"`
+	Matchday     int         `json:"matchday"`
 	HomeTeamID   int         `json:"homeTeamId"`
 	AwayTeamID   int         `json:"awayTeamId"`
 	StartTime    time.Time   `json:"startTime"`

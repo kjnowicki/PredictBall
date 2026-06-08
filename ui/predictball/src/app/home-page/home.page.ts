@@ -86,7 +86,7 @@ export class HomePage implements OnInit {
 
       if (compIds.length > 0) {
         const compRequests = compIds.map(id =>
-          this.competitionService.getCompetition(id).pipe(
+          this.competitionService.getCompetition(id.toString()).pipe(
             catchError(() => of({ id, name: `Unknown Competition (${id})`, points: 0 } as any))
           )
         );

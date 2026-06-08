@@ -52,13 +52,8 @@ func (h *APIHandler) HandleGetCompetitions(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *APIHandler) HandleGetCompetition(w http.ResponseWriter, r *http.Request) {
-	idStr := r.PathValue("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "invalid competition ID", http.StatusBadRequest)
-		return
-	}
-	comp, err := h.Service.GetCompetition(r.Context(), id)
+	code := r.PathValue("id")
+	comp, err := h.Service.GetCompetition(r.Context(), code)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

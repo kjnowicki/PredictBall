@@ -21,6 +21,7 @@ export interface MatchDetails {
 
 export interface Match {
   id: number;
+  matchday: number;
   homeTeamId: number;
   awayTeamId: number;
   startTime: string;

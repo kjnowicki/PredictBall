@@ -13,6 +13,7 @@ import { Competition as APICompetition } from '../models/competition';
 
 export interface Competition {
   id: string | number;
+  code: string;
   name: string;
   score?: number;
   globalRank?: number;
@@ -68,6 +69,7 @@ export class CompetitionsPage implements OnInit {
         
         const mappedComps: Competition[] = allComps.map((c: APICompetition) => ({
           id: c.id,
+          code: c.code,
           name: c.name,
           playersCount: 0,
           currentStage: c.currentSeason?.currentMatchday != null ? `Matchday ${c.currentSeason.currentMatchday}` : 'Unknown',
@@ -119,7 +121,7 @@ export class CompetitionsPage implements OnInit {
       comp.playersCount++;
       this.myCompetitionsData.push({ ...comp, score: 0, globalRank: 0 });
       this.updateTables();
-      this.router.navigate(['/competition', comp.id]);
+      this.router.navigate(['/competition', comp.code]);
     });
   }
 }

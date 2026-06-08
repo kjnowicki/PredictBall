@@ -9,8 +9,8 @@ import { Competition } from '../models/competition';
 export class CompetitionService {
   private api = inject(ApiService);
 
-  getCompetition(competitionId: number): Observable<Competition> {
-    return this.api.get<Competition>(`competition/${competitionId}`);
+  getCompetition(competitionCode: string): Observable<Competition> {
+    return this.api.get<Competition>(`competition/${competitionCode}`);
   }
 
   getAllCompetitions(): Observable<Competition[]> {

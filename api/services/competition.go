@@ -14,13 +14,13 @@ func (s *PredictballAPIService) GetCompetitions(ctx context.Context) ([]football
 	return apiData.Competitions, nil
 }
 
-func (s *PredictballAPIService) GetCompetition(ctx context.Context, id int) (*footballdata.Competition, error) {
+func (s *PredictballAPIService) GetCompetition(ctx context.Context, code string) (*footballdata.Competition, error) {
 	comps, err := s.GetCompetitions(ctx)
 	if err != nil {
 		return nil, err
 	}
 	for _, c := range comps {
-		if c.ID == id {
+		if c.Code == code || fmt.Sprint(c.ID) == code {
 			return &c, nil
 		}
 	}

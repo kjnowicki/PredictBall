@@ -16,7 +16,7 @@ type APIService interface {
 	GetUserLeagues(ctx context.Context, userID string) (*models.UserLeagues, error)
 
 	GetCompetitions(ctx context.Context) ([]footballdata.Competition, error)
-	GetCompetition(ctx context.Context, id int) (*footballdata.Competition, error)
+	GetCompetition(ctx context.Context, code string) (*footballdata.Competition, error)
 
 	GetPredictionLeague(ctx context.Context, competitionID string, leagueID string) (any, error)
 	PutPredictionLeague(ctx context.Context, competitionID string, league models.PredictionLeague) (*models.PredictionLeague, error)

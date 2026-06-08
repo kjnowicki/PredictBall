@@ -4,17 +4,11 @@ import (
 	"context"
 	"fmt"
 	"predictball_api/models"
-	"strconv"
 	"time"
 )
 
-func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compIDStr string) ([]models.Match, error) {
-	compID, err := strconv.Atoi(compIDStr)
-	if err != nil {
-		return nil, fmt.Errorf("invalid competition ID")
-	}
-
-	comp, err := s.GetCompetition(ctx, compID)
+func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode string) ([]models.Match, error) {
+	comp, err := s.GetCompetition(ctx, compCode)
 	if err != nil {
 		return nil, err
 	}
@@ -54,6 +48,7 @@ func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compIDStr 
 
 		schedule = append(schedule, models.Match{
 			ID:         m.ID,
+			Matchday:   m.Matchday,
 			HomeTeamID: m.HomeTeam.ID,
 			AwayTeamID: m.AwayTeam.ID,
 			StartTime:  startTime,

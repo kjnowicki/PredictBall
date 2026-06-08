@@ -18,7 +18,7 @@
       @if (currentCompetition) {
       <div class="current-competition-link">
         <h3>
-          <a [routerLink]="['/competition', currentCompetition.id]">{{
+          <a [routerLink]="['/competition', currentCompetition.code]">{{
             currentCompetition.name
           }}</a>
         </h3>

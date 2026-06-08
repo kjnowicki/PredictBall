@@ -30,6 +30,7 @@ export interface PredictionLeague {
 
 export interface Match {
   id: string;
+  matchday?: number;
   competitionId: string;
   homeTeam: string;
   awayTeam: string;

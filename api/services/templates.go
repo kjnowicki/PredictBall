@@ -17,6 +17,7 @@ func (s *TemplateService) GetMatchSchedule(ctx context.Context, compID string) (
 	return []models.Match{
 		{
 			ID:         1,
+			Matchday:   1,
 			HomeTeamID: 10,
 			AwayTeamID: 20,
 			StartTime:  time.Now().Add(24 * time.Hour),
@@ -43,6 +44,7 @@ func (s *TemplateService) GetMatchSchedule(ctx context.Context, compID string) (
 		},
 		{
 			ID:         2,
+			Matchday:   1,
 			HomeTeamID: 30,
 			AwayTeamID: 40,
 			StartTime:  time.Now().Add(48 * time.Hour),
@@ -123,8 +125,8 @@ func (s *TemplateService) GetCompetitions(ctx context.Context) ([]footballdata.C
 	}, nil
 }
 
-func (s *TemplateService) GetCompetition(ctx context.Context, id int) (*footballdata.Competition, error) {
-	return &footballdata.Competition{ID: id, Name: "Mock Competition"}, nil
+func (s *TemplateService) GetCompetition(ctx context.Context, code string) (*footballdata.Competition, error) {
+	return &footballdata.Competition{ID: 1, Code: code, Name: "Mock Competition"}, nil
 }
 
 func (s *TemplateService) JoinGlobalLeague(ctx context.Context, competitionID string, userID string) (*models.GlobalLeague, error) {

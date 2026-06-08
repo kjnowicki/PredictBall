@@ -9,8 +9,8 @@ import { Match, MatchDetails } from '../models';
 export class MatchService {
   private api = inject(ApiService);
 
-  getMatchSchedule(competitionId: string | number): Observable<Match[]> {
-    return this.api.get<Match[]>(`competition/${competitionId}/match-schedule`);
+  getMatchSchedule(competitionCode: string): Observable<Match[]> {
+    return this.api.get<Match[]>(`competition/${competitionCode}/match-schedule`);
   }
 
   getMatchDetails(matchId: string): Observable<MatchDetails> {

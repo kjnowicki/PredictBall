@@ -7,9 +7,24 @@
     <mat-card-content>
       <mat-tab-group>
         <mat-tab label="Predictions">
-          <div style="padding-top: 1.5rem;">
-            <h2>Predictions</h2>
-            <p>Your predictions will appear here.</p>
+          <div style="padding-top: 1.5rem; padding-bottom: 1rem;">
+            <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem; gap: 1rem;">
+              <button mat-button (click)="prevMatchday()" [disabled]="selectedMatchday <= 1">
+                <mat-icon>chevron_left</mat-icon>
+              </button>
+              <h2 style="margin: 0; min-width: 150px; text-align: center;">Matchday {{ selectedMatchday }}</h2>
+              <button mat-button (click)="nextMatchday()">
+                <mat-icon>chevron_right</mat-icon>
+              </button>
+            </div>
+            <div class="predictions-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
+              @for (match of filteredMatches; track match.id) {
+              <app-prediction-tile style="display: block;" [matchId]="match.id.toString()"></app-prediction-tile>
+              }
+              @if (filteredMatches.length === 0) {
+              <p style="text-align: center; color: gray; grid-column: 1 / -1;">No matches found for this matchday.</p>
+              }
+            </div>
           </div>
         </mat-tab>
 
