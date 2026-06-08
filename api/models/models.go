@@ -41,6 +41,7 @@ type PredictionLeague struct {
 	Name     string `json:"name"`
 	JoinCode string `json:"joinCode"`
 	Public   bool   `json:"public"`
+	UserIDs  []int  `json:"userIds,omitempty"`
 }
 
 type UserCompetitionLeagues struct {

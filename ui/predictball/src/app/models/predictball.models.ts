@@ -25,6 +25,7 @@ export interface PredictionLeague {
   name: string;
   joinCode?: string;
   public?: boolean;
+  userIds?: number[];
 }
 
 export interface Match {
