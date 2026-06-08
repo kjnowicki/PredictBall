@@ -168,14 +168,14 @@ func (h *APIHandler) HandleGetTeamDetails(w http.ResponseWriter, r *http.Request
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*") // WARNING: For development only. In production, restrict this to your frontend's domain.
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:4200")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		// Handle preflight requests, which are sent by the browser before the actual request.
 		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
+			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 

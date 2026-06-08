@@ -30,21 +30,21 @@ func main() {
 	mux := http.NewServeMux()
 	mockMux := http.NewServeMux()
 
-	handlers.RegisterRoutes(mux, handler)
-	handlers.RegisterRoutes(mockMux, mockHandler)
+	wrapperHandler := handlers.RegisterRoutes(mux, handler)
+	mockWrapperHandler := handlers.RegisterRoutes(mockMux, mockHandler)
 
 	port := ":8080"
 	mockPort := ":8081"
 
 	go func() {
 		log.Printf("Starting server on port %s", mockPort)
-		if err := http.ListenAndServe(mockPort, mockMux); err != nil {
+		if err := http.ListenAndServe(mockPort, wrapperHandler); err != nil {
 			log.Fatalf("Server failed to start: %v", err)
 		}
 	}()
 
 	log.Printf("Starting server on port %s", port)
-	if err := http.ListenAndServe(port, mux); err != nil {
+	if err := http.ListenAndServe(port, mockWrapperHandler); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }
