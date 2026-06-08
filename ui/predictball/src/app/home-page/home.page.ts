@@ -117,7 +117,7 @@ export class HomePage implements OnInit {
     }
 
     const leagueReqs = leagueIds.map(id =>
-      this.leagueService.getPredictionLeague(id.toString()).pipe(
+      this.leagueService.getPredictionLeague(compId, id.toString()).pipe(
         catchError(() => of({ id: id, name: `Unknown League (${id})` } as PredictionLeague))
       )
     );

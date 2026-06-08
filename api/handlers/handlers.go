@@ -110,8 +110,9 @@ func (h *APIHandler) HandlePutUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *APIHandler) HandleGetPredictionLeague(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	league, err := h.Service.GetPredictionLeague(r.Context(), id)
+	compId := r.PathValue("compId")
+	leagueId := r.PathValue("leagueId")
+	league, err := h.Service.GetPredictionLeague(r.Context(), compId, leagueId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -120,12 +121,13 @@ func (h *APIHandler) HandleGetPredictionLeague(w http.ResponseWriter, r *http.Re
 }
 
 func (h *APIHandler) HandlePutPredictionLeague(w http.ResponseWriter, r *http.Request) {
+	compId := r.PathValue("compId")
 	var league models.PredictionLeague
 	if err := json.NewDecoder(r.Body).Decode(&league); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	created, err := h.Service.PutPredictionLeague(r.Context(), league)
+	created, err := h.Service.PutPredictionLeague(r.Context(), compId, league)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -224,8 +226,8 @@ func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 	mux.HandleFunc("PUT /user", h.HandlePutUser)
 	mux.HandleFunc("POST /user/authenticate", h.HandleAuthenticateUser)
 
-	mux.HandleFunc("GET /prediction-league/{id}", h.HandleGetPredictionLeague)
-	mux.HandleFunc("PUT /prediction-league", h.HandlePutPredictionLeague)
+	mux.HandleFunc("GET /competition/{compId}/league/{leagueId}", h.HandleGetPredictionLeague)
+	mux.HandleFunc("PUT /competition/{compId}/league", h.HandlePutPredictionLeague)
 	mux.HandleFunc("PUT /join/{id}", h.HandleJoinGlobalLeague)
 
 	mux.HandleFunc("GET /prediction/{id}", h.HandleGetPrediction)

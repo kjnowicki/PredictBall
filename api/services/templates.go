@@ -127,11 +127,11 @@ func (s *TemplateService) JoinGlobalLeague(ctx context.Context, competitionID st
 	return &models.GlobalLeague{}, nil
 }
 
-func (s *TemplateService) GetPredictionLeague(ctx context.Context, leagueID string) (*models.PredictionLeague, error) {
+func (s *TemplateService) GetPredictionLeague(ctx context.Context, competitionID string, leagueID string) (any, error) {
 	return &models.PredictionLeague{ID: 1, Name: "Premier League Predictors", JoinCode: "PL2026"}, nil
 }
 
-func (s *TemplateService) PutPredictionLeague(ctx context.Context, league models.PredictionLeague) (*models.PredictionLeague, error) {
+func (s *TemplateService) PutPredictionLeague(ctx context.Context, competitionID string, league models.PredictionLeague) (*models.PredictionLeague, error) {
 	if league.ID == 0 {
 		league.ID = 123
 	}

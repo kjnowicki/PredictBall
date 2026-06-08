@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { CompetitionService } from '../services/competition.service';
 import { PredictionLeagueService } from '../services/prediction-league.service';
 import { UserService } from '../services/user.service';
+import { Competition as APICompetition } from '../models/competition';
 
 export interface Competition {
   id: string | number;
@@ -63,11 +64,11 @@ export class CompetitionsPage implements OnInit {
       this.userService.getYourLeagues(this.userId!).subscribe(userLeagues => {
         const myCompIds = new Set((userLeagues.competitions || []).map(c => c.competitionId.toString()));
         
-        const mappedComps: Competition[] = allComps.map((c: any) => ({
+        const mappedComps: Competition[] = allComps.map((c: APICompetition) => ({
           id: c.id,
           name: c.name,
           playersCount: 0,
-          currentStage: 'Unknown',
+          currentStage: c.currentSeason?.currentMatchday ? `Matchday ${c.currentSeason.currentMatchday}` : 'Unknown',
           score: 0,
           globalRank: 0
         }));
@@ -76,6 +77,18 @@ export class CompetitionsPage implements OnInit {
         this.allCompetitionsData = mappedComps;
         
         this.updateTables();
+
+        mappedComps.forEach(comp => {
+          this.leagueService.getPredictionLeague(comp.id, 0).subscribe({
+            next: (league: any) => {
+              if (league && league.users) {
+                comp.playersCount = league.users.length;
+                this.updateTables();
+              }
+            },
+            error: () => {}
+          });
+        });
       });
     });
   }

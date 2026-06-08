@@ -9,12 +9,12 @@ import { PredictionLeague } from '../models';
 export class PredictionLeagueService {
   private api = inject(ApiService);
 
-  getPredictionLeague(leagueId: string): Observable<PredictionLeague> {
-    return this.api.get<PredictionLeague>(`prediction-league/${leagueId}`);
+  getPredictionLeague(competitionId: string | number, leagueId: string | number): Observable<any> {
+    return this.api.get<any>(`competition/${competitionId}/league/${leagueId}`);
   }
 
-  createPredictionLeague(league: PredictionLeague): Observable<PredictionLeague> {
-    return this.api.put<PredictionLeague>('prediction-league', league);
+  createPredictionLeague(competitionId: string | number, league: PredictionLeague): Observable<PredictionLeague> {
+    return this.api.put<PredictionLeague>(`competition/${competitionId}/league`, league);
   }
 
   joinGlobalLeague(competitionId: string | number, userId: string | number): Observable<any> {

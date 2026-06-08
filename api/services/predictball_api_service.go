@@ -20,19 +20,17 @@ type PredictballAPIService struct {
 	mu         sync.RWMutex
 	FootballDataService
 
-	users             map[string]models.User
-	predictions       map[string]models.Prediction
-	predictionLeagues map[string]models.PredictionLeague
+	users       map[string]models.User
+	predictions map[string]models.Prediction
 }
 
 func NewFootballAPIService(apiKey string) *PredictballAPIService {
 	svc := &PredictballAPIService{
-		APIKey:            apiKey,
-		BaseURL:           "https://api.football-data.org/v4",
-		HTTPClient:        &http.Client{Timeout: 10 * time.Second},
-		users:             make(map[string]models.User),
-		predictions:       make(map[string]models.Prediction),
-		predictionLeagues: make(map[string]models.PredictionLeague),
+		APIKey:      apiKey,
+		BaseURL:     "https://api.football-data.org/v4",
+		HTTPClient:  &http.Client{Timeout: 10 * time.Second},
+		users:       make(map[string]models.User),
+		predictions: make(map[string]models.Prediction),
 	}
 	svc.FootballDataService.apiClient = svc
 	return svc

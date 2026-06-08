@@ -11,25 +11,53 @@ import (
 	"strconv"
 )
 
-func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, leagueID string) (*models.PredictionLeague, error) {
+func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, competitionID string, leagueID string) (any, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	if league, exists := s.predictionLeagues[leagueID]; exists {
-		return &league, nil
+	idInt, err := strconv.Atoi(leagueID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid league id")
 	}
-	return nil, fmt.Errorf("prediction league not found")
+
+	var filename string
+	if idInt < 0 {
+		filename = "0.json"
+	} else {
+		filename = fmt.Sprintf("%s.json", leagueID)
+	}
+
+	path := filepath.Join("data", "competitions", competitionID, "leagues", filename)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("prediction league not found: %v", err)
+	}
+
+	var league map[string]any
+	if err := json.Unmarshal(data, &league); err != nil {
+		return nil, fmt.Errorf("failed to parse league data: %v", err)
+	}
+	return league, nil
 }
 
-func (s *PredictballAPIService) PutPredictionLeague(ctx context.Context, league models.PredictionLeague) (*models.PredictionLeague, error) {
+func (s *PredictballAPIService) PutPredictionLeague(ctx context.Context, competitionID string, league models.PredictionLeague) (*models.PredictionLeague, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	dir := filepath.Join("data", "competitions", competitionID, "leagues")
+	os.MkdirAll(dir, 0755)
+
 	if league.ID == 0 {
-		league.ID = len(s.predictionLeagues) + 1
+		files, _ := os.ReadDir(dir)
+		league.ID = len(files) + 1
 	}
 
-	s.predictionLeagues[fmt.Sprint(league.ID)] = league
+	filename := fmt.Sprintf("%d.json", league.ID)
+	path := filepath.Join(dir, filename)
+
+	b, _ := json.MarshalIndent(league, "", "  ")
+	os.WriteFile(path, b, 0644)
+
 	return &league, nil
 }
 
@@ -44,7 +72,7 @@ func (s *PredictballAPIService) JoinGlobalLeague(ctx context.Context, competitio
 
 	dir := fmt.Sprintf("data/competitions/%s/leagues", competitionID)
 	os.MkdirAll(dir, 0755)
-	path := filepath.Join(dir, "global.json")
+	path := filepath.Join(dir, "0.json")
 
 	var globalLeague models.GlobalLeague
 	data, err := os.ReadFile(path)
@@ -53,7 +81,7 @@ func (s *PredictballAPIService) JoinGlobalLeague(ctx context.Context, competitio
 	} else {
 		compIDInt, _ := strconv.Atoi(competitionID)
 		globalLeague.PredictionLeague = models.PredictionLeague{
-			ID:       -compIDInt,
+			ID:       0 * compIDInt,
 			Name:     "Global League",
 			Public:   true,
 			JoinCode: "GLOBAL",
