@@ -25,7 +25,7 @@ import { UserService } from '../services/user.service';
 })
 export class LoginPage {
   loginData = { username: '', password: '' };
-  registerData = { displayName: '', username: '', password: '' };
+  registerData = { displayName: '', username: '', password: '', confirmPassword: '' };
 
   loginError: string | null = null;
   registerError: string | null = null;
@@ -61,7 +61,20 @@ export class LoginPage {
 
   onRegister() {
     this.registerError = null;
-    this.userService.createUser(this.registerData as any).subscribe({
+
+    if (!/^[a-zA-Z]+$/.test(this.registerData.username)) {
+      this.registerError = 'Username can only contain letters and no spaces.';
+      return;
+    }
+
+    if (this.registerData.password !== this.registerData.confirmPassword) {
+      this.registerError = 'Passwords do not match.';
+      return;
+    }
+
+    const { confirmPassword, ...userPayload } = this.registerData;
+
+    this.userService.createUser(userPayload as any).subscribe({
       next: (user) => {
         console.log('Registered...', user);
         this.handleSuccessfulAuth();

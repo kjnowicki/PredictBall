@@ -42,7 +42,7 @@
         </mat-form-field>
         <mat-form-field appearance="outline">
           <mat-label>Username</mat-label>
-          <input matInput type="text" id="reg-username" name="username" autocomplete="username" [(ngModel)]="registerData.username" required>
+          <input matInput type="text" id="reg-username" name="username" autocomplete="username" [(ngModel)]="registerData.username" pattern="^[a-zA-Z]+$" required>
         </mat-form-field>
         <mat-form-field appearance="outline">
           <mat-label>Password</mat-label>
@@ -50,7 +50,7 @@
         </mat-form-field>
         <mat-form-field appearance="outline">
           <mat-label>Confirm Password</mat-label>
-          <input matInput type="password" id="reg-confirm-password" name="confirm-password" autocomplete="new-password" [(ngModel)]="registerData.password" required>
+          <input matInput type="password" id="reg-confirm-password" name="confirm-password" autocomplete="new-password" [(ngModel)]="registerData.confirmPassword" required>
         </mat-form-field>
         <button mat-raised-button color="accent" type="submit">Register</button>
       </form>

@@ -51,6 +51,20 @@ func (h *APIHandler) HandleGetUser(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, user)
 }
 
+func (h *APIHandler) HandleAuthenticateUser(w http.ResponseWriter, r *http.Request) {
+	var user models.User
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	authenticatedUser, err := h.Service.AuthenticateUser(r.Context(), user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	WriteJSON(w, http.StatusOK, authenticatedUser)
+}
+
 func (h *APIHandler) HandlePutUser(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
@@ -152,12 +166,30 @@ func (h *APIHandler) HandleGetTeamDetails(w http.ResponseWriter, r *http.Request
 	WriteJSON(w, http.StatusOK, squad)
 }
 
-func RegisterRoutes(mux *http.ServeMux, h *APIHandler) {
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "*") // WARNING: For development only. In production, restrict this to your frontend's domain.
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		// Handle preflight requests, which are sent by the browser before the actual request.
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 	mux.HandleFunc("GET /match-schedule", h.HandleGetMatchSchedule)
 	mux.HandleFunc("GET /match-details/{id}", h.HandleGetMatchDetails)
 
 	mux.HandleFunc("GET /user/{id}", h.HandleGetUser)
 	mux.HandleFunc("PUT /user", h.HandlePutUser)
+	mux.HandleFunc("POST /user/authenticate", h.HandleAuthenticateUser)
 
 	mux.HandleFunc("GET /prediction-league/{id}", h.HandleGetPredictionLeague)
 	mux.HandleFunc("PUT /prediction-league", h.HandlePutPredictionLeague)
@@ -168,4 +200,6 @@ func RegisterRoutes(mux *http.ServeMux, h *APIHandler) {
 
 	mux.HandleFunc("GET /scoring-system", h.HandleGetScoringSystem)
 	mux.HandleFunc("GET /team-details/{id}", h.HandleGetTeamDetails)
+
+	return corsMiddleware(mux)
 }

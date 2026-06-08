@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"predictball_api/models"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -62,6 +63,7 @@ func (s *PredictballAPIService) PutUser(ctx context.Context, user models.User) (
 
 	if user.ID == 0 {
 		user.ID = len(s.users) + 1
+		user.NameLastChanged = time.Now()
 	}
 
 	if user.Password != "" {
