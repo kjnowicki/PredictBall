@@ -23,7 +23,8 @@ func WriteJSON(w http.ResponseWriter, status int, data any) {
 }
 
 func (h *APIHandler) HandleGetMatchSchedule(w http.ResponseWriter, r *http.Request) {
-	schedule, err := h.Service.GetMatchSchedule(r.Context())
+	id := r.PathValue("id")
+	schedule, err := h.Service.GetMatchSchedule(r.Context(), id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -231,7 +232,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 }
 
 func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
-	mux.HandleFunc("GET /match-schedule", h.HandleGetMatchSchedule)
+	mux.HandleFunc("GET /competition/{id}/match-schedule", h.HandleGetMatchSchedule)
 	mux.HandleFunc("GET /match-details/{id}", h.HandleGetMatchDetails)
 
 	mux.HandleFunc("GET /competitions", h.HandleGetCompetitions)

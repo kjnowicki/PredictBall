@@ -2,17 +2,30 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"predictball_api/models"
+	"strconv"
 	"time"
 )
 
-func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context) ([]models.Match, error) {
+func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compIDStr string) ([]models.Match, error) {
+	compID, err := strconv.Atoi(compIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid competition ID")
+	}
+
+	comp, err := s.GetCompetition(ctx, compID)
+	if err != nil {
+		return nil, err
+	}
+
 	var schedule []models.Match
-	if readCache(s, "schedule_cache", &schedule) {
+	cacheKey := fmt.Sprintf("schedule_cache_%s", comp.Code)
+	if readCache(s, cacheKey, &schedule) {
 		return schedule, nil
 	}
 
-	apiData, err := s.FootballDataService.GetMatches(ctx, map[string]string{"season": "2026"})
+	apiData, err := s.FootballDataService.GetMatches(ctx, comp.Code, map[string]string{"season": "2026"})
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +66,7 @@ func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context) ([]models.
 		})
 	}
 
-	writeCache(s, "schedule_cache", schedule, 30*time.Minute)
+	writeCache(s, cacheKey, schedule, 30*time.Minute)
 
 	return schedule, nil
 }

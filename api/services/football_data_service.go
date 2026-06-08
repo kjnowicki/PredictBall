@@ -48,9 +48,10 @@ func (s *FootballDataService) fetchCached(ctx context.Context, endpoint string, 
 	return nil
 }
 
-func (s *FootballDataService) GetMatches(ctx context.Context, params map[string]string) (*MatchesResponse, error) {
+func (s *FootballDataService) GetMatches(ctx context.Context, compCode string, params map[string]string) (*MatchesResponse, error) {
 	var apiData MatchesResponse
-	if err := s.fetchCached(ctx, "matches", params, &apiData); err != nil {
+	endpoint := fmt.Sprintf("competitions/%s/matches", compCode)
+	if err := s.fetchCached(ctx, endpoint, params, &apiData); err != nil {
 		return nil, err
 	}
 	return &apiData, nil

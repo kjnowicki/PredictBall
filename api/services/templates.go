@@ -13,7 +13,7 @@ func NewTemplateService() *TemplateService {
 	return &TemplateService{}
 }
 
-func (s *TemplateService) GetMatchSchedule(ctx context.Context) ([]models.Match, error) {
+func (s *TemplateService) GetMatchSchedule(ctx context.Context, compID string) ([]models.Match, error) {
 	return []models.Match{
 		{
 			ID:         1,
