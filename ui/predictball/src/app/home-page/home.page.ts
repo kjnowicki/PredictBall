@@ -46,6 +46,8 @@ export class HomePage implements OnInit {
   leagues: PredictionLeague[] = [];
   userLeaguesMap: { [competitionId: number]: number[] } = {};
 
+  tasksFeatureEnabled = false;
+
   tasks: Task[] = [
     { matchId: 't1', matchName: 'Arsenal vs Chelsea', date: '2023-10-21', status: 'missing' },
     { matchId: 't2', matchName: 'Real Madrid vs Bayern', date: '2023-10-24', status: 'invalid' }

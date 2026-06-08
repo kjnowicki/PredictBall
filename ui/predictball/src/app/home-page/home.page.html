@@ -53,6 +53,7 @@
       <mat-card-title>Your Tasks</mat-card-title>
     </mat-card-header>
     <mat-card-content>
+      @if (tasksFeatureEnabled) {
       <table mat-table [dataSource]="tasks" class="data-table tasks-table">
         <!-- Match Column -->
         <ng-container matColumnDef="matchName">
@@ -91,6 +92,9 @@
           </td>
         </tr>
       </table>
+      } @else {
+      <p>Feature coming soon...</p>
+      }
     </mat-card-content>
   </mat-card>
 </div>
