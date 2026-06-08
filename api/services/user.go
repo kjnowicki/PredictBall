@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"os"
 	"predictball_api/models"
+	"strconv"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
 var usersLoaded bool
+var userLeaguesLoaded bool
+var userLeagues map[string][]models.UserCompetitionLeagues
 
 func (s *PredictballAPIService) initUsers() {
 	if usersLoaded {
@@ -22,6 +25,22 @@ func (s *PredictballAPIService) initUsers() {
 		json.Unmarshal(data, &s.users)
 	}
 	usersLoaded = true
+}
+
+func (s *PredictballAPIService) initUserLeagues() {
+	if userLeaguesLoaded {
+		return
+	}
+	userLeagues = make(map[string][]models.UserCompetitionLeagues)
+	data, err := os.ReadFile("data/userLeagues.json")
+	if err == nil {
+		var uLeagues []models.UserLeagues
+		json.Unmarshal(data, &uLeagues)
+		for _, ul := range uLeagues {
+			userLeagues[fmt.Sprint(ul.UserID)] = ul.Competitions
+		}
+	}
+	userLeaguesLoaded = true
 }
 
 func (s *PredictballAPIService) saveUsers() {
@@ -108,4 +127,28 @@ func (s *PredictballAPIService) AuthenticateUser(ctx context.Context, req models
 		}
 	}
 	return nil, fmt.Errorf("invalid username or password")
+}
+
+func (s *PredictballAPIService) GetUserLeagues(ctx context.Context, userID string) (*models.UserLeagues, error) {
+	s.mu.RLock()
+	if !userLeaguesLoaded {
+		s.mu.RUnlock()
+		s.mu.Lock()
+		s.initUserLeagues()
+		s.mu.Unlock()
+		s.mu.RLock()
+	}
+	userComps, exists := userLeagues[userID]
+	s.mu.RUnlock()
+
+	uid, err := strconv.Atoi(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exists {
+		return &models.UserLeagues{UserID: uid, Competitions: []models.UserCompetitionLeagues{}}, nil
+	}
+
+	return &models.UserLeagues{UserID: uid, Competitions: userComps}, nil
 }

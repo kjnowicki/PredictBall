@@ -50,7 +50,7 @@ export class LoginPage {
     this.userService.authenticateUser(this.loginData as any).subscribe({
       next: (user) => {
         console.log('Logged in...', user);
-        this.handleSuccessfulAuth();
+        this.handleSuccessfulAuth(user.id);
       },
       error: (err) => {
         console.error('Login failed', err);
@@ -77,7 +77,7 @@ export class LoginPage {
     this.userService.createUser(userPayload as any).subscribe({
       next: (user) => {
         console.log('Registered...', user);
-        this.handleSuccessfulAuth();
+        this.handleSuccessfulAuth(user.id);
       },
       error: (err) => {
         console.error('Registration failed', err);
@@ -86,9 +86,10 @@ export class LoginPage {
     });
   }
 
-  private handleSuccessfulAuth() {
+  private handleSuccessfulAuth(userId: number | string) {
     // Set cookie that expires in 1 day (86400 seconds)
     this.document.cookie = 'isAuthenticated=true; path=/; max-age=86400; SameSite=Strict';
+    this.document.cookie = `userId=${userId}; path=/; max-age=86400; SameSite=Strict`;
     this.router.navigate(['/home']);
   }
 }

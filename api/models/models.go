@@ -43,6 +43,16 @@ type PredictionLeague struct {
 	Public   bool   `json:"public"`
 }
 
+type UserCompetitionLeagues struct {
+	CompetitionID int   `json:"competitionId"`
+	LeagueIDs     []int `json:"leagueIds"`
+}
+
+type UserLeagues struct {
+	UserID       int                      `json:"userId"`
+	Competitions []UserCompetitionLeagues `json:"competitions"`
+}
+
 type Prediction struct {
 	ID        int `json:"id"`
 	UserID    int `json:"userId"`

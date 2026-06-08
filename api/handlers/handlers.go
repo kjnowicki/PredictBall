@@ -51,6 +51,16 @@ func (h *APIHandler) HandleGetUser(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, user)
 }
 
+func (h *APIHandler) HandleGetUserLeagues(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	leagues, err := h.Service.GetUserLeagues(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, http.StatusOK, leagues)
+}
+
 func (h *APIHandler) HandleAuthenticateUser(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
@@ -188,6 +198,7 @@ func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 	mux.HandleFunc("GET /match-details/{id}", h.HandleGetMatchDetails)
 
 	mux.HandleFunc("GET /user/{id}", h.HandleGetUser)
+	mux.HandleFunc("GET /user/{id}/leagues", h.HandleGetUserLeagues)
 	mux.HandleFunc("PUT /user", h.HandlePutUser)
 	mux.HandleFunc("POST /user/authenticate", h.HandleAuthenticateUser)
 

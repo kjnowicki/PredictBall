@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
-import { User } from '../models';
+import { User, UserLeagues } from '../models';
 
 @Injectable({
   providedIn: 'root'
@@ -19,5 +19,9 @@ export class UserService {
 
   authenticateUser(credentials: Partial<User>): Observable<User> {
     return this.api.post<User>('user/authenticate', credentials);
+  }
+
+  getYourLeagues(userId: string): Observable<UserLeagues> {
+    return this.api.get<UserLeagues>(`user/${userId}/leagues`);
   }
 }

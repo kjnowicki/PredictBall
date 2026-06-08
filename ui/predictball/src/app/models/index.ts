@@ -64,3 +64,13 @@ export interface Team {
   id: number;
   [key: string]: unknown;
 }
+
+export interface UserCompetitionLeagues {
+  competitionId: number;
+  leagueIds: number[];
+}
+
+export interface UserLeagues {
+  userId: number;
+  competitions: UserCompetitionLeagues[];
+}

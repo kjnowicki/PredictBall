@@ -13,6 +13,7 @@ type APIService interface {
 	GetUser(ctx context.Context, userID string) (*models.User, error)
 	PutUser(ctx context.Context, user models.User) (*models.User, error)
 	AuthenticateUser(ctx context.Context, req models.User) (*models.User, error)
+	GetUserLeagues(ctx context.Context, userID string) (*models.UserLeagues, error)
 
 	GetPredictionLeague(ctx context.Context, leagueID string) (*models.PredictionLeague, error)
 	PutPredictionLeague(ctx context.Context, league models.PredictionLeague) (*models.PredictionLeague, error)

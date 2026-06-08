@@ -8,6 +8,7 @@ export interface Competition {
   id: string;
   name: string;
   logoUrl?: string;
+  points?: number;
 }
 
 export interface League {
@@ -17,6 +18,13 @@ export interface League {
   competitionName?: string;
   rank: number;
   joinCode?: string;
+}
+
+export interface PredictionLeague {
+  id: string | number;
+  name: string;
+  joinCode?: string;
+  public?: boolean;
 }
 
 export interface Match {

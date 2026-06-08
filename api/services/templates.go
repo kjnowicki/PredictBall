@@ -108,6 +108,15 @@ func (s *TemplateService) AuthenticateUser(ctx context.Context, req models.User)
 	return &req, nil
 }
 
+func (s *TemplateService) GetUserLeagues(ctx context.Context, userID string) (*models.UserLeagues, error) {
+	return &models.UserLeagues{
+		UserID: 1,
+		Competitions: []models.UserCompetitionLeagues{
+			{CompetitionID: 1, LeagueIDs: []int{1}},
+		},
+	}, nil
+}
+
 func (s *TemplateService) GetPredictionLeague(ctx context.Context, leagueID string) (*models.PredictionLeague, error) {
 	return &models.PredictionLeague{ID: 1, Name: "Premier League Predictors", JoinCode: "PL2026"}, nil
 }
