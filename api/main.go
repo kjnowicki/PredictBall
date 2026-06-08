@@ -22,12 +22,27 @@ func main() {
 	}
 
 	svc := services.NewFootballAPIService(apiKey)
-	h := handlers.NewAPIHandler(svc)
+	mockSvc := services.NewTemplateService()
+
+	handler := handlers.NewAPIHandler(svc)
+	mockHandler := handlers.NewAPIHandler(mockSvc)
 
 	mux := http.NewServeMux()
-	handlers.RegisterRoutes(mux, h)
+	mockMux := http.NewServeMux()
+
+	handlers.RegisterRoutes(mux, handler)
+	handlers.RegisterRoutes(mockMux, mockHandler)
 
 	port := ":8080"
+	mockPort := ":8081"
+
+	go func() {
+		log.Printf("Starting server on port %s", mockPort)
+		if err := http.ListenAndServe(mockPort, mockMux); err != nil {
+			log.Fatalf("Server failed to start: %v", err)
+		}
+	}()
+
 	log.Printf("Starting server on port %s", port)
 	if err := http.ListenAndServe(port, mux); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
