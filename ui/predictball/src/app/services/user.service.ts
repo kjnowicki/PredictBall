@@ -16,4 +16,8 @@ export class UserService {
   createUser(user: User): Observable<User> {
     return this.api.put<User>('user', user);
   }
+
+  authenticateUser(credentials: Partial<User>): Observable<User> {
+    return this.api.post<User>('user/authenticate', credentials);
+  }
 }

@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { map } from 'rxjs/operators';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { UserService } from '../services/user.service';
 
 @Component({
   selector: 'app-login',
@@ -26,7 +27,11 @@ export class LoginPage {
   loginData = { username: '', password: '' };
   registerData = { displayName: '', username: '', password: '' };
 
+  loginError: string | null = null;
+  registerError: string | null = null;
+
   private breakpointObserver = inject(BreakpointObserver);
+  private userService = inject(UserService);
 
   isMobile = toSignal(
     this.breakpointObserver.observe('(max-width: 719.98px)').pipe(
@@ -41,17 +46,31 @@ export class LoginPage {
   ) {}
 
   onLogin() {
-    // TODO: Connect this to your authentication service
-    console.log('Logging in...', this.loginData);
-    
-    this.handleSuccessfulAuth();
+    this.loginError = null;
+    this.userService.authenticateUser(this.loginData as any).subscribe({
+      next: (user) => {
+        console.log('Logged in...', user);
+        this.handleSuccessfulAuth();
+      },
+      error: (err) => {
+        console.error('Login failed', err);
+        this.loginError = 'Invalid username or password. Please try again.';
+      }
+    });
   }
 
   onRegister() {
-    // TODO: Connect this to your user registration service
-    console.log('Registering...', this.registerData);
-    
-    this.handleSuccessfulAuth();
+    this.registerError = null;
+    this.userService.createUser(this.registerData as any).subscribe({
+      next: (user) => {
+        console.log('Registered...', user);
+        this.handleSuccessfulAuth();
+      },
+      error: (err) => {
+        console.error('Registration failed', err);
+        this.registerError = 'Registration failed. Please try again.';
+      }
+    });
   }
 
   private handleSuccessfulAuth() {
