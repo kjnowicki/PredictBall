@@ -50,6 +50,21 @@ func (h *APIHandler) HandleGetCompetitions(w http.ResponseWriter, r *http.Reques
 	WriteJSON(w, http.StatusOK, comps)
 }
 
+func (h *APIHandler) HandleGetCompetition(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "invalid competition ID", http.StatusBadRequest)
+		return
+	}
+	comp, err := h.Service.GetCompetition(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, http.StatusOK, comp)
+}
+
 func (h *APIHandler) HandleJoinGlobalLeague(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	userID := r.URL.Query().Get("user")
@@ -220,6 +235,7 @@ func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 	mux.HandleFunc("GET /match-details/{id}", h.HandleGetMatchDetails)
 
 	mux.HandleFunc("GET /competitions", h.HandleGetCompetitions)
+	mux.HandleFunc("GET /competition/{id}", h.HandleGetCompetition)
 
 	mux.HandleFunc("GET /user/{id}", h.HandleGetUser)
 	mux.HandleFunc("GET /user/{id}/leagues", h.HandleGetUserLeagues)

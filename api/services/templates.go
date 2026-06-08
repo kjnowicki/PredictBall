@@ -123,6 +123,10 @@ func (s *TemplateService) GetCompetitions(ctx context.Context) ([]footballdata.C
 	}, nil
 }
 
+func (s *TemplateService) GetCompetition(ctx context.Context, id int) (*footballdata.Competition, error) {
+	return &footballdata.Competition{ID: id, Name: "Mock Competition"}, nil
+}
+
 func (s *TemplateService) JoinGlobalLeague(ctx context.Context, competitionID string, userID string) (*models.GlobalLeague, error) {
 	return &models.GlobalLeague{}, nil
 }

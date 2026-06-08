@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	footballdata "predictball_api/models/football-data"
 )
 
@@ -11,4 +12,17 @@ func (s *PredictballAPIService) GetCompetitions(ctx context.Context) ([]football
 		return nil, err
 	}
 	return apiData.Competitions, nil
+}
+
+func (s *PredictballAPIService) GetCompetition(ctx context.Context, id int) (*footballdata.Competition, error) {
+	comps, err := s.GetCompetitions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range comps {
+		if c.ID == id {
+			return &c, nil
+		}
+	}
+	return nil, fmt.Errorf("competition not found")
 }

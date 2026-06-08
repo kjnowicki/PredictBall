@@ -42,7 +42,7 @@ interface Task {
   styleUrl: './home.page.css',
 })
 export class HomePage implements OnInit {
-  competitions: Competition[] = [];
+  competitions: (Competition & { points?: number })[] = [];
   leagues: PredictionLeague[] = [];
   userLeaguesMap: { [competitionId: number]: number[] } = {};
 
@@ -89,8 +89,23 @@ export class HomePage implements OnInit {
           )
         );
 
-        forkJoin(compRequests).subscribe(comps => {
-          this.competitions = comps;
+        forkJoin(compRequests).subscribe((comps: any[]) => {
+          this.competitions = comps.map(c => ({ ...c, points: 0 }));
+          
+          this.competitions.forEach(comp => {
+            this.leagueService.getPredictionLeague(comp.id, 0).subscribe({
+              next: (league: any) => {
+                if (league && league.users) {
+                  const userRecord = league.users.find((u: any) => u.userId.toString() === userId);
+                  if (userRecord) {
+                    comp.points = userRecord.points;
+                  }
+                }
+              },
+              error: () => {}
+            });
+          });
+
           if (this.competitions.length > 0) {
             this.selectedCompetitionId.set(this.competitions[0].id);
             this.loadLeaguesForCompetition(this.competitions[0].id);
@@ -100,7 +115,7 @@ export class HomePage implements OnInit {
     });
   }
 
-  get currentCompetition(): Competition | undefined {
+  get currentCompetition(): (Competition & { points?: number }) | undefined {
     return this.competitions.find(c => c.id === this.selectedCompetitionId());
   }
 
