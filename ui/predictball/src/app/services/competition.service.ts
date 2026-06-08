@@ -12,4 +12,8 @@ export class CompetitionService {
   getCompetition(competitionId: number): Observable<Competition> {
     return this.api.get<Competition>(`competition/${competitionId}`);
   }
+
+  getAllCompetitions(): Observable<Competition[]> {
+    return this.api.get<Competition[]>('competitions');
+  }
 }

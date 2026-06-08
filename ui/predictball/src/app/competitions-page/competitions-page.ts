@@ -1,14 +1,17 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, inject } from '@angular/core';
+import { CommonModule, DOCUMENT } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
+import { CompetitionService } from '../services/competition.service';
+import { PredictionLeagueService } from '../services/prediction-league.service';
+import { UserService } from '../services/user.service';
 
 export interface Competition {
-  id: string;
+  id: string | number;
   name: string;
   score?: number;
   globalRank?: number;
@@ -34,22 +37,47 @@ export class CompetitionsPage implements OnInit {
   myCompsColumns: string[] = ['name', 'score', 'globalRank', 'playersCount', 'currentStage'];
   joinCompsColumns: string[] = ['name', 'playersCount', 'currentStage', 'actions'];
 
-  // Mock data - replace with actual data fetching logic
-  myCompetitionsData: Competition[] = [
-    { id: '1', name: 'Premier League Predictions', score: 120, globalRank: 5432, playersCount: 15000, currentStage: 'Matchday 5' }
-  ];
-
-  allCompetitionsData: Competition[] = [
-    { id: '1', name: 'Premier League Predictions', playersCount: 15000, currentStage: 'Matchday 5' },
-    { id: '2', name: 'Champions League 24/25', playersCount: 8000, currentStage: 'Group Stage' },
-    { id: '3', name: 'World Cup Qualifiers', playersCount: 5000, currentStage: 'Round 1' }
-  ];
+  myCompetitionsData: Competition[] = [];
+  allCompetitionsData: Competition[] = [];
 
   myCompetitions = new MatTableDataSource<Competition>();
   availableCompetitions = new MatTableDataSource<Competition>();
 
+  private competitionService = inject(CompetitionService);
+  private leagueService = inject(PredictionLeagueService);
+  private userService = inject(UserService);
+  private document = inject(DOCUMENT);
+  private userId: string | null = null;
+
   ngOnInit() {
-    this.updateTables();
+    const cookies = this.document.cookie.split('; ');
+    const userIdCookie = cookies.find(row => row.startsWith('userId='));
+    this.userId = userIdCookie ? userIdCookie.split('=')[1] : null;
+
+    if (!this.userId) {
+      console.warn('User is not authenticated.');
+      return;
+    }
+
+    this.competitionService.getAllCompetitions().subscribe(allComps => {
+      this.userService.getYourLeagues(this.userId!).subscribe(userLeagues => {
+        const myCompIds = new Set((userLeagues.competitions || []).map(c => c.competitionId.toString()));
+        
+        const mappedComps: Competition[] = allComps.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          playersCount: 0,
+          currentStage: 'Unknown',
+          score: 0,
+          globalRank: 0
+        }));
+
+        this.myCompetitionsData = mappedComps.filter(c => myCompIds.has(c.id.toString()));
+        this.allCompetitionsData = mappedComps;
+        
+        this.updateTables();
+      });
+    });
   }
 
   updateTables() {
@@ -70,8 +98,10 @@ export class CompetitionsPage implements OnInit {
   }
 
   joinCompetition(comp: Competition) {
-    // Mock join logic: Initialize with 0 score/rank
-    this.myCompetitionsData.push({ ...comp, score: 0, globalRank: 0 });
-    this.updateTables();
+    if (!this.userId) return;
+    this.leagueService.joinGlobalLeague(comp.id, this.userId).subscribe(() => {
+      this.myCompetitionsData.push({ ...comp, score: 0, globalRank: 0 });
+      this.updateTables();
+    });
   }
 }

@@ -16,4 +16,8 @@ export class PredictionLeagueService {
   createPredictionLeague(league: PredictionLeague): Observable<PredictionLeague> {
     return this.api.put<PredictionLeague>('prediction-league', league);
   }
+
+  joinGlobalLeague(competitionId: string | number, userId: string | number): Observable<any> {
+    return this.api.put<any>(`join/${competitionId}?user=${userId}`, {});
+  }
 }

@@ -117,6 +117,16 @@ func (s *TemplateService) GetUserLeagues(ctx context.Context, userID string) (*m
 	}, nil
 }
 
+func (s *TemplateService) GetCompetitions(ctx context.Context) ([]footballdata.Competition, error) {
+	return []footballdata.Competition{
+		{ID: 1, Name: "Mock Competition"},
+	}, nil
+}
+
+func (s *TemplateService) JoinGlobalLeague(ctx context.Context, competitionID string, userID string) (*models.GlobalLeague, error) {
+	return &models.GlobalLeague{}, nil
+}
+
 func (s *TemplateService) GetPredictionLeague(ctx context.Context, leagueID string) (*models.PredictionLeague, error) {
 	return &models.PredictionLeague{ID: 1, Name: "Premier League Predictors", JoinCode: "PL2026"}, nil
 }

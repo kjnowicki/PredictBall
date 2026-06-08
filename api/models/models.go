@@ -48,6 +48,17 @@ type UserCompetitionLeagues struct {
 	LeagueIDs     []int `json:"leagueIds"`
 }
 
+type LeagueUser struct {
+	UserID int    `json:"userId"`
+	Name   string `json:"name"`
+	Points int    `json:"points"`
+}
+
+type GlobalLeague struct {
+	PredictionLeague
+	Users []LeagueUser `json:"users"`
+}
+
 type UserLeagues struct {
 	UserID       int                      `json:"userId"`
 	Competitions []UserCompetitionLeagues `json:"competitions"`
