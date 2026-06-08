@@ -3,9 +3,11 @@ package models
 import "time"
 
 type User struct {
-	ID       int    `json:"id"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	ID              int       `json:"id"`
+	Username        string    `json:"username"`
+	Password        string    `json:"password"`
+	DisplayName     string    `json:"displayName"`
+	NameLastChanged time.Time `json:"nameLastChanged"`
 }
 
 type Match struct {
@@ -38,6 +40,7 @@ type PredictionLeague struct {
 	ID       int    `json:"id"`
 	Name     string `json:"name"`
 	JoinCode string `json:"joinCode"`
+	Public   bool   `json:"public"`
 }
 
 type Prediction struct {

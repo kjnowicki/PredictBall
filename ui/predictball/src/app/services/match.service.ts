@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
-import { MatchesResponse, MatchDetails } from '../models';
+import { Match, MatchDetails } from '../models';
 
 @Injectable({
   providedIn: 'root'
@@ -9,11 +9,11 @@ import { MatchesResponse, MatchDetails } from '../models';
 export class MatchService {
   private api = inject(ApiService);
 
-  getMatches(params?: Record<string, string | number | boolean>): Observable<MatchesResponse> {
-    return this.api.get<MatchesResponse>('matches', params);
+  getMatchSchedule(): Observable<Match[]> {
+    return this.api.get<Match[]>('match-schedule');
   }
 
   getMatchDetails(matchId: string): Observable<MatchDetails> {
-    return this.api.get<MatchDetails>(`matches/${matchId}/details`);
+    return this.api.get<MatchDetails>(`match-details/${matchId}`);
   }
 }

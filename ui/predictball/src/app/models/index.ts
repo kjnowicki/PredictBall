@@ -1,24 +1,55 @@
+export type MatchStatus = 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'LINEUPS-READY';
+
 export interface Player {
   id: number;
   name: string;
+  position: string;
+}
+
+export interface TeamSquad {
+  teamId: number;
+  players: Player[];
 }
 
 export interface MatchDetails {
   homeScore: number;
+  homeLineup: TeamSquad;
   awayScore: number;
+  awayLineup: TeamSquad;
   scorers: Player[];
 }
 
-export interface Prediction {
-  id?: number;
-  // TODO: Add other prediction fields matching backend
-  [key: string]: unknown;
+export interface Match {
+  id: number;
+  homeTeamId: number;
+  awayTeamId: number;
+  startTime: string;
+  status: MatchStatus;
+  matchDetails: MatchDetails;
+}
+
+export interface User {
+  id: number;
+  username: string;
+  password?: string;
+  displayName: string;
+  nameLastChanged: string;
 }
 
 export interface PredictionLeague {
-  id?: number;
-  // TODO: Add other league fields matching backend
-  [key: string]: unknown;
+  id: number;
+  name: string;
+  joinCode: string;
+  public: boolean;
+}
+
+export interface Prediction {
+  id: number;
+  userId: number;
+  matchId: number;
+  homeScore: number;
+  awayScore: number;
+  scorerId: number;
 }
 
 export interface ScoringSystem {
@@ -29,25 +60,7 @@ export interface ScoringSystem {
   scorer: number;
 }
 
-export interface User {
-  id?: number;
-  // TODO: Add other user fields matching backend
-  [key: string]: unknown;
-}
-
-export interface Match {
-  id: number;
-  [key: string]: unknown;
-}
-
 export interface Team {
   id: number;
   [key: string]: unknown;
-}
-
-export interface MatchesResponse {
-  filters: unknown;
-  resultSet: unknown;
-  competition: unknown;
-  matches: Match[];
 }

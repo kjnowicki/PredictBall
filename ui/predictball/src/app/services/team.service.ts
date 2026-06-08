@@ -9,7 +9,7 @@ import { Team } from '../models';
 export class TeamService {
   private api = inject(ApiService);
 
-  getTeamDetails(teamId: number, params?: Record<string, string | number | boolean>): Observable<Team> {
-    return this.api.get<Team>(`teams/${teamId}`, params);
+  getTeamDetails(teamId: number): Observable<Team> {
+    return this.api.get<Team>(`team-details/${teamId}`);
   }
 }

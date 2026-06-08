@@ -10,14 +10,14 @@ export class PredictionService {
   private api = inject(ApiService);
 
   getPrediction(predictionId: string): Observable<Prediction> {
-    return this.api.get<Prediction>(`predictions/${predictionId}`);
+    return this.api.get<Prediction>(`prediction/${predictionId}`);
   }
 
   createPrediction(prediction: Prediction): Observable<Prediction> {
-    return this.api.post<Prediction>('predictions', prediction);
+    return this.api.put<Prediction>('prediction', prediction);
   }
 
   updatePrediction(predictionId: string, prediction: Prediction): Observable<Prediction> {
-    return this.api.put<Prediction>(`predictions/${predictionId}`, prediction);
+    return this.api.patch<Prediction>(`prediction/${predictionId}`, prediction);
   }
 }

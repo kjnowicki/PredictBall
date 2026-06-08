@@ -10,10 +10,10 @@ export class PredictionLeagueService {
   private api = inject(ApiService);
 
   getPredictionLeague(leagueId: string): Observable<PredictionLeague> {
-    return this.api.get<PredictionLeague>(`prediction-leagues/${leagueId}`);
+    return this.api.get<PredictionLeague>(`prediction-league/${leagueId}`);
   }
 
   createPredictionLeague(league: PredictionLeague): Observable<PredictionLeague> {
-    return this.api.post<PredictionLeague>('prediction-leagues', league);
+    return this.api.put<PredictionLeague>('prediction-league', league);
   }
 }

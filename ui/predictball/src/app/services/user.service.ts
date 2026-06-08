@@ -10,10 +10,10 @@ export class UserService {
   private api = inject(ApiService);
 
   getUser(userId: string): Observable<User> {
-    return this.api.get<User>(`users/${userId}`);
+    return this.api.get<User>(`user/${userId}`);
   }
 
   createUser(user: User): Observable<User> {
-    return this.api.post<User>('users', user);
+    return this.api.put<User>('user', user);
   }
 }
