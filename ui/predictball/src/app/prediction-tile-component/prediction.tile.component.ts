@@ -57,6 +57,7 @@ export class PredictionTileComponent implements OnInit, OnChanges {
   scoredPoints: number | null = null;
   activePowerup: string | null = null;
   secondScorer: number | null = null;
+  timeZoneString: string = '';
 
   isPast: boolean = false;
   isLive: boolean = false;
@@ -64,6 +65,13 @@ export class PredictionTileComponent implements OnInit, OnChanges {
   private saveTimeout: any;
 
   ngOnInit() {
+    const offset = -new Date().getTimezoneOffset();
+    const sign = offset >= 0 ? '+' : '-';
+    const absOffset = Math.abs(offset);
+    const hours = Math.floor(absOffset / 60);
+    const minutes = absOffset % 60;
+    this.timeZoneString = offset === 0 ? 'UTC' : `UTC${sign}${hours}${minutes > 0 ? ':' + minutes.toString().padStart(2, '0') : ''}`;
+
     if (this.match) {
       this.checkStatus();
       this.loadData();

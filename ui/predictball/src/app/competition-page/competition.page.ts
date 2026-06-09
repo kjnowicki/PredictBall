@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef, inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -44,7 +44,7 @@ interface PublicLeague {
   templateUrl: './competition.page.html',
   styleUrl: './competition.page.css',
 })
-export class CompetitionPage implements OnInit {
+export class CompetitionPage implements OnInit, OnDestroy {
   competitionCode: string | null = null;
   competitionName: string = '';
   competition: Competition | null = null;
@@ -54,6 +54,9 @@ export class CompetitionPage implements OnInit {
   powerupsData: any = null;
   currentMatchdayPowerups: any = { matchdayNumber: 1, doubleScorerMatchId: 0, doubleScorerId: 0, tripleScoreMatchId: 0, reversalMatchId: 0 };
   scoringSystem: any = null;
+  currentTime: Date = new Date();
+  timeZoneString: string = '';
+  private timeInterval: any;
   
   publicLeagues: PublicLeague[] = [];
   yourLeagues: PublicLeague[] = [];
@@ -81,7 +84,19 @@ export class CompetitionPage implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    const offset = -new Date().getTimezoneOffset();
+    const sign = offset >= 0 ? '+' : '-';
+    const absOffset = Math.abs(offset);
+    const hours = Math.floor(absOffset / 60);
+    const minutes = absOffset % 60;
+    this.timeZoneString = offset === 0 ? 'UTC' : `UTC${sign}${hours}${minutes > 0 ? ':' + minutes.toString().padStart(2, '0') : ''}`;
+
     if (isPlatformBrowser(this.platformId)) {
+      this.timeInterval = setInterval(() => {
+        this.currentTime = new Date();
+        this.cdr.detectChanges();
+      }, 1000);
+
       const cookies = this.document.cookie.split('; ');
       const userIdCookie = cookies.find(row => row.startsWith('userId='));
       this.userId = userIdCookie ? userIdCookie.split('=')[1] : null;
@@ -114,6 +129,12 @@ export class CompetitionPage implements OnInit {
         this.loadLeagues();
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    if (this.timeInterval) {
+      clearInterval(this.timeInterval);
+    }
   }
 
   loadPowerups() {
