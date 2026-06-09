@@ -24,4 +24,12 @@ export class CompetitionService {
   savePrediction(userId: string, compId: string, matchId: number, prediction: any): Observable<any> {
     return this.api.put<any>(`user/${userId}/competition/${compId}/prediction/${matchId}`, prediction);
   }
+
+  getPowerups(userId: string, compId: string): Observable<any> {
+    return this.api.get<any>(`user/${userId}/competition/${compId}/powerups`);
+  }
+
+  savePowerups(userId: string, compId: string, data: any): Observable<any> {
+    return this.api.put<any>(`user/${userId}/competition/${compId}/powerups`, data);
+  }
 }

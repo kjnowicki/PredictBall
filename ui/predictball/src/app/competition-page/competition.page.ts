@@ -50,6 +50,8 @@ export class CompetitionPage implements OnInit {
   matches: Match[] = [];
   predictions: Record<number, any> = {};
   selectedMatchday: number = 1;
+  powerupsData: any = null;
+  currentMatchdayPowerups: any = { matchdayNumber: 1, doubleScorerMatchId: 0, tripleScorerMatchId: 0, reversalMatchId: 0 };
   
   publicLeagues: PublicLeague[] = [];
   yourLeagues: PublicLeague[] = [];
@@ -91,6 +93,7 @@ export class CompetitionPage implements OnInit {
           if (comp.currentSeason?.currentMatchday) {
             this.selectedMatchday = comp.currentSeason.currentMatchday;
           }
+          this.loadPowerups();
           this.cdr.detectChanges();
         });
         this.matchService.getMatchSchedule(this.competitionCode).subscribe(matches => {
@@ -103,6 +106,30 @@ export class CompetitionPage implements OnInit {
         this.loadLeagues();
       }
     });
+  }
+
+  loadPowerups() {
+    if (this.competitionCode && this.userId) {
+      this.competitionService.getPowerups(this.userId, this.competitionCode).subscribe(data => {
+        if (!data || !data.season) {
+          data = { season: this.competition?.currentSeason?.startDate?.substring(0, 4) || '2024', matchdays: [] };
+        }
+        this.powerupsData = data;
+        this.updateCurrentMatchdayPowerups();
+      });
+    }
+  }
+
+  updateCurrentMatchdayPowerups() {
+    if (!this.powerupsData) return;
+    if (!this.powerupsData.matchdays) this.powerupsData.matchdays = [];
+    let md = this.powerupsData.matchdays.find((m: any) => m.matchdayNumber === this.selectedMatchday);
+    if (!md) {
+      md = { matchdayNumber: this.selectedMatchday, doubleScorerMatchId: 0, tripleScorerMatchId: 0, reversalMatchId: 0 };
+      this.powerupsData.matchdays.push(md);
+    }
+    this.currentMatchdayPowerups = md;
+    this.cdr.detectChanges();
   }
 
   loadPredictions() {
@@ -181,15 +208,50 @@ export class CompetitionPage implements OnInit {
   onPredictionChanged(matchId: number, predictionData: any) {
     if (!this.userId || !this.competitionCode) return;
     
+    const oldPrediction = this.predictions[matchId];
+    const oldPowerup = oldPrediction ? oldPrediction.powerup : null;
+    const newPowerup = predictionData.powerup;
+
+    if (oldPowerup !== newPowerup) {
+      // Create a new object reference to ensure Angular change detection pushes the update to all child tiles
+      const updatedPowerups = { ...this.currentMatchdayPowerups };
+
+      if (oldPowerup === 'doubleScorer') updatedPowerups.doubleScorerMatchId = 0;
+      if (oldPowerup === 'tripleScore') updatedPowerups.tripleScorerMatchId = 0;
+      if (oldPowerup === 'reversal') updatedPowerups.reversalMatchId = 0;
+
+      if (newPowerup === 'doubleScorer') updatedPowerups.doubleScorerMatchId = matchId;
+      if (newPowerup === 'tripleScore') updatedPowerups.tripleScorerMatchId = matchId;
+      if (newPowerup === 'reversal') updatedPowerups.reversalMatchId = matchId;
+
+      this.currentMatchdayPowerups = updatedPowerups;
+      
+      if (this.powerupsData && this.powerupsData.matchdays) {
+        const mdIndex = this.powerupsData.matchdays.findIndex((m: any) => m.matchdayNumber === this.selectedMatchday);
+        if (mdIndex > -1) {
+          this.powerupsData.matchdays[mdIndex] = updatedPowerups;
+        }
+      }
+
+      this.competitionService.savePowerups(this.userId, this.competitionCode, this.powerupsData).subscribe();
+      this.cdr.detectChanges();
+    }
+
     const prediction = {
+      ...oldPrediction,
       matchId: matchId,
       userId: parseInt(this.userId, 10),
       homeScore: predictionData.homeScore,
       awayScore: predictionData.awayScore,
-      scorerId: predictionData.scorerId
+      scorerId: predictionData.scorerId,
+      powerup: predictionData.powerup
     };
 
+    // Eagerly update locally to block duplicate toggles synchronously while API call processes
+    this.predictions[matchId] = prediction;
+
     this.competitionService.savePrediction(this.userId, this.competitionCode, matchId, prediction as any).subscribe(res => {
+      res.powerup = prediction.powerup; // preserve the field locally in case backend drops it
       this.predictions[matchId] = res;
     });
   }
@@ -197,10 +259,12 @@ export class CompetitionPage implements OnInit {
   prevMatchday() {
     if (this.selectedMatchday > 1) {
       this.selectedMatchday--;
+      this.updateCurrentMatchdayPowerups();
     }
   }
 
   nextMatchday() {
     this.selectedMatchday++;
+    this.updateCurrentMatchdayPowerups();
   }
 }

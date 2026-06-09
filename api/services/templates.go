@@ -172,6 +172,14 @@ func (s *TemplateService) PutPrediction(ctx context.Context, userID string, comp
 	return &prediction, nil
 }
 
+func (s *TemplateService) GetPowerups(ctx context.Context, userID string, compID string) (*models.PowerupsData, error) {
+	return &models.PowerupsData{}, nil
+}
+
+func (s *TemplateService) PutPowerups(ctx context.Context, userID string, compID string, data models.PowerupsData) (*models.PowerupsData, error) {
+	return &data, nil
+}
+
 func (s *TemplateService) GetScoringSystem(ctx context.Context) (*models.ScoringSystem, error) {
 	return &models.ScoringSystem{ScoreDif: 1, ScoreExact: 3, ScoreHomeExact: 1, ScoreAwayExact: 1, Scorer: 2}, nil
 }

@@ -27,6 +27,9 @@ type APIService interface {
 	GetPredictions(ctx context.Context, userID string, compID string, matchIDs []int) ([]models.Prediction, error)
 	PutPrediction(ctx context.Context, userID string, compID string, prediction models.Prediction) (*models.Prediction, error)
 
+	GetPowerups(ctx context.Context, userID string, compID string) (*models.PowerupsData, error)
+	PutPowerups(ctx context.Context, userID string, compID string, data models.PowerupsData) (*models.PowerupsData, error)
+
 	GetScoringSystem(ctx context.Context) (*models.ScoringSystem, error)
 	GetTeam(ctx context.Context, teamID int) (*footballdata.Team, error)
 	GetTeamDetails(ctx context.Context, teamID int, params map[string]string) (*footballdata.Team, error)

@@ -90,3 +90,43 @@ func (s *PredictballAPIService) PutPrediction(ctx context.Context, userID string
 
 	return &prediction, nil
 }
+
+func getPowerupsPath(userID, compID string) string {
+	return filepath.Join("data", "users", userID, "competition", compID, "powerups.json")
+}
+
+func (s *PredictballAPIService) GetPowerups(ctx context.Context, userID string, compID string) (*models.PowerupsData, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	path := getPowerupsPath(userID, compID)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return &models.PowerupsData{}, nil
+		}
+		return nil, err
+	}
+	var powerups models.PowerupsData
+	if err := json.Unmarshal(data, &powerups); err != nil {
+		return nil, err
+	}
+	return &powerups, nil
+}
+
+func (s *PredictballAPIService) PutPowerups(ctx context.Context, userID string, compID string, data models.PowerupsData) (*models.PowerupsData, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	path := getPowerupsPath(userID, compID)
+	os.MkdirAll(filepath.Dir(path), 0755)
+
+	b, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(path, b, 0644); err != nil {
+		return nil, err
+	}
+	return &data, nil
+}

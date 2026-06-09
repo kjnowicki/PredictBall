@@ -40,6 +40,7 @@ interface ScorerGroup {
 export class PredictionTileComponent implements OnInit, OnChanges {
   @Input() match!: Match;
   @Input() prediction?: any;
+  @Input() availablePowerups?: any;
   @Output() predictionChanged = new EventEmitter<any>();
 
   private teamService = inject(TeamService);
@@ -52,6 +53,7 @@ export class PredictionTileComponent implements OnInit, OnChanges {
   scorerGroups: ScorerGroup[] = [];
   selectedScorer: number | null = null;
   scoredPoints: number | null = null;
+  activePowerup: string | null = null;
 
   isPast: boolean = false;
   isLive: boolean = false;
@@ -70,6 +72,7 @@ export class PredictionTileComponent implements OnInit, OnChanges {
       this.homeGoalsPrediction = this.prediction.homeScore;
       this.awayGoalsPrediction = this.prediction.awayScore;
       this.selectedScorer = this.prediction.scorerId === 0 ? null : this.prediction.scorerId;
+      this.activePowerup = this.prediction.powerup || null;
     }
   }
 
@@ -86,6 +89,32 @@ export class PredictionTileComponent implements OnInit, OnChanges {
     } else {
       this.onPredictionInput();
     }
+  }
+
+  togglePowerup(powerup: string) {
+    if (this.isPast) return;
+
+    if (this.activePowerup !== powerup) {
+      if (powerup === 'doubleScorer' && this.availablePowerups?.doubleScorerMatchId && this.availablePowerups.doubleScorerMatchId !== this.match.id) return;
+      if (powerup === 'tripleScore' && this.availablePowerups?.tripleScorerMatchId && this.availablePowerups.tripleScorerMatchId !== this.match.id) return;
+      if (powerup === 'reversal' && this.availablePowerups?.reversalMatchId && this.availablePowerups.reversalMatchId !== this.match.id) return;
+    }
+
+    if (this.homeGoalsPrediction === null) this.homeGoalsPrediction = 0;
+    if (this.awayGoalsPrediction === null) this.awayGoalsPrediction = 0;
+
+    if (this.activePowerup === powerup) {
+      this.activePowerup = null;
+    } else {
+      this.activePowerup = powerup;
+    }
+
+    this.onPredictionInput();
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+    }
+
+    this.emitPrediction();
   }
 
   onPredictionInput() {
@@ -105,7 +134,8 @@ export class PredictionTileComponent implements OnInit, OnChanges {
       this.predictionChanged.emit({
         homeScore: this.homeGoalsPrediction,
         awayScore: this.awayGoalsPrediction,
-        scorerId: this.selectedScorer || 0
+        scorerId: this.selectedScorer || 0,
+        powerup: this.activePowerup
       });
     }
   }

@@ -219,6 +219,35 @@ func (h *APIHandler) HandlePutPrediction(w http.ResponseWriter, r *http.Request)
 	WriteJSON(w, http.StatusOK, created)
 }
 
+func (h *APIHandler) HandleGetPowerups(w http.ResponseWriter, r *http.Request) {
+	userId := r.PathValue("id")
+	compId := r.PathValue("compId")
+
+	data, err := h.Service.GetPowerups(r.Context(), userId, compId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, http.StatusOK, data)
+}
+
+func (h *APIHandler) HandlePutPowerups(w http.ResponseWriter, r *http.Request) {
+	userId := r.PathValue("id")
+	compId := r.PathValue("compId")
+
+	var req models.PowerupsData
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	data, err := h.Service.PutPowerups(r.Context(), userId, compId, req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, http.StatusOK, data)
+}
+
 func (h *APIHandler) HandleGetScoringSystem(w http.ResponseWriter, r *http.Request) {
 	system, err := h.Service.GetScoringSystem(r.Context())
 	if err != nil {
@@ -280,6 +309,9 @@ func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 
 	mux.HandleFunc("POST /user/{id}/competition/{compId}/predictions", h.HandleGetPredictions)
 	mux.HandleFunc("PUT /user/{id}/competition/{compId}/prediction/{matchId}", h.HandlePutPrediction)
+
+	mux.HandleFunc("GET /user/{id}/competition/{compId}/powerups", h.HandleGetPowerups)
+	mux.HandleFunc("PUT /user/{id}/competition/{compId}/powerups", h.HandlePutPowerups)
 
 	mux.HandleFunc("GET /scoring-system", h.HandleGetScoringSystem)
 	mux.HandleFunc("GET /team-details/{id}", h.HandleGetTeamDetails)

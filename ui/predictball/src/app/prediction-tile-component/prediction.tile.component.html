@@ -57,11 +57,23 @@
       </mat-form-field>
     </div>
 
-    <!-- Row 5: 3 toggle icons (Placeholder for now) -->
+    <!-- Row 5: 3 toggle icons -->
     <div class="prediction-row" style="display: flex; justify-content: center; gap: 1.5rem; margin-bottom: 1rem;">
-      <mat-icon style="cursor: pointer;">sports_soccer</mat-icon>
-      <mat-icon style="cursor: pointer;">star_border</mat-icon>
-      <mat-icon style="cursor: pointer;">favorite_border</mat-icon>
+      <mat-icon 
+        (click)="togglePowerup('doubleScorer')"
+        [style.color]="activePowerup === 'doubleScorer' ? '#1976d2' : (!availablePowerups?.doubleScorerMatchId || availablePowerups?.doubleScorerMatchId === match.id ? '#555' : '#ccc')"
+        [style.cursor]="isPast || (availablePowerups?.doubleScorerMatchId && availablePowerups?.doubleScorerMatchId !== match.id && activePowerup !== 'doubleScorer') ? 'default' : 'pointer'"
+        title="Double Scorer">sports_soccer</mat-icon>
+      <mat-icon 
+        (click)="togglePowerup('tripleScore')"
+        [style.color]="activePowerup === 'tripleScore' ? '#1976d2' : (!availablePowerups?.tripleScorerMatchId || availablePowerups?.tripleScorerMatchId === match.id ? '#555' : '#ccc')"
+        [style.cursor]="isPast || (availablePowerups?.tripleScorerMatchId && availablePowerups?.tripleScorerMatchId !== match.id && activePowerup !== 'tripleScore') ? 'default' : 'pointer'"
+        title="Triple Score">star_border</mat-icon>
+      <mat-icon 
+        (click)="togglePowerup('reversal')"
+        [style.color]="activePowerup === 'reversal' ? '#1976d2' : (!availablePowerups?.reversalMatchId || availablePowerups?.reversalMatchId === match.id ? '#555' : '#ccc')"
+        [style.cursor]="isPast || (availablePowerups?.reversalMatchId && availablePowerups?.reversalMatchId !== match.id && activePowerup !== 'reversal') ? 'default' : 'pointer'"
+        title="Reversal">favorite_border</mat-icon>
     </div>
 
     <!-- Row 6: Scored points -->
