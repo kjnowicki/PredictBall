@@ -16,4 +16,12 @@ export class CompetitionService {
   getAllCompetitions(): Observable<Competition[]> {
     return this.api.get<Competition[]>('competitions');
   }
+
+  getPredictions(userId: string, compId: string, matchIds: number[]): Observable<any[]> {
+    return this.api.post<any[]>(`user/${userId}/competition/${compId}/predictions`, { matchIds });
+  }
+
+  savePrediction(userId: string, compId: string, matchId: number, prediction: any): Observable<any> {
+    return this.api.put<any>(`user/${userId}/competition/${compId}/prediction/${matchId}`, prediction);
+  }
 }

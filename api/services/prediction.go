@@ -2,40 +2,91 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"predictball_api/models"
 )
 
-func (s *PredictballAPIService) GetPrediction(ctx context.Context, predictionID string) (*models.Prediction, error) {
+func getPredictionsPath(userID, compID string) string {
+	return filepath.Join("data", "users", userID, "competition", compID, "predictions.json")
+}
+
+func loadPredictions(userID, compID string) (map[int]models.Prediction, error) {
+	path := getPredictionsPath(userID, compID)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return make(map[int]models.Prediction), nil
+		}
+		return nil, err
+	}
+	var preds []models.Prediction
+	if err := json.Unmarshal(data, &preds); err != nil {
+		return nil, err
+	}
+	predMap := make(map[int]models.Prediction)
+	for _, p := range preds {
+		predMap[p.MatchID] = p
+	}
+	return predMap, nil
+}
+
+func savePredictions(userID, compID string, predMap map[int]models.Prediction) error {
+	path := getPredictionsPath(userID, compID)
+	os.MkdirAll(filepath.Dir(path), 0755)
+
+	preds := make([]models.Prediction, 0, len(predMap))
+	for _, p := range predMap {
+		preds = append(preds, p)
+	}
+
+	b, err := json.MarshalIndent(preds, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, b, 0644)
+}
+
+func (s *PredictballAPIService) GetPredictions(ctx context.Context, userID string, compID string, matchIDs []int) ([]models.Prediction, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	if pred, exists := s.predictions[predictionID]; exists {
-		return &pred, nil
+	predMap, err := loadPredictions(userID, compID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load predictions: %v", err)
 	}
-	return nil, fmt.Errorf("prediction not found")
+
+	var results []models.Prediction
+	for _, matchID := range matchIDs {
+		if p, ok := predMap[matchID]; ok {
+			results = append(results, p)
+		}
+	}
+	return results, nil
 }
 
-func (s *PredictballAPIService) PutPrediction(ctx context.Context, prediction models.Prediction) (*models.Prediction, error) {
+func (s *PredictballAPIService) PutPrediction(ctx context.Context, userID string, compID string, prediction models.Prediction) (*models.Prediction, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if prediction.ID == 0 {
-		prediction.ID = len(s.predictions) + 1
+	predMap, err := loadPredictions(userID, compID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load predictions: %v", err)
 	}
 
-	s.predictions[fmt.Sprint(prediction.ID)] = prediction
-	return &prediction, nil
-}
-
-func (s *PredictballAPIService) UpdatePrediction(ctx context.Context, predictionID string, prediction models.Prediction) (*models.Prediction, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if _, exists := s.predictions[predictionID]; !exists {
-		return nil, fmt.Errorf("prediction not found")
+	if existing, ok := predMap[prediction.MatchID]; ok {
+		prediction.ID = existing.ID
+	} else {
+		prediction.ID = len(predMap) + 1
 	}
 
-	s.predictions[predictionID] = prediction
+	predMap[prediction.MatchID] = prediction
+
+	if err := savePredictions(userID, compID, predMap); err != nil {
+		return nil, fmt.Errorf("failed to save predictions: %v", err)
+	}
+
 	return &prediction, nil
 }

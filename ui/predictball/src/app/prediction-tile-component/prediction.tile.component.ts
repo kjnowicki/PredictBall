@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -37,8 +37,10 @@ interface ScorerGroup {
   templateUrl: './prediction.tile.component.html',
   styleUrl: './prediction.tile.component.css',
 })
-export class PredictionTileComponent implements OnInit {
+export class PredictionTileComponent implements OnInit, OnChanges {
   @Input() match!: Match;
+  @Input() prediction?: any;
+  @Output() predictionChanged = new EventEmitter<any>();
 
   private teamService = inject(TeamService);
   private cdr = inject(ChangeDetectorRef);
@@ -53,6 +55,8 @@ export class PredictionTileComponent implements OnInit {
 
   isPast: boolean = false;
   isLive: boolean = false;
+  isSelectOpen: boolean = false;
+  private saveTimeout: any;
 
   ngOnInit() {
     if (this.match) {
@@ -61,10 +65,49 @@ export class PredictionTileComponent implements OnInit {
     }
   }
 
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['prediction'] && this.prediction) {
+      this.homeGoalsPrediction = this.prediction.homeScore;
+      this.awayGoalsPrediction = this.prediction.awayScore;
+      this.selectedScorer = this.prediction.scorerId === 0 ? null : this.prediction.scorerId;
+    }
+  }
+
   checkStatus() {
     const start = new Date(this.match.startTime);
     this.isPast = start.getTime() < Date.now();
     this.isLive = this.match.status === 'IN_PLAY' || this.match.status === 'PAUSED';
+  }
+
+  onSelectOpened(isOpen: boolean) {
+    this.isSelectOpen = isOpen;
+    if (isOpen) {
+      if (this.saveTimeout) clearTimeout(this.saveTimeout);
+    } else {
+      this.onPredictionInput();
+    }
+  }
+
+  onPredictionInput() {
+    if (this.isPast || this.isSelectOpen) return;
+
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+    }
+
+    this.saveTimeout = setTimeout(() => {
+      this.emitPrediction();
+    }, 1000);
+  }
+
+  emitPrediction() {
+    if (this.homeGoalsPrediction !== null && this.awayGoalsPrediction !== null) {
+      this.predictionChanged.emit({
+        homeScore: this.homeGoalsPrediction,
+        awayScore: this.awayGoalsPrediction,
+        scorerId: this.selectedScorer || 0
+      });
+    }
   }
 
   loadData() {

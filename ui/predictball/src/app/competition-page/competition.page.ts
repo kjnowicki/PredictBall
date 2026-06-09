@@ -48,6 +48,7 @@ export class CompetitionPage implements OnInit {
   competitionName: string = '';
   competition: Competition | null = null;
   matches: Match[] = [];
+  predictions: Record<number, any> = {};
   selectedMatchday: number = 1;
   
   publicLeagues: PublicLeague[] = [];
@@ -95,12 +96,26 @@ export class CompetitionPage implements OnInit {
         this.matchService.getMatchSchedule(this.competitionCode).subscribe(matches => {
           this.matches = matches;
           this.extractTeams();
+          this.loadPredictions();
           this.cdr.detectChanges();
         });
 
         this.loadLeagues();
       }
     });
+  }
+
+  loadPredictions() {
+    if (this.competitionCode && this.userId && this.matches.length > 0) {
+      const matchIds = this.matches.map(m => m.id);
+      this.competitionService.getPredictions(this.userId, this.competitionCode, matchIds).subscribe(preds => {
+        this.predictions = {};
+        for (const p of preds) {
+          this.predictions[p.matchId] = p;
+        }
+        this.cdr.detectChanges();
+      });
+    }
   }
 
   loadLeagues() {
@@ -161,6 +176,22 @@ export class CompetitionPage implements OnInit {
         this.cdr.detectChanges();
       });
     }
+  }
+
+  onPredictionChanged(matchId: number, predictionData: any) {
+    if (!this.userId || !this.competitionCode) return;
+    
+    const prediction = {
+      matchId: matchId,
+      userId: parseInt(this.userId, 10),
+      homeScore: predictionData.homeScore,
+      awayScore: predictionData.awayScore,
+      scorerId: predictionData.scorerId
+    };
+
+    this.competitionService.savePrediction(this.userId, this.competitionCode, matchId, prediction as any).subscribe(res => {
+      this.predictions[matchId] = res;
+    });
   }
 
   prevMatchday() {

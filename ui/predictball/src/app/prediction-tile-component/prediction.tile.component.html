@@ -33,16 +33,17 @@
 
     <!-- Row 3: Home & Away goals prediction input -->
     <div class="prediction-row" style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-      <input type="number" min="0" max="99" style="width: 3.5rem; height: 3rem; text-align: center; font-size: 1.5rem; padding: 0; border: 1px solid #ccc; border-radius: 4px;" [(ngModel)]="homeGoalsPrediction" [disabled]="isPast">
+      <input type="number" min="0" max="99" style="width: 3.5rem; height: 3rem; text-align: center; font-size: 1.5rem; padding: 0; border: 1px solid #ccc; border-radius: 4px;" [(ngModel)]="homeGoalsPrediction" (ngModelChange)="onPredictionInput()" [disabled]="isPast">
       <strong style="font-size: 2rem; color: #555;">-</strong>
-      <input type="number" min="0" max="99" style="width: 3.5rem; height: 3rem; text-align: center; font-size: 1.5rem; padding: 0; border: 1px solid #ccc; border-radius: 4px;" [(ngModel)]="awayGoalsPrediction" [disabled]="isPast">
+      <input type="number" min="0" max="99" style="width: 3.5rem; height: 3rem; text-align: center; font-size: 1.5rem; padding: 0; border: 1px solid #ccc; border-radius: 4px;" [(ngModel)]="awayGoalsPrediction" (ngModelChange)="onPredictionInput()" [disabled]="isPast">
     </div>
 
     <!-- Row 4: Scorer select input -->
     <div class="prediction-row">
       <mat-form-field appearance="outline" style="width: 100%;">
         <mat-label>Scorer</mat-label>
-        <mat-select [(ngModel)]="selectedScorer" [disabled]="isPast">
+        <mat-select [(ngModel)]="selectedScorer" (ngModelChange)="onPredictionInput()" (openedChange)="onSelectOpened($event)" [disabled]="isPast">
+          <mat-option [value]="null">None</mat-option>
         @for (group of scorerGroups; track group.name) {
           <mat-optgroup [label]="group.name">
             @for (scorer of group.scorers; track scorer.id) {

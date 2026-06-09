@@ -175,43 +175,48 @@ func (h *APIHandler) HandlePutPredictionLeague(w http.ResponseWriter, r *http.Re
 	WriteJSON(w, http.StatusOK, created)
 }
 
-func (h *APIHandler) HandleGetPrediction(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	pred, err := h.Service.GetPrediction(r.Context(), id)
+func (h *APIHandler) HandleGetPredictions(w http.ResponseWriter, r *http.Request) {
+	userId := r.PathValue("id")
+	compId := r.PathValue("compId")
+	var req struct {
+		MatchIDs []int `json:"matchIds"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	preds, err := h.Service.GetPredictions(r.Context(), userId, compId, req.MatchIDs)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	WriteJSON(w, http.StatusOK, pred)
+	WriteJSON(w, http.StatusOK, preds)
 }
 
 func (h *APIHandler) HandlePutPrediction(w http.ResponseWriter, r *http.Request) {
+	userId := r.PathValue("id")
+	compId := r.PathValue("compId")
+	matchIdStr := r.PathValue("matchId")
+	matchId, err := strconv.Atoi(matchIdStr)
+	if err != nil {
+		http.Error(w, "invalid match id", http.StatusBadRequest)
+		return
+	}
+
 	var pred models.Prediction
 	if err := json.NewDecoder(r.Body).Decode(&pred); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	created, err := h.Service.PutPrediction(r.Context(), pred)
+	pred.MatchID = matchId
+	pred.UserID, _ = strconv.Atoi(userId)
+
+	created, err := h.Service.PutPrediction(r.Context(), userId, compId, pred)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	WriteJSON(w, http.StatusOK, created)
-}
-
-func (h *APIHandler) HandleUpdatePrediction(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	var pred models.Prediction
-	if err := json.NewDecoder(r.Body).Decode(&pred); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	updated, err := h.Service.UpdatePrediction(r.Context(), id, pred)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	WriteJSON(w, http.StatusOK, updated)
 }
 
 func (h *APIHandler) HandleGetScoringSystem(w http.ResponseWriter, r *http.Request) {
@@ -273,9 +278,8 @@ func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 	mux.HandleFunc("PUT /competition/{id}/join-by-code", h.HandleJoinLeagueByCode)
 	mux.HandleFunc("PUT /join/{id}", h.HandleJoinGlobalLeague)
 
-	mux.HandleFunc("GET /prediction/{id}", h.HandleGetPrediction)
-	mux.HandleFunc("PUT /prediction", h.HandlePutPrediction)
-	mux.HandleFunc("PATCH /prediction/{id}", h.HandleUpdatePrediction)
+	mux.HandleFunc("POST /user/{id}/competition/{compId}/predictions", h.HandleGetPredictions)
+	mux.HandleFunc("PUT /user/{id}/competition/{compId}/prediction/{matchId}", h.HandlePutPrediction)
 
 	mux.HandleFunc("GET /scoring-system", h.HandleGetScoringSystem)
 	mux.HandleFunc("GET /team-details/{id}", h.HandleGetTeamDetails)

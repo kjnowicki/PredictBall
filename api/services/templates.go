@@ -161,20 +161,13 @@ func (s *TemplateService) PutPredictionLeague(ctx context.Context, competitionID
 	return &league, nil
 }
 
-func (s *TemplateService) GetPrediction(ctx context.Context, predictionID string) (*models.Prediction, error) {
-	return &models.Prediction{ID: 1, UserID: 1, MatchID: 1, HomeScore: 1, AwayScore: 0, ScorerID: 1}, nil
+func (s *TemplateService) GetPredictions(ctx context.Context, userID string, compID string, matchIDs []int) ([]models.Prediction, error) {
+	return []models.Prediction{{ID: 1, UserID: 1, MatchID: 1, HomeScore: 1, AwayScore: 0, ScorerID: 1}}, nil
 }
 
-func (s *TemplateService) PutPrediction(ctx context.Context, prediction models.Prediction) (*models.Prediction, error) {
+func (s *TemplateService) PutPrediction(ctx context.Context, userID string, compID string, prediction models.Prediction) (*models.Prediction, error) {
 	if prediction.ID == 0 {
 		prediction.ID = 123
-	}
-	return &prediction, nil
-}
-
-func (s *TemplateService) UpdatePrediction(ctx context.Context, predictionID string, prediction models.Prediction) (*models.Prediction, error) {
-	if prediction.ID == 0 {
-		prediction.ID = 1
 	}
 	return &prediction, nil
 }
