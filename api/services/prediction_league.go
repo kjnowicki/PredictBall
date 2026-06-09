@@ -139,3 +139,186 @@ func (s *PredictballAPIService) JoinGlobalLeague(ctx context.Context, competitio
 
 	return &globalLeague, nil
 }
+
+type LeagueDTO struct {
+	ID           int    `json:"id"`
+	Name         string `json:"name"`
+	Public       bool   `json:"public"`
+	Participants int    `json:"participants"`
+}
+
+type LeaguesResponse struct {
+	PublicLeagues []LeagueDTO `json:"publicLeagues"`
+	YourLeagues   []LeagueDTO `json:"yourLeagues"`
+}
+
+func (s *PredictballAPIService) GetCompetitionLeagues(ctx context.Context, competitionID string, userID string) (any, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	dir := filepath.Join("data", "competitions", competitionID, "leagues")
+	files, err := os.ReadDir(dir)
+
+	resp := LeaguesResponse{
+		PublicLeagues: []LeagueDTO{},
+		YourLeagues:   []LeagueDTO{},
+	}
+
+	if err != nil {
+		if os.IsNotExist(err) {
+			return resp, nil
+		}
+		return nil, fmt.Errorf("failed to read leagues directory: %v", err)
+	}
+
+	uid, _ := strconv.Atoi(userID)
+
+	for _, file := range files {
+		if filepath.Ext(file.Name()) == ".json" {
+			data, err := os.ReadFile(filepath.Join(dir, file.Name()))
+			if err != nil {
+				continue
+			}
+			var league struct {
+				ID     int    `json:"id"`
+				Name   string `json:"name"`
+				Public bool   `json:"public"`
+				Users  []struct {
+					UserID int `json:"userId"`
+				} `json:"users"`
+			}
+			if err := json.Unmarshal(data, &league); err == nil {
+				isMember := false
+				for _, u := range league.Users {
+					if u.UserID == uid {
+						isMember = true
+						break
+					}
+				}
+
+				dto := LeagueDTO{
+					ID:           league.ID,
+					Name:         league.Name,
+					Public:       league.Public,
+					Participants: len(league.Users),
+				}
+
+				if league.Public {
+					resp.PublicLeagues = append(resp.PublicLeagues, dto)
+				}
+				if isMember {
+					resp.YourLeagues = append(resp.YourLeagues, dto)
+				}
+			}
+		}
+	}
+
+	return resp, nil
+}
+
+func (s *PredictballAPIService) JoinLeagueByCode(ctx context.Context, competitionID string, userID string, joinCode string) (any, error) {
+	user, err := s.GetUser(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %v", err)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	dir := filepath.Join("data", "competitions", competitionID, "leagues")
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("competition leagues not found")
+	}
+
+	var foundLeague map[string]any
+	var leagueFilePath string
+
+	for _, file := range files {
+		if filepath.Ext(file.Name()) == ".json" {
+			path := filepath.Join(dir, file.Name())
+			data, err := os.ReadFile(path)
+			if err != nil {
+				continue
+			}
+
+			var league map[string]any
+			if err := json.Unmarshal(data, &league); err == nil {
+				if code, ok := league["joinCode"].(string); ok && code == joinCode {
+					foundLeague = league
+					leagueFilePath = path
+					break
+				}
+			}
+		}
+	}
+
+	if foundLeague == nil {
+		return nil, fmt.Errorf("league with join code not found")
+	}
+
+	uid, _ := strconv.Atoi(userID)
+
+	usersInter, ok := foundLeague["users"].([]any)
+	if !ok {
+		usersInter = []any{}
+	}
+
+	isMember := false
+	for _, uInter := range usersInter {
+		uMap := uInter.(map[string]any)
+		if uID, ok := uMap["userId"].(float64); ok && int(uID) == uid {
+			isMember = true
+			break
+		}
+	}
+
+	if !isMember {
+		newUser := map[string]any{
+			"userId": uid,
+			"name":   user.DisplayName,
+			"points": 0,
+		}
+		foundLeague["users"] = append(usersInter, newUser)
+		b, _ := json.MarshalIndent(foundLeague, "", "  ")
+		os.WriteFile(leagueFilePath, b, 0644)
+
+		s.initUserLeagues()
+		compIDInt, _ := strconv.Atoi(competitionID)
+		comps := userLeagues[userID]
+		foundComp := false
+		leagueIDFloat, _ := foundLeague["id"].(float64)
+		leagueID := int(leagueIDFloat)
+
+		for i, c := range comps {
+			if c.CompetitionID == compIDInt {
+				foundComp = true
+				foundLeagueContains := slices.Contains(c.LeagueIDs, leagueID)
+				if !foundLeagueContains {
+					comps[i].LeagueIDs = append(comps[i].LeagueIDs, leagueID)
+				}
+				break
+			}
+		}
+		if !foundComp {
+			comps = append(comps, models.UserCompetitionLeagues{
+				CompetitionID: compIDInt,
+				LeagueIDs:     []int{leagueID},
+			})
+		}
+		userLeagues[userID] = comps
+
+		var ulData []models.UserLeagues
+		for uidStr, c := range userLeagues {
+			uidInt, _ := strconv.Atoi(uidStr)
+			ulData = append(ulData, models.UserLeagues{
+				UserID:       uidInt,
+				Competitions: c,
+			})
+		}
+		bUL, _ := json.MarshalIndent(ulData, "", "  ")
+		os.WriteFile("data/userLeagues.json", bUL, 0644)
+	}
+
+	return foundLeague, nil
+}

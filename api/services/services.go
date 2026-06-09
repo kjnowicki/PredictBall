@@ -21,6 +21,8 @@ type APIService interface {
 	GetPredictionLeague(ctx context.Context, competitionID string, leagueID string) (any, error)
 	PutPredictionLeague(ctx context.Context, competitionID string, league models.PredictionLeague) (*models.PredictionLeague, error)
 	JoinGlobalLeague(ctx context.Context, competitionID string, userID string) (*models.GlobalLeague, error)
+	GetCompetitionLeagues(ctx context.Context, competitionID string, userID string) (any, error)
+	JoinLeagueByCode(ctx context.Context, competitionID string, userID string, joinCode string) (any, error)
 
 	GetPrediction(ctx context.Context, predictionID string) (*models.Prediction, error)
 	PutPrediction(ctx context.Context, prediction models.Prediction) (*models.Prediction, error)

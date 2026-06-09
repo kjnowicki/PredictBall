@@ -120,6 +120,32 @@ func (h *APIHandler) HandlePutUser(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, created)
 }
 
+func (h *APIHandler) HandleGetCompetitionLeagues(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	userID := r.URL.Query().Get("user")
+	leagues, err := h.Service.GetCompetitionLeagues(r.Context(), id, userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, http.StatusOK, leagues)
+}
+
+func (h *APIHandler) HandleJoinLeagueByCode(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	userID := r.URL.Query().Get("user")
+	var req struct {
+		JoinCode string `json:"joinCode"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	league, err := h.Service.JoinLeagueByCode(r.Context(), id, userID, req.JoinCode)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, http.StatusOK, league)
+}
+
 func (h *APIHandler) HandleGetPredictionLeague(w http.ResponseWriter, r *http.Request) {
 	compId := r.PathValue("compId")
 	leagueId := r.PathValue("leagueId")
@@ -240,6 +266,8 @@ func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 
 	mux.HandleFunc("GET /competition/{compId}/league/{leagueId}", h.HandleGetPredictionLeague)
 	mux.HandleFunc("PUT /competition/{compId}/league", h.HandlePutPredictionLeague)
+	mux.HandleFunc("GET /competition/{id}/get-leagues", h.HandleGetCompetitionLeagues)
+	mux.HandleFunc("PUT /competition/{id}/join-by-code", h.HandleJoinLeagueByCode)
 	mux.HandleFunc("PUT /join/{id}", h.HandleJoinGlobalLeague)
 
 	mux.HandleFunc("GET /prediction/{id}", h.HandleGetPrediction)

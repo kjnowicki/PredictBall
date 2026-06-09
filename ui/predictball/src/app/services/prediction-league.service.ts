@@ -20,4 +20,12 @@ export class PredictionLeagueService {
   joinGlobalLeague(competitionId: string | number, userId: string | number): Observable<any> {
     return this.api.put<any>(`join/${competitionId}?user=${userId}`, {});
   }
+
+  getCompetitionLeagues(competitionId: string | number, userId: string | number): Observable<{ publicLeagues: any[], yourLeagues: any[] }> {
+    return this.api.get<{ publicLeagues: any[], yourLeagues: any[] }>(`competition/${competitionId}/get-leagues`, { user: userId });
+  }
+
+  joinLeagueByCode(competitionId: string | number, userId: string | number, joinCode: string): Observable<any> {
+    return this.api.put<any>(`competition/${competitionId}/join-by-code?user=${userId}`, { joinCode });
+  }
 }

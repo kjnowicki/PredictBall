@@ -137,6 +137,21 @@ func (s *TemplateService) GetPredictionLeague(ctx context.Context, competitionID
 	return &models.PredictionLeague{ID: 1, Name: "Premier League Predictors", JoinCode: "PL2026"}, nil
 }
 
+func (s *TemplateService) GetCompetitionLeagues(ctx context.Context, competitionID string, userID string) (any, error) {
+	return map[string]any{
+		"publicLeagues": []map[string]any{
+			{"id": 1, "name": "Global League", "public": true, "participants": 100},
+		},
+		"yourLeagues": []map[string]any{
+			{"id": 2, "name": "Friends League", "public": false, "participants": 5},
+		},
+	}, nil
+}
+
+func (s *TemplateService) JoinLeagueByCode(ctx context.Context, competitionID string, userID string, joinCode string) (any, error) {
+	return map[string]any{"id": 2, "name": "Private League", "public": false, "participants": 2}, nil
+}
+
 func (s *TemplateService) PutPredictionLeague(ctx context.Context, competitionID string, league models.PredictionLeague) (*models.PredictionLeague, error) {
 	if league.ID == 0 {
 		league.ID = 123
