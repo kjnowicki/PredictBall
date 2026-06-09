@@ -1,5 +1,5 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
-import { CommonModule, DOCUMENT } from '@angular/common';
+import { Component, OnInit, inject, ChangeDetectorRef, PLATFORM_ID } from '@angular/core';
+import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
@@ -51,12 +51,15 @@ export class CompetitionsPage implements OnInit {
   private document = inject(DOCUMENT);
   private cdr = inject(ChangeDetectorRef);
   private router = inject(Router);
+  private platformId = inject(PLATFORM_ID);
   private userId: string | null = null;
 
   ngOnInit() {
-    const cookies = this.document.cookie.split('; ');
-    const userIdCookie = cookies.find(row => row.startsWith('userId='));
-    this.userId = userIdCookie ? userIdCookie.split('=')[1] : null;
+    if (isPlatformBrowser(this.platformId)) {
+      const cookies = this.document.cookie.split('; ');
+      const userIdCookie = cookies.find(row => row.startsWith('userId='));
+      this.userId = userIdCookie ? userIdCookie.split('=')[1] : null;
+    }
 
     if (!this.userId) {
       console.warn('User is not authenticated.');

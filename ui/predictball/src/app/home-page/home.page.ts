@@ -1,5 +1,5 @@
-import { CommonModule, DOCUMENT } from '@angular/common';
-import { Component, OnInit, signal, TemplateRef, ViewChild, inject } from '@angular/core';
+import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { Component, OnInit, signal, TemplateRef, ViewChild, inject, PLATFORM_ID } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { PredictionTileComponent } from '../prediction-tile-component/prediction.tile.component';
@@ -12,10 +12,11 @@ import { MatButtonModule } from '@angular/material/button';
 import { UserService } from '../services/user.service';
 import { CompetitionService } from '../services/competition.service';
 import { PredictionLeagueService } from '../services/prediction-league.service';
+import { MatchService } from '../services/match.service';
 import { Competition } from '../models/competition';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { PredictionLeague } from '../models';
+import { PredictionLeague, Match } from '../models';
 
 interface Task {
   matchId: string;
@@ -55,6 +56,7 @@ export class HomePage implements OnInit {
 
   selectedCompetitionId = signal(-1);
   selectedTask: Task | null = null;
+  selectedTaskMatch: Match | null = null;
 
   leaguesDisplayedColumns: string[] = ['name'];
   tasksDisplayedColumns: string[] = ['matchName', 'date', 'status'];
@@ -63,14 +65,20 @@ export class HomePage implements OnInit {
   private userService = inject(UserService);
   private competitionService = inject(CompetitionService);
   private leagueService = inject(PredictionLeagueService);
+  private matchService = inject(MatchService);
   private document = inject(DOCUMENT);
+  private platformId = inject(PLATFORM_ID);
 
   @ViewChild('taskDialog') taskDialog!: TemplateRef<any>;
 
   ngOnInit(): void {
-    const cookies = this.document.cookie.split('; ');
-    const userIdCookie = cookies.find(row => row.startsWith('userId='));
-    const userId = userIdCookie ? userIdCookie.split('=')[1] : null;
+    let userId: string | null = null;
+    
+    if (isPlatformBrowser(this.platformId)) {
+      const cookies = this.document.cookie.split('; ');
+      const userIdCookie = cookies.find(row => row.startsWith('userId='));
+      userId = userIdCookie ? userIdCookie.split('=')[1] : null;
+    }
 
     if (!userId) {
       console.warn('User is not authenticated.');
@@ -145,11 +153,18 @@ export class HomePage implements OnInit {
 
   openTaskModal(task: Task): void {
     this.selectedTask = task;
-    this.dialog.open(this.taskDialog);
+    this.matchService.getMatch(task.matchId).subscribe({
+      next: (match) => {
+        this.selectedTaskMatch = match;
+        this.dialog.open(this.taskDialog);
+      },
+      error: (err) => console.error('Error fetching match details for task', err)
+    });
   }
 
   closeModal(): void {
     this.dialog.closeAll();
     this.selectedTask = null;
+    this.selectedTaskMatch = null;
   }
 }

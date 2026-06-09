@@ -102,8 +102,8 @@
 <ng-template #taskDialog>
   <h2 mat-dialog-title>Task Details</h2>
   <mat-dialog-content>
-    @if (selectedTask) {
-        <app-prediction-tile [matchId]="selectedTask.matchId"></app-prediction-tile>
+    @if (selectedTaskMatch) {
+        <app-prediction-tile [match]="selectedTaskMatch"></app-prediction-tile>
     }
   </mat-dialog-content>
   <mat-dialog-actions align="end">

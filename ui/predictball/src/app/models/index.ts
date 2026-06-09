@@ -1,9 +1,10 @@
-export type MatchStatus = 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'LINEUPS-READY';
+export type MatchStatus = 'SCHEDULED' | 'LIVE' | 'IN_PLAY' | 'PAUSED' | 'FINISHED' | 'LINEUPS-READY';
 
 export interface Player {
   id: number;
   name: string;
   position: string;
+  nationality?: string;
 }
 
 export interface TeamSquad {

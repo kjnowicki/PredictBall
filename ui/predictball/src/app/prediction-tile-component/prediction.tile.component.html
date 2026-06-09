@@ -7,33 +7,41 @@
   </mat-card-header>
 
   <mat-card-content style="padding-top: 1rem;">
-    <!-- Row 2: Home & Away goals prediction input -->
-    <div class="prediction-row" style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-      <input type="number" min="0" max="99" style="width: 3.5rem; height: 3rem; text-align: center; font-size: 1.5rem; padding: 0; border: 1px solid #ccc; border-radius: 4px;" [(ngModel)]="homeGoalsPrediction">
-      <strong style="font-size: 2rem; color: #555;">-</strong>
-      <input type="number" min="0" max="99" style="width: 3.5rem; height: 3rem; text-align: center; font-size: 1.5rem; padding: 0; border: 1px solid #ccc; border-radius: 4px;" [(ngModel)]="awayGoalsPrediction">
+    <!-- Row 2: Match Time and Live Status -->
+    <div style="text-align: center; margin-bottom: 1rem; font-size: 0.9rem; color: #555;">
+      {{ match.startTime | date:'short' }}
+      @if (isLive) {
+        <span style="color: red; font-weight: bold; margin-left: 0.5rem;">LIVE</span>
+      }
     </div>
 
-    <!-- Row 3: Scorer select input -->
+    <!-- Row 3: Home & Away goals prediction input -->
+    <div class="prediction-row" style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+      <input type="number" min="0" max="99" style="width: 3.5rem; height: 3rem; text-align: center; font-size: 1.5rem; padding: 0; border: 1px solid #ccc; border-radius: 4px;" [(ngModel)]="homeGoalsPrediction" [disabled]="isPast">
+      <strong style="font-size: 2rem; color: #555;">-</strong>
+      <input type="number" min="0" max="99" style="width: 3.5rem; height: 3rem; text-align: center; font-size: 1.5rem; padding: 0; border: 1px solid #ccc; border-radius: 4px;" [(ngModel)]="awayGoalsPrediction" [disabled]="isPast">
+    </div>
+
+    <!-- Row 4: Scorer select input -->
     <div class="prediction-row">
       <mat-form-field appearance="outline" style="width: 100%;">
         <mat-label>Scorer</mat-label>
-        <mat-select [(ngModel)]="selectedScorer">
-          @for (scorer of scorers; track scorer) {
-            <mat-option [value]="scorer">{{ scorer }}</mat-option>
+        <mat-select [(ngModel)]="selectedScorer" [disabled]="isPast">
+          @for (scorer of scorers; track scorer.id) {
+            <mat-option [value]="scorer.id">{{ scorer.displayName }}</mat-option>
           }
         </mat-select>
       </mat-form-field>
     </div>
 
-    <!-- Row 4: 3 toggle icons (Placeholder for now) -->
+    <!-- Row 5: 3 toggle icons (Placeholder for now) -->
     <div class="prediction-row" style="display: flex; justify-content: center; gap: 1.5rem; margin-bottom: 1rem;">
       <mat-icon style="cursor: pointer;">sports_soccer</mat-icon>
       <mat-icon style="cursor: pointer;">star_border</mat-icon>
       <mat-icon style="cursor: pointer;">favorite_border</mat-icon>
     </div>
 
-    <!-- Row 5: Scored points -->
+    <!-- Row 6: Scored points -->
     <div class="prediction-row" style="text-align: center; font-size: 1.1rem;">
       <strong>Points: </strong> {{ scoredPoints !== null ? scoredPoints : '-' }}
     </div>

@@ -28,4 +28,5 @@ type APIService interface {
 
 	GetScoringSystem(ctx context.Context) (*models.ScoringSystem, error)
 	GetTeam(ctx context.Context, teamID int) (*footballdata.Team, error)
+	GetTeamDetails(ctx context.Context, teamID int, params map[string]string) (*footballdata.Team, error)
 }

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -48,7 +48,8 @@ export class CompetitionPage implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private competitionService: CompetitionService,
-    private matchService: MatchService
+    private matchService: MatchService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -60,9 +61,11 @@ export class CompetitionPage implements OnInit {
           if (comp.currentSeason?.currentMatchday) {
             this.selectedMatchday = comp.currentSeason.currentMatchday;
           }
+          this.cdr.detectChanges();
         });
         this.matchService.getMatchSchedule(this.competitionCode).subscribe(matches => {
           this.matches = matches;
+          this.cdr.detectChanges();
         });
       }
     });

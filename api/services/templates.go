@@ -182,3 +182,7 @@ func (s *TemplateService) GetTeam(ctx context.Context, teamID int) (*footballdat
 		LastUpdated: time.Now().Format(time.RFC3339),
 	}, nil
 }
+
+func (s *TemplateService) GetTeamDetails(ctx context.Context, teamID int, params map[string]string) (*footballdata.Team, error) {
+	return s.GetTeam(ctx, teamID)
+}

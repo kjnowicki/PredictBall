@@ -201,12 +201,12 @@ func (h *APIHandler) HandleGetTeamDetails(w http.ResponseWriter, r *http.Request
 		http.Error(w, "invalid team ID", http.StatusBadRequest)
 		return
 	}
-	squad, err := h.Service.GetTeam(r.Context(), id)
+	team, err := h.Service.GetTeamDetails(r.Context(), id, nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	WriteJSON(w, http.StatusOK, squad)
+	WriteJSON(w, http.StatusOK, team)
 }
 
 func corsMiddleware(next http.Handler) http.Handler {

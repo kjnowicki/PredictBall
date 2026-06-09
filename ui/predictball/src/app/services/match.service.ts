@@ -16,4 +16,8 @@ export class MatchService {
   getMatchDetails(matchId: string): Observable<MatchDetails> {
     return this.api.get<MatchDetails>(`match-details/${matchId}`);
   }
+
+  getMatch(matchId: string): Observable<Match> {
+    return this.api.get<Match>(`matches/${matchId}`);
+  }
 }
