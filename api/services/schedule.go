@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"predictball_api/models"
 	"time"
 )
@@ -13,17 +12,12 @@ func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode s
 		return nil, err
 	}
 
-	var schedule []models.Match
-	cacheKey := fmt.Sprintf("schedule_cache_%s", comp.Code)
-	if readCache(s, cacheKey, &schedule) {
-		return schedule, nil
-	}
-
 	apiData, err := s.FootballDataService.GetMatches(ctx, comp.Code, map[string]string{"season": "2026"})
 	if err != nil {
 		return nil, err
 	}
 
+	var schedule []models.Match
 	for _, m := range apiData.Matches {
 		var homeScore, awayScore int
 		if m.Score.FullTime.Home != nil {
@@ -60,8 +54,6 @@ func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode s
 			},
 		})
 	}
-
-	writeCache(s, cacheKey, schedule, 30*time.Minute)
 
 	return schedule, nil
 }

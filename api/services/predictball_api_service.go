@@ -86,6 +86,11 @@ func writeCache(s *PredictballAPIService, baseName string, data any, duration ti
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	dir := filepath.Dir(baseName)
+	if dir != "." {
+		os.MkdirAll(dir, 0755)
+	}
+
 	if oldFiles, err := filepath.Glob(baseName + "_*.json"); err == nil {
 		for _, f := range oldFiles {
 			_ = os.Remove(f)

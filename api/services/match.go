@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"predictball_api/models"
 	footballdata "predictball_api/models/football-data"
+	"time"
 )
 
 func (s *PredictballAPIService) GetMatchDetails(ctx context.Context, matchID string) (*models.MatchDetails, error) {
 	var apiMatch footballdata.Match
-	if err := s.fetchCached(ctx, fmt.Sprintf("matches/%s", matchID), nil, &apiMatch); err != nil {
+	if err := s.fetchCached(ctx, fmt.Sprintf("matches/%s", matchID), nil, &apiMatch, 30*time.Minute); err != nil {
 		return nil, err
 	}
 
