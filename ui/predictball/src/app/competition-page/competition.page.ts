@@ -51,7 +51,7 @@ export class CompetitionPage implements OnInit {
   predictions: Record<number, any> = {};
   selectedMatchday: number = 1;
   powerupsData: any = null;
-  currentMatchdayPowerups: any = { matchdayNumber: 1, doubleScorerMatchId: 0, tripleScorerMatchId: 0, reversalMatchId: 0 };
+  currentMatchdayPowerups: any = { matchdayNumber: 1, doubleScorerMatchId: 0, doubleScorerId: 0, tripleScoreMatchId: 0, reversalMatchId: 0 };
   
   publicLeagues: PublicLeague[] = [];
   yourLeagues: PublicLeague[] = [];
@@ -125,7 +125,7 @@ export class CompetitionPage implements OnInit {
     if (!this.powerupsData.matchdays) this.powerupsData.matchdays = [];
     let md = this.powerupsData.matchdays.find((m: any) => m.matchdayNumber === this.selectedMatchday);
     if (!md) {
-      md = { matchdayNumber: this.selectedMatchday, doubleScorerMatchId: 0, tripleScorerMatchId: 0, reversalMatchId: 0 };
+      md = { matchdayNumber: this.selectedMatchday, doubleScorerMatchId: 0, doubleScorerId: 0, tripleScoreMatchId: 0, reversalMatchId: 0 };
       this.powerupsData.matchdays.push(md);
     }
     this.currentMatchdayPowerups = md;
@@ -211,18 +211,26 @@ export class CompetitionPage implements OnInit {
     const oldPrediction = this.predictions[matchId];
     const oldPowerup = oldPrediction ? oldPrediction.powerup : null;
     const newPowerup = predictionData.powerup;
+    const newDoubleScorerId = predictionData.doubleScorerId || 0;
 
-    if (oldPowerup !== newPowerup) {
+    const powerupChanged = oldPowerup !== newPowerup;
+    const doubleScorerChanged = newPowerup === 'doubleScorer' && this.currentMatchdayPowerups.doubleScorerId !== newDoubleScorerId;
+
+    if (powerupChanged || doubleScorerChanged) {
       // Create a new object reference to ensure Angular change detection pushes the update to all child tiles
       const updatedPowerups = { ...this.currentMatchdayPowerups };
 
-      if (oldPowerup === 'doubleScorer') updatedPowerups.doubleScorerMatchId = 0;
-      if (oldPowerup === 'tripleScore') updatedPowerups.tripleScorerMatchId = 0;
-      if (oldPowerup === 'reversal') updatedPowerups.reversalMatchId = 0;
+      if (powerupChanged) {
+        if (oldPowerup === 'doubleScorer') { updatedPowerups.doubleScorerMatchId = 0; updatedPowerups.doubleScorerId = 0; }
+        if (oldPowerup === 'tripleScore') updatedPowerups.tripleScoreMatchId = 0;
+        if (oldPowerup === 'reversal') updatedPowerups.reversalMatchId = 0;
 
-      if (newPowerup === 'doubleScorer') updatedPowerups.doubleScorerMatchId = matchId;
-      if (newPowerup === 'tripleScore') updatedPowerups.tripleScorerMatchId = matchId;
-      if (newPowerup === 'reversal') updatedPowerups.reversalMatchId = matchId;
+        if (newPowerup === 'doubleScorer') { updatedPowerups.doubleScorerMatchId = matchId; updatedPowerups.doubleScorerId = newDoubleScorerId; }
+        if (newPowerup === 'tripleScore') updatedPowerups.tripleScoreMatchId = matchId;
+        if (newPowerup === 'reversal') updatedPowerups.reversalMatchId = matchId;
+      } else if (doubleScorerChanged) {
+        updatedPowerups.doubleScorerId = newDoubleScorerId;
+      }
 
       this.currentMatchdayPowerups = updatedPowerups;
       

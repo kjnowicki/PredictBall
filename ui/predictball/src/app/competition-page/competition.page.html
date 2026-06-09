@@ -17,6 +17,14 @@
                 <mat-icon>chevron_right</mat-icon>
               </button>
             </div>
+            <div style="text-align: center; margin-bottom: 2rem; color: #555;">
+              <p style="margin-bottom: 0.5rem;"><strong>Powerups available per matchday:</strong></p>
+              <div style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; padding: 0 1rem;">
+                <span><mat-icon style="vertical-align: middle;">sports_soccer</mat-icon> <strong>Double Scorer:</strong> Pick a second potential scorer for a single match.</span>
+                <span><mat-icon style="vertical-align: middle;">star_border</mat-icon> <strong>Triple Score:</strong> Triples your point yield for the match.</span>
+                <span><mat-icon style="vertical-align: middle;">swap_horiz</mat-icon> <strong>Reversal:</strong> Swap the predicted scoreline if the opposite team wins (cannot be used on draws).</span>
+              </div>
+            </div>
             <div class="predictions-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
               @for (match of filteredMatches; track match.id) {
               <app-prediction-tile style="display: block;" [match]="match" [prediction]="predictions[match.id]" [availablePowerups]="currentMatchdayPowerups" (predictionChanged)="onPredictionChanged(match.id, $event)"></app-prediction-tile>

@@ -54,6 +54,7 @@ export class PredictionTileComponent implements OnInit, OnChanges {
   selectedScorer: number | null = null;
   scoredPoints: number | null = null;
   activePowerup: string | null = null;
+  secondScorer: number | null = null;
 
   isPast: boolean = false;
   isLive: boolean = false;
@@ -73,6 +74,11 @@ export class PredictionTileComponent implements OnInit, OnChanges {
       this.awayGoalsPrediction = this.prediction.awayScore;
       this.selectedScorer = this.prediction.scorerId === 0 ? null : this.prediction.scorerId;
       this.activePowerup = this.prediction.powerup || null;
+    }
+    if (changes['availablePowerups'] && this.availablePowerups) {
+      if (this.availablePowerups.doubleScorerMatchId === this.match.id) {
+        this.secondScorer = this.availablePowerups.doubleScorerId === 0 ? null : this.availablePowerups.doubleScorerId;
+      }
     }
   }
 
@@ -96,8 +102,11 @@ export class PredictionTileComponent implements OnInit, OnChanges {
 
     if (this.activePowerup !== powerup) {
       if (powerup === 'doubleScorer' && this.availablePowerups?.doubleScorerMatchId && this.availablePowerups.doubleScorerMatchId !== this.match.id) return;
-      if (powerup === 'tripleScore' && this.availablePowerups?.tripleScorerMatchId && this.availablePowerups.tripleScorerMatchId !== this.match.id) return;
-      if (powerup === 'reversal' && this.availablePowerups?.reversalMatchId && this.availablePowerups.reversalMatchId !== this.match.id) return;
+      if (powerup === 'tripleScore' && this.availablePowerups?.tripleScoreMatchId && this.availablePowerups.tripleScoreMatchId !== this.match.id) return;
+      if (powerup === 'reversal') {
+        if (this.availablePowerups?.reversalMatchId && this.availablePowerups.reversalMatchId !== this.match.id) return;
+        if (this.homeGoalsPrediction !== null && this.awayGoalsPrediction !== null && this.homeGoalsPrediction === this.awayGoalsPrediction) return;
+      }
     }
 
     if (this.homeGoalsPrediction === null) this.homeGoalsPrediction = 0;
@@ -120,6 +129,10 @@ export class PredictionTileComponent implements OnInit, OnChanges {
   onPredictionInput() {
     if (this.isPast || this.isSelectOpen) return;
 
+    if (this.activePowerup === 'reversal' && this.homeGoalsPrediction !== null && this.awayGoalsPrediction !== null && this.homeGoalsPrediction === this.awayGoalsPrediction) {
+      this.activePowerup = null;
+    }
+
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout);
     }
@@ -135,7 +148,8 @@ export class PredictionTileComponent implements OnInit, OnChanges {
         homeScore: this.homeGoalsPrediction,
         awayScore: this.awayGoalsPrediction,
         scorerId: this.selectedScorer || 0,
-        powerup: this.activePowerup
+        powerup: this.activePowerup,
+        doubleScorerId: this.secondScorer || 0
       });
     }
   }

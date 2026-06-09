@@ -3,7 +3,8 @@ package models
 type MatchdayPowerups struct {
 	MatchdayNumber      int `json:"matchdayNumber"`
 	DoubleScorerMatchId int `json:"doubleScorerMatchId"`
-	TripleScorerMatchId int `json:"tripleScorerMatchId"`
+	DoubleScorerId      int `json:"doubleScorerId"`
+	TripleScoreMatchId  int `json:"tripleScoreMatchId"`
 	ReversalMatchId     int `json:"reversalMatchId"`
 }
 

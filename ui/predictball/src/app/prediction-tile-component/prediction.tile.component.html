@@ -66,15 +66,36 @@
         title="Double Scorer">sports_soccer</mat-icon>
       <mat-icon 
         (click)="togglePowerup('tripleScore')"
-        [style.color]="activePowerup === 'tripleScore' ? '#1976d2' : (!availablePowerups?.tripleScorerMatchId || availablePowerups?.tripleScorerMatchId === match.id ? '#555' : '#ccc')"
-        [style.cursor]="isPast || (availablePowerups?.tripleScorerMatchId && availablePowerups?.tripleScorerMatchId !== match.id && activePowerup !== 'tripleScore') ? 'default' : 'pointer'"
+        [style.color]="activePowerup === 'tripleScore' ? '#1976d2' : (!availablePowerups?.tripleScoreMatchId || availablePowerups?.tripleScoreMatchId === match.id ? '#555' : '#ccc')"
+        [style.cursor]="isPast || (availablePowerups?.tripleScoreMatchId && availablePowerups?.tripleScoreMatchId !== match.id && activePowerup !== 'tripleScore') ? 'default' : 'pointer'"
         title="Triple Score">star_border</mat-icon>
       <mat-icon 
         (click)="togglePowerup('reversal')"
         [style.color]="activePowerup === 'reversal' ? '#1976d2' : (!availablePowerups?.reversalMatchId || availablePowerups?.reversalMatchId === match.id ? '#555' : '#ccc')"
-        [style.cursor]="isPast || (availablePowerups?.reversalMatchId && availablePowerups?.reversalMatchId !== match.id && activePowerup !== 'reversal') ? 'default' : 'pointer'"
-        title="Reversal">favorite_border</mat-icon>
+        [style.cursor]="isPast || (availablePowerups?.reversalMatchId && availablePowerups?.reversalMatchId !== match.id && activePowerup !== 'reversal') || (homeGoalsPrediction !== null && homeGoalsPrediction === awayGoalsPrediction) ? 'default' : 'pointer'"
+        title="Reversal">swap_horiz</mat-icon>
     </div>
+
+    <!-- Row 5.5: Second Scorer select input (only visible when Double Scorer powerup is active on this match) -->
+    @if (activePowerup === 'doubleScorer' || availablePowerups?.doubleScorerMatchId === match.id) {
+    <div class="prediction-row">
+      <mat-form-field appearance="outline" style="width: 100%;">
+        <mat-label>Second Scorer</mat-label>
+        <mat-select [(ngModel)]="secondScorer" (ngModelChange)="onPredictionInput()" (openedChange)="onSelectOpened($event)" [disabled]="isPast || activePowerup !== 'doubleScorer'">
+          <mat-option [value]="null">None</mat-option>
+        @for (group of scorerGroups; track group.name) {
+          <mat-optgroup [label]="group.name">
+            @for (scorer of group.scorers; track scorer.id) {
+              <mat-option [value]="scorer.id">
+                {{ scorer.name }}
+              </mat-option>
+            }
+          </mat-optgroup>
+        }
+        </mat-select>
+      </mat-form-field>
+    </div>
+    }
 
     <!-- Row 6: Scored points -->
     <div class="prediction-row" style="text-align: center; font-size: 1.1rem;">
