@@ -2,7 +2,7 @@
   <!-- Main column for ranking -->
   <mat-card style="flex: 3; min-width: 300px;">
     <mat-card-header>
-      <mat-card-title>League Standings</mat-card-title>
+      <mat-card-title>{{ leagueName }} Standings</mat-card-title>
     </mat-card-header>
     <mat-card-content style="padding-top: 1rem;">
       <table mat-table [dataSource]="players" style="width: 100%;">
@@ -25,22 +25,15 @@
   </mat-card>
 
   <!-- Side column for settings -->
-  <mat-card style="flex: 1; min-width: 250px;">
-    <mat-card-header>
-      <mat-card-title>Quick Settings</mat-card-title>
-    </mat-card-header>
-    <mat-card-content style="padding-top: 1rem; text-align: center;">
-      @if (isMyLeague) {
+  @if (leagueJoinCode && leagueJoinCode !== 'GLOBAL') {
+    <mat-card style="flex: 1; min-width: 250px;">
+      <mat-card-header>
+        <mat-card-title>Share Code</mat-card-title>
+      </mat-card-header>
+      <mat-card-content style="padding-top: 1rem; text-align: center;">
         <p>Invite friends with this code:</p>
         <h3 style="letter-spacing: 2px;">{{ leagueJoinCode }}</h3>
-      } @else {
-        <p>Have a join code?</p>
-        <mat-form-field appearance="outline" style="width: 100%;">
-          <mat-label>Join Code</mat-label>
-          <input matInput [(ngModel)]="joinCodeInput" placeholder="Enter code">
-        </mat-form-field>
-        <button mat-raised-button color="primary" (click)="joinLeague()" style="width: 100%;">Join League</button>
-      }
-    </mat-card-content>
-  </mat-card>
+      </mat-card-content>
+    </mat-card>
+  }
 </div>

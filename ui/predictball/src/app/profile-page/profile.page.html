@@ -45,7 +45,9 @@
       </mat-card-content>
     } @else if (activeTab() === 'displayName') {
       <mat-card-header>
-        <mat-card-title>Change Display Name</mat-card-title>
+        <mat-card-title>Change Display Name @if (currentDisplayName) {
+          (current: {{ currentDisplayName }})
+        }</mat-card-title>
       </mat-card-header>
       <mat-card-content>
         <form (ngSubmit)="onChangeDisplayName()" class="profile-form">
