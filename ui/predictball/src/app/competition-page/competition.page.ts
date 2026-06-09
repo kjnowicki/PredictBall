@@ -1,6 +1,6 @@
 import { Component, OnInit, ChangeDetectorRef, inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTableModule } from '@angular/material/table';
@@ -48,6 +48,8 @@ export class CompetitionPage implements OnInit {
   publicLeagues: PublicLeague[] = [];
   yourLeagues: PublicLeague[] = [];
   joinCode: string = '';
+  newLeagueName: string = '';
+  isCreatingLeague: boolean = false;
   userId: string | null = null;
   
   leaguesDisplayedColumns: string[] = ['name', 'participants'];
@@ -55,6 +57,7 @@ export class CompetitionPage implements OnInit {
   private document = inject(DOCUMENT);
   private platformId = inject(PLATFORM_ID);
   private predictionLeagueService = inject(PredictionLeagueService);
+  private router = inject(Router);
 
   constructor(
     private route: ActivatedRoute,
@@ -106,6 +109,24 @@ export class CompetitionPage implements OnInit {
       this.joinCode = '';
       this.loadLeagues();
     });
+  }
+
+  createLeague() {
+    if (!this.newLeagueName.trim() || !this.competitionCode || !this.userId) return;
+    
+    this.isCreatingLeague = true;
+    this.predictionLeagueService.createPredictionLeague(this.competitionCode, this.userId, this.newLeagueName.trim())
+      .subscribe({
+        next: (newLeague) => {
+          this.isCreatingLeague = false;
+          this.newLeagueName = '';
+          this.loadLeagues();
+          this.router.navigate(['/competition', this.competitionCode, 'league', newLeague.id]);
+        },
+        error: () => {
+          this.isCreatingLeague = false;
+        }
+      });
   }
 
   get filteredMatches() {

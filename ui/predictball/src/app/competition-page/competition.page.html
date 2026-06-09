@@ -35,7 +35,7 @@
               <ng-container matColumnDef="name">
                 <th mat-header-cell *matHeaderCellDef>League Name</th>
                 <td mat-cell *matCellDef="let league">
-                  <a [routerLink]="['/league', league.id]">{{ league.name }}</a>
+                  <a [routerLink]="['/competition', competitionCode, 'league', league.id]">{{ league.name }}</a>
                 </td>
               </ng-container>
               
@@ -53,7 +53,7 @@
               <ng-container matColumnDef="name">
                 <th mat-header-cell *matHeaderCellDef>League Name</th>
                 <td mat-cell *matCellDef="let league">
-                  <a [routerLink]="['/league', league.id]">{{ league.name }}</a>
+                  <a [routerLink]="['/competition', competitionCode, 'league', league.id]">{{ league.name }}</a>
                 </td>
               </ng-container>
               
@@ -72,6 +72,17 @@
                 <input matInput [(ngModel)]="joinCode" placeholder="Enter code">
               </mat-form-field>
               <button mat-raised-button color="primary" [disabled]="!joinCode" (click)="joinLeague()">Join League</button>
+            </div>
+
+            <h2 style="margin-top: 2rem;">Create Private League</h2>
+            <div style="display: flex; gap: 1rem; align-items: baseline;">
+              <mat-form-field>
+                <mat-label>League Name</mat-label>
+                <input matInput [(ngModel)]="newLeagueName" placeholder="Enter league name">
+              </mat-form-field>
+              <button mat-raised-button color="primary" [disabled]="!newLeagueName.trim() || isCreatingLeague" (click)="createLeague()">
+                {{ isCreatingLeague ? 'Creating...' : 'Create' }}
+              </button>
             </div>
           </div>
         </mat-tab>

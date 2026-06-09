@@ -152,9 +152,11 @@ func (s *TemplateService) JoinLeagueByCode(ctx context.Context, competitionID st
 	return map[string]any{"id": 2, "name": "Private League", "public": false, "participants": 2}, nil
 }
 
-func (s *TemplateService) PutPredictionLeague(ctx context.Context, competitionID string, league models.PredictionLeague) (*models.PredictionLeague, error) {
+func (s *TemplateService) PutPredictionLeague(ctx context.Context, competitionID string, userID string, league models.PredictionLeague) (*models.PredictionLeague, error) {
 	if league.ID == 0 {
 		league.ID = 123
+		league.JoinCode = "RANDOM"
+		league.Public = false
 	}
 	return &league, nil
 }

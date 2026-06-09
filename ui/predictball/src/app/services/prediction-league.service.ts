@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
-import { PredictionLeague } from '../models';
+import { PredictionLeague } from '../models/predictball.models';
 
 @Injectable({
   providedIn: 'root'
@@ -13,8 +13,9 @@ export class PredictionLeagueService {
     return this.api.get<any>(`competition/${competitionId}/league/${leagueId}`);
   }
 
-  createPredictionLeague(competitionId: string | number, league: PredictionLeague): Observable<PredictionLeague> {
-    return this.api.put<PredictionLeague>(`competition/${competitionId}/league`, league);
+  createPredictionLeague(competitionId: string | number, userId: string | number, name: string): Observable<PredictionLeague> {
+    const league: Partial<PredictionLeague> = { name };
+    return this.api.put<PredictionLeague>(`competition/${competitionId}/league?user=${userId}`, league);
   }
 
   joinGlobalLeague(competitionId: string | number, userId: string | number): Observable<any> {

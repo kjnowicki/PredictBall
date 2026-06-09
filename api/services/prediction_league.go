@@ -2,13 +2,16 @@ package services
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"os"
 	"path/filepath"
 	"predictball_api/models"
 	"slices"
 	"strconv"
+	"strings"
 )
 
 func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, competitionID string, leagueID string) (any, error) {
@@ -40,16 +43,85 @@ func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, competi
 	return league, nil
 }
 
-func (s *PredictballAPIService) PutPredictionLeague(ctx context.Context, competitionID string, league models.PredictionLeague) (*models.PredictionLeague, error) {
+func generateJoinCode(length int) (string, error) {
+	const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	result := make([]byte, length)
+	for i := range result {
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		if err != nil {
+			return "", err
+		}
+		result[i] = chars[num.Int64()]
+	}
+	return string(result), nil
+}
+
+func (s *PredictballAPIService) PutPredictionLeague(ctx context.Context, competitionID string, userID string, league models.PredictionLeague) (*models.PredictionLeague, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	dir := filepath.Join("data", "competitions", competitionID, "leagues")
 	os.MkdirAll(dir, 0755)
 
-	if league.ID == 0 {
+	if league.ID == 0 { // This is a new league
 		files, _ := os.ReadDir(dir)
-		league.ID = len(files) + 1
+		maxID := 0
+		for _, file := range files {
+			if filepath.Ext(file.Name()) == ".json" {
+				idStr := strings.TrimSuffix(file.Name(), ".json")
+				id, err := strconv.Atoi(idStr)
+				if err == nil && id > maxID {
+					maxID = id
+				}
+			}
+		}
+		league.ID = maxID + 1
+
+		joinCode, err := generateJoinCode(6)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate join code: %v", err)
+		}
+		league.JoinCode = joinCode
+		league.Public = false
+
+		_, err = s.GetUser(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("user not found for league creation: %v", err)
+		}
+		uid, _ := strconv.Atoi(userID)
+		league.UserIDs = []int{uid}
+
+		s.initUserLeagues()
+		compIDInt, _ := strconv.Atoi(competitionID)
+		comps := userLeagues[userID]
+		foundComp := false
+		for i, c := range comps {
+			if c.CompetitionID == compIDInt {
+				foundComp = true
+				if !slices.Contains(c.LeagueIDs, league.ID) {
+					comps[i].LeagueIDs = append(comps[i].LeagueIDs, league.ID)
+				}
+				break
+			}
+		}
+		if !foundComp {
+			comps = append(comps, models.UserCompetitionLeagues{
+				CompetitionID: compIDInt,
+				LeagueIDs:     []int{league.ID},
+			})
+		}
+		userLeagues[userID] = comps
+
+		var ulData []models.UserLeagues
+		for uidStr, c := range userLeagues {
+			uidInt, _ := strconv.Atoi(uidStr)
+			ulData = append(ulData, models.UserLeagues{
+				UserID:       uidInt,
+				Competitions: c,
+			})
+		}
+		bUL, _ := json.MarshalIndent(ulData, "", "  ")
+		os.WriteFile("data/userLeagues.json", bUL, 0644)
 	}
 
 	filename := fmt.Sprintf("%d.json", league.ID)
@@ -186,11 +258,20 @@ func (s *PredictballAPIService) GetCompetitionLeagues(ctx context.Context, compe
 				Users  []struct {
 					UserID int `json:"userId"`
 				} `json:"users"`
+				UserIDs []int `json:"userIds"`
 			}
 			if err := json.Unmarshal(data, &league); err == nil {
 				isMember := false
+				participants := len(league.UserIDs) + len(league.Users)
+
 				for _, u := range league.Users {
 					if u.UserID == uid {
+						isMember = true
+						break
+					}
+				}
+				for _, uID := range league.UserIDs {
+					if uID == uid {
 						isMember = true
 						break
 					}
@@ -200,7 +281,7 @@ func (s *PredictballAPIService) GetCompetitionLeagues(ctx context.Context, compe
 					ID:           league.ID,
 					Name:         league.Name,
 					Public:       league.Public,
-					Participants: len(league.Users),
+					Participants: participants,
 				}
 
 				if league.Public {
@@ -217,7 +298,7 @@ func (s *PredictballAPIService) GetCompetitionLeagues(ctx context.Context, compe
 }
 
 func (s *PredictballAPIService) JoinLeagueByCode(ctx context.Context, competitionID string, userID string, joinCode string) (any, error) {
-	user, err := s.GetUser(ctx, userID)
+	_, err := s.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %v", err)
 	}
@@ -259,27 +340,21 @@ func (s *PredictballAPIService) JoinLeagueByCode(ctx context.Context, competitio
 
 	uid, _ := strconv.Atoi(userID)
 
-	usersInter, ok := foundLeague["users"].([]any)
+	userIdsInter, ok := foundLeague["userIds"].([]any)
 	if !ok {
-		usersInter = []any{}
+		userIdsInter = []any{}
 	}
 
 	isMember := false
-	for _, uInter := range usersInter {
-		uMap := uInter.(map[string]any)
-		if uID, ok := uMap["userId"].(float64); ok && int(uID) == uid {
+	for _, uInter := range userIdsInter {
+		if uID, ok := uInter.(float64); ok && int(uID) == uid {
 			isMember = true
 			break
 		}
 	}
 
 	if !isMember {
-		newUser := map[string]any{
-			"userId": uid,
-			"name":   user.DisplayName,
-			"points": 0,
-		}
-		foundLeague["users"] = append(usersInter, newUser)
+		foundLeague["userIds"] = append(userIdsInter, uid)
 		b, _ := json.MarshalIndent(foundLeague, "", "  ")
 		os.WriteFile(leagueFilePath, b, 0644)
 
