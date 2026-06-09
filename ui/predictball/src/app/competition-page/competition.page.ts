@@ -14,6 +14,7 @@ import { CompetitionService } from '../services/competition.service';
 import { PredictionLeagueService } from '../services/prediction-league.service';
 import { MatchService } from '../services/match.service';
 import { TeamService } from '../services/team.service';
+import { ScoringSystemService } from '../services/scoring-system.service';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { Match } from '../models';
@@ -52,6 +53,7 @@ export class CompetitionPage implements OnInit {
   selectedMatchday: number = 1;
   powerupsData: any = null;
   currentMatchdayPowerups: any = { matchdayNumber: 1, doubleScorerMatchId: 0, doubleScorerId: 0, tripleScoreMatchId: 0, reversalMatchId: 0 };
+  scoringSystem: any = null;
   
   publicLeagues: PublicLeague[] = [];
   yourLeagues: PublicLeague[] = [];
@@ -69,6 +71,7 @@ export class CompetitionPage implements OnInit {
   private predictionLeagueService = inject(PredictionLeagueService);
   private router = inject(Router);
   private teamService = inject(TeamService);
+  private scoringSystemService = inject(ScoringSystemService);
 
   constructor(
     private route: ActivatedRoute,
@@ -83,6 +86,11 @@ export class CompetitionPage implements OnInit {
       const userIdCookie = cookies.find(row => row.startsWith('userId='));
       this.userId = userIdCookie ? userIdCookie.split('=')[1] : null;
     }
+
+    this.scoringSystemService.getScoringSystem().subscribe(sys => {
+      this.scoringSystem = sys;
+      this.cdr.detectChanges();
+    });
 
     this.route.paramMap.subscribe(params => {
       this.competitionCode = params.get('id');
@@ -252,7 +260,8 @@ export class CompetitionPage implements OnInit {
       homeScore: predictionData.homeScore,
       awayScore: predictionData.awayScore,
       scorerId: predictionData.scorerId,
-      powerup: predictionData.powerup
+      powerup: predictionData.powerup,
+      doubleScorerId: predictionData.doubleScorerId
     };
 
     // Eagerly update locally to block duplicate toggles synchronously while API call processes
@@ -274,5 +283,65 @@ export class CompetitionPage implements OnInit {
   nextMatchday() {
     this.selectedMatchday++;
     this.updateCurrentMatchdayPowerups();
+  }
+
+  get completedPredictions() {
+    return this.filteredMatches.filter(m => {
+      const p = this.predictions[m.id];
+      return p && p.homeScore !== null && p.awayScore !== null && p.scorerId && p.scorerId !== 0;
+    }).length;
+  }
+
+  calculatePointsForPrediction(match: Match, prediction: any): number {
+    if (!this.scoringSystem || !match || !prediction || !match.matchDetails || match.status !== 'FINISHED') {
+      return 0;
+    }
+
+    const actualHome = match.matchDetails.homeScore;
+    const actualAway = match.matchDetails.awayScore;
+    let predHome = prediction.homeScore;
+    let predAway = prediction.awayScore;
+
+    if (prediction.powerup === 'reversal' && actualHome !== actualAway) {
+        const actualDiff = actualHome - actualAway;
+        const predDiff = predHome - predAway;
+        if ((actualDiff > 0 && predDiff < 0) || (actualDiff < 0 && predDiff > 0)) {
+            const temp = predHome;
+            predHome = predAway;
+            predAway = temp;
+        }
+    }
+
+    let points = 0;
+    if (actualHome === predHome && actualAway === predAway) {
+      points += this.scoringSystem.scoreExact;
+    } else {
+      if (actualHome === predHome) points += this.scoringSystem.scoreHomeExact;
+      if (actualAway === predAway) points += this.scoringSystem.scoreAwayExact;
+      if (actualHome - actualAway === predHome - predAway) {
+        points += this.scoringSystem.scoreDif;
+      }
+    }
+
+    const actualScorers = match.matchDetails.scorers?.map((s: any) => s.id) || [];
+    let scorerPoints = 0;
+    if (prediction.scorerId && actualScorers.includes(prediction.scorerId)) scorerPoints += this.scoringSystem.scorer;
+    if (prediction.powerup === 'doubleScorer' && prediction.doubleScorerId && actualScorers.includes(prediction.doubleScorerId)) scorerPoints += this.scoringSystem.scorer;
+
+    points += scorerPoints;
+    if (prediction.powerup === 'tripleScore') points *= 3;
+
+    return points;
+  }
+
+  get matchdayScore() {
+    let total = 0;
+    for (const match of this.filteredMatches) {
+      const p = this.predictions[match.id];
+      if (p) {
+        total += this.calculatePointsForPrediction(match, p);
+      }
+    }
+    return total;
   }
 }

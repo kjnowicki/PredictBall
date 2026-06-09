@@ -17,6 +17,12 @@
                 <mat-icon>chevron_right</mat-icon>
               </button>
             </div>
+
+            <div style="text-align: center; margin-bottom: 1.5rem; font-size: 1.1rem;">
+              <span style="margin-right: 2rem;"><strong>Predictions:</strong> {{ completedPredictions }} / {{ filteredMatches.length }}</span>
+              <span><strong>Matchday Score:</strong> {{ matchdayScore }}</span>
+            </div>
+
             <div style="text-align: center; margin-bottom: 2rem; color: #555;">
               <p style="margin-bottom: 0.5rem;"><strong>Powerups available per matchday:</strong></p>
               <div style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; padding: 0 1rem;">
@@ -27,7 +33,7 @@
             </div>
             <div class="predictions-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
               @for (match of filteredMatches; track match.id) {
-              <app-prediction-tile style="display: block;" [match]="match" [prediction]="predictions[match.id]" [availablePowerups]="currentMatchdayPowerups" (predictionChanged)="onPredictionChanged(match.id, $event)"></app-prediction-tile>
+              <app-prediction-tile style="display: block;" [match]="match" [prediction]="predictions[match.id]" [availablePowerups]="currentMatchdayPowerups" [scoringSystem]="scoringSystem" (predictionChanged)="onPredictionChanged(match.id, $event)"></app-prediction-tile>
               }
               @if (filteredMatches.length === 0) {
               <p style="text-align: center; color: gray; grid-column: 1 / -1;">No matches found for this matchday.</p>

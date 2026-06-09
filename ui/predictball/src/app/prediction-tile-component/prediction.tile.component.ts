@@ -41,6 +41,7 @@ export class PredictionTileComponent implements OnInit, OnChanges {
   @Input() match!: Match;
   @Input() prediction?: any;
   @Input() availablePowerups?: any;
+  @Input() scoringSystem?: any;
   @Output() predictionChanged = new EventEmitter<any>();
 
   private teamService = inject(TeamService);
@@ -79,6 +80,9 @@ export class PredictionTileComponent implements OnInit, OnChanges {
       if (this.availablePowerups.doubleScorerMatchId === this.match.id) {
         this.secondScorer = this.availablePowerups.doubleScorerId === 0 ? null : this.availablePowerups.doubleScorerId;
       }
+    }
+    if (changes['scoringSystem'] || changes['prediction'] || changes['availablePowerups'] || changes['match']) {
+      this.calculatePoints();
     }
   }
 
@@ -119,6 +123,7 @@ export class PredictionTileComponent implements OnInit, OnChanges {
     }
 
     this.onPredictionInput();
+    this.calculatePoints();
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout);
     }
@@ -132,6 +137,8 @@ export class PredictionTileComponent implements OnInit, OnChanges {
     if (this.activePowerup === 'reversal' && this.homeGoalsPrediction !== null && this.awayGoalsPrediction !== null && this.homeGoalsPrediction === this.awayGoalsPrediction) {
       this.activePowerup = null;
     }
+
+    this.calculatePoints();
 
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout);
@@ -152,6 +159,49 @@ export class PredictionTileComponent implements OnInit, OnChanges {
         doubleScorerId: this.secondScorer || 0
       });
     }
+  }
+
+  calculatePoints() {
+    if (!this.scoringSystem || !this.match || !this.match.matchDetails || this.match.status !== 'FINISHED' || this.homeGoalsPrediction === null || this.awayGoalsPrediction === null) {
+      this.scoredPoints = null;
+      return;
+    }
+
+    const actualHome = this.match.matchDetails.homeScore;
+    const actualAway = this.match.matchDetails.awayScore;
+    let predHome = this.homeGoalsPrediction;
+    let predAway = this.awayGoalsPrediction;
+
+    if (this.activePowerup === 'reversal' && actualHome !== actualAway) {
+        const actualDiff = actualHome - actualAway;
+        const predDiff = predHome - predAway;
+        if ((actualDiff > 0 && predDiff < 0) || (actualDiff < 0 && predDiff > 0)) {
+            const temp = predHome;
+            predHome = predAway;
+            predAway = temp;
+        }
+    }
+
+    let points = 0;
+    if (actualHome === predHome && actualAway === predAway) {
+      points += this.scoringSystem.scoreExact;
+    } else {
+      if (actualHome === predHome) points += this.scoringSystem.scoreHomeExact;
+      if (actualAway === predAway) points += this.scoringSystem.scoreAwayExact;
+      if (actualHome - actualAway === predHome - predAway) {
+        points += this.scoringSystem.scoreDif;
+      }
+    }
+
+    const actualScorers = this.match.matchDetails.scorers?.map((s: any) => s.id) || [];
+    let scorerPoints = 0;
+    if (this.selectedScorer && actualScorers.includes(this.selectedScorer)) scorerPoints += this.scoringSystem.scorer;
+    if (this.activePowerup === 'doubleScorer' && this.secondScorer && actualScorers.includes(this.secondScorer)) scorerPoints += this.scoringSystem.scorer;
+
+    points += scorerPoints;
+    if (this.activePowerup === 'tripleScore') points *= 3;
+
+    this.scoredPoints = points;
   }
 
   loadData() {
