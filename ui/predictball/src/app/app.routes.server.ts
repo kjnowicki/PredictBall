@@ -6,7 +6,7 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Server
   },
   {
-    path: 'league/:id',
+    path: 'competition/:compId/league/:id',
     renderMode: RenderMode.Server
   },
   {

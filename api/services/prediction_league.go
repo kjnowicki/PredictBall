@@ -57,6 +57,11 @@ func generateJoinCode(length int) (string, error) {
 }
 
 func (s *PredictballAPIService) PutPredictionLeague(ctx context.Context, competitionID string, userID string, league models.PredictionLeague) (*models.PredictionLeague, error) {
+	_, err := s.GetUser(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found for league creation: %v", err)
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -84,10 +89,6 @@ func (s *PredictballAPIService) PutPredictionLeague(ctx context.Context, competi
 		league.JoinCode = joinCode
 		league.Public = false
 
-		_, err = s.GetUser(ctx, userID)
-		if err != nil {
-			return nil, fmt.Errorf("user not found for league creation: %v", err)
-		}
 		uid, _ := strconv.Atoi(userID)
 		league.UserIDs = []int{uid}
 

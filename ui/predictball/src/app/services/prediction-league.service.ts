@@ -14,7 +14,7 @@ export class PredictionLeagueService {
   }
 
   createPredictionLeague(competitionId: string | number, userId: string | number, name: string): Observable<PredictionLeague> {
-    const league: Partial<PredictionLeague> = { name };
+    const league = { name: name };
     return this.api.put<PredictionLeague>(`competition/${competitionId}/league?user=${userId}`, league);
   }
 

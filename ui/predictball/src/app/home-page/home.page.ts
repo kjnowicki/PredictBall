@@ -1,5 +1,5 @@
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
-import { Component, OnInit, signal, TemplateRef, ViewChild, inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, signal, TemplateRef, ViewChild, inject, PLATFORM_ID, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { PredictionTileComponent } from '../prediction-tile-component/prediction.tile.component';
@@ -68,6 +68,7 @@ export class HomePage implements OnInit {
   private matchService = inject(MatchService);
   private document = inject(DOCUMENT);
   private platformId = inject(PLATFORM_ID);
+  private cdr = inject(ChangeDetectorRef);
 
   @ViewChild('taskDialog') taskDialog!: TemplateRef<any>;
 
@@ -109,6 +110,7 @@ export class HomePage implements OnInit {
                   const userRecord = league.users.find((u: any) => u.userId.toString() === userId);
                   if (userRecord) {
                     comp.points = userRecord.points;
+                    this.cdr.detectChanges();
                   }
                 }
               },
@@ -120,6 +122,7 @@ export class HomePage implements OnInit {
             this.selectedCompetitionId.set(this.competitions[0].id);
             this.loadLeaguesForCompetition(this.competitions[0].id);
           }
+          this.cdr.detectChanges();
         });
       }
     });
@@ -138,6 +141,7 @@ export class HomePage implements OnInit {
     const leagueIds = this.userLeaguesMap[compId] || [];
     if (leagueIds.length === 0) {
       this.leagues = [];
+      this.cdr.detectChanges();
       return;
     }
 
@@ -148,6 +152,7 @@ export class HomePage implements OnInit {
     );
     forkJoin(leagueReqs).subscribe(leagues => {
       this.leagues = leagues;
+      this.cdr.detectChanges();
     });
   }
 

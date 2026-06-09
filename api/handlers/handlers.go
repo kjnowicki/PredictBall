@@ -161,10 +161,12 @@ func (h *APIHandler) HandlePutPredictionLeague(w http.ResponseWriter, r *http.Re
 	compId := r.PathValue("compId")
 	userID := r.URL.Query().Get("user")
 	var league models.PredictionLeague
+
 	if err := json.NewDecoder(r.Body).Decode(&league); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
 	created, err := h.Service.PutPredictionLeague(r.Context(), compId, userID, league)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
