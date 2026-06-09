@@ -88,16 +88,55 @@
         </mat-tab>
 
         <mat-tab label="Teams">
-          <div style="padding-top: 1.5rem;">
-            <h2>Teams</h2>
-            <p>Participating teams go here.</p>
+          <div style="padding-top: 1.5rem; padding-bottom: 1rem;">
+            <h2>Participating Teams</h2>
+            <table mat-table [dataSource]="teams" style="width: 100%;">
+              <ng-container matColumnDef="crest">
+                <th mat-header-cell *matHeaderCellDef style="width: 50px; text-align: right;"> Crest </th>
+                <td mat-cell *matCellDef="let team" style="width: 50px; text-align: right;">
+                  @if (team.crest) {
+                  <img [src]="team.crest" alt="{{ team.name }}" style="width: 24px; height: 24px; object-fit: contain;">
+                  }
+                </td>
+              </ng-container>
+              
+              <ng-container matColumnDef="name">
+                <th mat-header-cell *matHeaderCellDef> Name </th>
+                <td mat-cell *matCellDef="let team"> {{ team.name }} </td>
+              </ng-container>
+              
+              <tr mat-header-row *matHeaderRowDef="teamsDisplayedColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: teamsDisplayedColumns"></tr>
+            </table>
           </div>
         </mat-tab>
 
         <mat-tab label="About">
           <div style="padding-top: 1.5rem;">
-            <h2>About</h2>
-            <p>Details and rules about the competition go here.</p>
+            @if (competition) {
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;">
+              @if (competition.emblem) {
+              <img [src]="competition.emblem" alt="{{ competition.name }}" style="width: 100px; height: 100px; object-fit: contain;">
+              }
+              <div>
+                <h2 style="margin: 0;">{{ competition.name }}</h2>
+                <p style="margin: 0; color: gray;">{{ competition.type }}</p>
+              </div>
+            </div>
+
+            @if (competition.currentSeason) {
+            <mat-card style="max-width: 400px;">
+              <mat-card-header>
+                <mat-card-title style="font-size: 1.25rem;">Current Season</mat-card-title>
+              </mat-card-header>
+              <mat-card-content style="padding-top: 1rem;">
+                <p><strong>Start Date:</strong> {{ competition.currentSeason.startDate | date }}</p>
+                <p><strong>End Date:</strong> {{ competition.currentSeason.endDate | date }}</p>
+                <p><strong>Current Matchday:</strong> {{ competition.currentSeason.currentMatchday }}</p>
+              </mat-card-content>
+            </mat-card>
+            }
+            }
           </div>
         </mat-tab>
       </mat-tab-group>

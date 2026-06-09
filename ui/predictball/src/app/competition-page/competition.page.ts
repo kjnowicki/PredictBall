@@ -13,7 +13,11 @@ import { PredictionTileComponent } from '../prediction-tile-component/prediction
 import { CompetitionService } from '../services/competition.service';
 import { PredictionLeagueService } from '../services/prediction-league.service';
 import { MatchService } from '../services/match.service';
+import { TeamService } from '../services/team.service';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { Match } from '../models';
+import { Competition } from '../models/competition';
 
 interface PublicLeague {
   id: string;
@@ -42,6 +46,7 @@ interface PublicLeague {
 export class CompetitionPage implements OnInit {
   competitionCode: string | null = null;
   competitionName: string = '';
+  competition: Competition | null = null;
   matches: Match[] = [];
   selectedMatchday: number = 1;
   
@@ -53,11 +58,14 @@ export class CompetitionPage implements OnInit {
   userId: string | null = null;
   
   leaguesDisplayedColumns: string[] = ['name', 'participants'];
+  teams: any[] = [];
+  teamsDisplayedColumns: string[] = ['crest', 'name'];
 
   private document = inject(DOCUMENT);
   private platformId = inject(PLATFORM_ID);
   private predictionLeagueService = inject(PredictionLeagueService);
   private router = inject(Router);
+  private teamService = inject(TeamService);
 
   constructor(
     private route: ActivatedRoute,
@@ -78,6 +86,7 @@ export class CompetitionPage implements OnInit {
       if (this.competitionCode) {
         this.competitionService.getCompetition(this.competitionCode).subscribe(comp => {
           this.competitionName = comp.name;
+          this.competition = comp;
           if (comp.currentSeason?.currentMatchday) {
             this.selectedMatchday = comp.currentSeason.currentMatchday;
           }
@@ -85,6 +94,7 @@ export class CompetitionPage implements OnInit {
         });
         this.matchService.getMatchSchedule(this.competitionCode).subscribe(matches => {
           this.matches = matches;
+          this.extractTeams();
           this.cdr.detectChanges();
         });
 
@@ -131,6 +141,26 @@ export class CompetitionPage implements OnInit {
 
   get filteredMatches() {
     return this.matches.filter(m => m.matchday === this.selectedMatchday);
+  }
+
+  extractTeams() {
+    const teamIds = new Set<number>();
+    for (const match of this.matches) {
+      if (match.homeTeamId) {
+        teamIds.add(match.homeTeamId);
+      }
+      if (match.awayTeamId) {
+        teamIds.add(match.awayTeamId);
+      }
+    }
+
+    if (teamIds.size > 0) {
+      const requests = Array.from(teamIds).map(id => this.teamService.getTeamDetails(id).pipe(catchError(() => of(null))));
+      forkJoin(requests).subscribe(teams => {
+        this.teams = teams.filter(t => t !== null).sort((a: any, b: any) => a.name.localeCompare(b.name));
+        this.cdr.detectChanges();
+      });
+    }
   }
 
   prevMatchday() {
