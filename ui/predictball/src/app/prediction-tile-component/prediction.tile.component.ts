@@ -8,12 +8,19 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { Match } from '../models';
 import { TeamService } from '../services/team.service';
+import { Team } from '../models/team';
 import { forkJoin } from 'rxjs';
 
 interface ScorerOption {
   id: number;
   name: string;
-  displayName: string;
+  code: string;
+  teamName: string;
+}
+
+interface ScorerGroup {
+  name: string;
+  scorers: ScorerOption[];
 }
 
 @Component({
@@ -36,11 +43,11 @@ export class PredictionTileComponent implements OnInit {
   private teamService = inject(TeamService);
   private cdr = inject(ChangeDetectorRef);
 
-  homeTeam: string = 'Home';
-  awayTeam: string = 'Away';
+  homeTeam?: Team;
+  awayTeam?: Team;
   homeGoalsPrediction: number | null = null;
   awayGoalsPrediction: number | null = null;
-  scorers: ScorerOption[] = [];
+  scorerGroups: ScorerGroup[] = [];
   selectedScorer: number | null = null;
   scoredPoints: number | null = null;
 
@@ -65,8 +72,8 @@ export class PredictionTileComponent implements OnInit {
       home: this.teamService.getTeamDetails(this.match.homeTeamId),
       away: this.teamService.getTeamDetails(this.match.awayTeamId)
     }).subscribe(({ home, away }) => {
-      this.homeTeam = home.tla || home.shortName || home.name || 'Home';
-      this.awayTeam = away.tla || away.shortName || away.name || 'Away';
+      this.homeTeam = home;
+      this.awayTeam = away;
 
       const homePlayers = this.match.matchDetails?.homeLineup?.players?.length 
         ? this.match.matchDetails.homeLineup.players 
@@ -75,17 +82,55 @@ export class PredictionTileComponent implements OnInit {
         ? this.match.matchDetails.awayLineup.players 
         : (away.squad || []);
 
-      const mapScorer = (p: any): ScorerOption => {
-        const nat = p.nationality || 'UNK';
-        const code = nat.length >= 3 ? nat.substring(0, 3).toUpperCase() : nat.toUpperCase();
-        return { id: p.id, name: p.name, displayName: `[${code}] ${p.name}` };
+      const groupsMap = new Map<string, ScorerGroup>();
+
+      const addPlayersToGroup = (players: any[], teamName: string, teamCode: string) => {
+        if (!groupsMap.has(teamName)) {
+          groupsMap.set(teamName, { name: teamName, scorers: [] });
+        }
+        players.forEach((p: any) => {
+          groupsMap.get(teamName)!.scorers.push({
+            id: p.id,
+            name: p.name,
+            code: teamCode,
+            teamName: teamName
+          });
+        });
       };
 
-      this.scorers = [...homePlayers, ...awayPlayers]
-        .map(mapScorer)
+      const homeName = home.name || 'Home';
+      const awayName = away.name || 'Away';
+      const homeCode = home.tla || home.shortName || homeName;
+      const awayCode = away.tla || away.shortName || awayName;
+
+      addPlayersToGroup(homePlayers, homeName, homeCode);
+      addPlayersToGroup(awayPlayers, awayName, awayCode);
+
+      this.scorerGroups = Array.from(groupsMap.values())
         .sort((a, b) => a.name.localeCompare(b.name));
+
+      this.scorerGroups.forEach(group => {
+        group.scorers.sort((a, b) => a.name.localeCompare(b.name));
+      });
 
       this.cdr.detectChanges();
     });
+  }
+
+  getFlagEmoji(teamName: string): string {
+    const flags: Record<string, string> = {
+      'Argentina': '🇦🇷', 'Australia': '🇦🇺', 'Austria': '🇦🇹', 'Belgium': '🇧🇪',
+      'Brazil': '🇧🇷', 'Cameroon': '🇨🇲', 'Canada': '🇨🇦', 'Colombia': '🇨🇴',
+      'Costa Rica': '🇨🇷', 'Croatia': '🇭🇷', 'Czech Republic': '🇨🇿', 'Denmark': '🇩🇰',
+      'Ecuador': '🇪🇨', 'Egypt': '🇪🇬', 'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'France': '🇫🇷',
+      'Germany': '🇩🇪', 'Ghana': '🇬🇭', 'Iran': '🇮🇷', 'Italy': '🇮🇹',
+      'Ivory Coast': '🇨🇮', 'Japan': '🇯🇵', 'Mexico': '🇲🇽', 'Morocco': '🇲🇦',
+      'Netherlands': '🇳🇱', 'Nigeria': '🇳🇬', 'Norway': '🇳🇴', 'Poland': '🇵🇱',
+      'Portugal': '🇵🇹', 'Qatar': '🇶🇦', 'Saudi Arabia': '🇸🇦', 'Scotland': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+      'Senegal': '🇸🇳', 'Serbia': '🇷🇸', 'South Korea': '🇰🇷', 'Spain': '🇪🇸',
+      'Sweden': '🇸🇪', 'Switzerland': '🇨🇭', 'Tunisia': '🇹🇳', 'United States': '🇺🇸',
+      'USA': '🇺🇸', 'Uruguay': '🇺🇾', 'Wales': '🏴󠁧󠁢󠁷󠁬󠁳󠁿'
+    };
+    return flags[teamName] || '🏳️';
   }
 }

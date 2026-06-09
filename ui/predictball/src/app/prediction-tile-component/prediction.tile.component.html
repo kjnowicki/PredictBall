@@ -1,8 +1,24 @@
 <mat-card style="background-color: #b1ecb6;">
   <!-- Row 1: Team Names -->
   <mat-card-header style="display: flex; justify-content: center; text-align: center; padding-top: 1rem;">
-    <mat-card-title style="font-size: 1.1rem; margin-bottom: 0;">
-      {{ homeTeam }} <span style="font-weight: normal; margin: 0 0.5rem;">vs</span> {{ awayTeam }}
+    <mat-card-title style="font-size: 1.1rem; margin-bottom: 0; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">
+      @if (homeTeam) {
+        @if (homeTeam.area?.flag) {
+          <img [src]="homeTeam.area.flag" height="16" style="border-radius: 2px;" alt="flag">
+        }
+        {{ homeTeam.tla || homeTeam.shortName || homeTeam.name }}
+      } @else {
+        Home
+      }
+      <span style="font-weight: normal; margin: 0 0.5rem;">vs</span>
+      @if (awayTeam) {
+        {{ awayTeam.tla || awayTeam.shortName || awayTeam.name }}
+        @if (awayTeam.area?.flag) {
+          <img [src]="awayTeam.area.flag" height="16" style="border-radius: 2px;" alt="flag">
+        }
+      } @else {
+        Away
+      }
     </mat-card-title>
   </mat-card-header>
 
@@ -27,9 +43,15 @@
       <mat-form-field appearance="outline" style="width: 100%;">
         <mat-label>Scorer</mat-label>
         <mat-select [(ngModel)]="selectedScorer" [disabled]="isPast">
-          @for (scorer of scorers; track scorer.id) {
-            <mat-option [value]="scorer.id">{{ scorer.displayName }}</mat-option>
-          }
+        @for (group of scorerGroups; track group.name) {
+          <mat-optgroup [label]="group.name">
+            @for (scorer of group.scorers; track scorer.id) {
+              <mat-option [value]="scorer.id">
+                {{ scorer.name }}
+              </mat-option>
+            }
+          </mat-optgroup>
+        }
         </mat-select>
       </mat-form-field>
     </div>
