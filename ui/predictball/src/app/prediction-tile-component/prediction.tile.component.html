@@ -1,4 +1,4 @@
-<mat-card style="background-color: #b1ecb6;">
+<mat-card [ngStyle]="getCardStyle()">
   <!-- Row 1: Team Names -->
   <mat-card-header style="display: flex; justify-content: center; text-align: center; padding-top: 1rem;">
     <mat-card-title style="font-size: 1.1rem; margin-bottom: 0; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">
@@ -59,21 +59,27 @@
 
     <!-- Row 5: 3 toggle icons -->
     <div class="prediction-row" style="display: flex; justify-content: center; gap: 1.5rem; margin-bottom: 1rem;">
+      @if (activePowerup === 'doubleScorer' || (!activePowerup && (!availablePowerups?.doubleScorerMatchId || availablePowerups?.doubleScorerMatchId === match.id))) {
       <mat-icon 
         (click)="togglePowerup('doubleScorer')"
-        [style.color]="activePowerup === 'doubleScorer' ? '#1976d2' : (!availablePowerups?.doubleScorerMatchId || availablePowerups?.doubleScorerMatchId === match.id ? '#555' : '#ccc')"
-        [style.cursor]="isPast || (availablePowerups?.doubleScorerMatchId && availablePowerups?.doubleScorerMatchId !== match.id && activePowerup !== 'doubleScorer') ? 'default' : 'pointer'"
+        [style.color]="activePowerup === 'doubleScorer' ? '#1976d2' : '#555'"
+        [style.cursor]="isPast ? 'default' : 'pointer'"
         title="Double Scorer">sports_soccer</mat-icon>
+      }
+      @if (activePowerup === 'tripleScore' || (!activePowerup && (!availablePowerups?.tripleScoreMatchId || availablePowerups?.tripleScoreMatchId === match.id))) {
       <mat-icon 
         (click)="togglePowerup('tripleScore')"
-        [style.color]="activePowerup === 'tripleScore' ? '#1976d2' : (!availablePowerups?.tripleScoreMatchId || availablePowerups?.tripleScoreMatchId === match.id ? '#555' : '#ccc')"
-        [style.cursor]="isPast || (availablePowerups?.tripleScoreMatchId && availablePowerups?.tripleScoreMatchId !== match.id && activePowerup !== 'tripleScore') ? 'default' : 'pointer'"
+        [style.color]="activePowerup === 'tripleScore' ? '#1976d2' : '#555'"
+        [style.cursor]="isPast ? 'default' : 'pointer'"
         title="Triple Score">star_border</mat-icon>
+      }
+      @if (activePowerup === 'reversal' || (!activePowerup && (!availablePowerups?.reversalMatchId || availablePowerups?.reversalMatchId === match.id))) {
       <mat-icon 
         (click)="togglePowerup('reversal')"
-        [style.color]="activePowerup === 'reversal' ? '#1976d2' : (!availablePowerups?.reversalMatchId || availablePowerups?.reversalMatchId === match.id ? '#555' : '#ccc')"
-        [style.cursor]="isPast || (availablePowerups?.reversalMatchId && availablePowerups?.reversalMatchId !== match.id && activePowerup !== 'reversal') || (homeGoalsPrediction !== null && homeGoalsPrediction === awayGoalsPrediction) ? 'default' : 'pointer'"
+        [style.color]="activePowerup === 'reversal' ? '#1976d2' : '#555'"
+        [style.cursor]="isPast || (homeGoalsPrediction !== null && homeGoalsPrediction === awayGoalsPrediction) ? 'default' : 'pointer'"
         title="Reversal">swap_horiz</mat-icon>
+      }
     </div>
 
     <!-- Row 5.5: Second Scorer select input (only visible when Double Scorer powerup is active on this match) -->

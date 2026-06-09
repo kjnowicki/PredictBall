@@ -68,6 +68,31 @@ func (s *PredictballAPIService) GetPredictions(ctx context.Context, userID strin
 }
 
 func (s *PredictballAPIService) PutPrediction(ctx context.Context, userID string, compID string, prediction models.Prediction) (*models.Prediction, error) {
+	schedule, err := s.GetMatchSchedule(ctx, compID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch schedule to validate prediction: %v", err)
+	}
+
+	matchFound := false
+	validStatus := false
+	for _, m := range schedule {
+		if m.ID == prediction.MatchID {
+			matchFound = true
+			if string(m.Status) == "SCHEDULED" || string(m.Status) == "TIMED" {
+				validStatus = true
+			}
+			break
+		}
+	}
+
+	if !matchFound {
+		return nil, fmt.Errorf("match not found in schedule")
+	}
+
+	if !validStatus {
+		return nil, fmt.Errorf("predictions are locked for matches that have already started")
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

@@ -16,6 +16,7 @@ interface ScorerOption {
   name: string;
   code: string;
   teamName: string;
+  order?: number;
 }
 
 interface ScorerGroup {
@@ -74,11 +75,20 @@ export class PredictionTileComponent implements OnInit, OnChanges {
       this.homeGoalsPrediction = this.prediction.homeScore;
       this.awayGoalsPrediction = this.prediction.awayScore;
       this.selectedScorer = this.prediction.scorerId === 0 ? null : this.prediction.scorerId;
-      this.activePowerup = this.prediction.powerup || null;
+      if (!this.activePowerup) {
+        this.activePowerup = this.prediction.powerup || null;
+      }
     }
     if (changes['availablePowerups'] && this.availablePowerups) {
       if (this.availablePowerups.doubleScorerMatchId === this.match.id) {
+        this.activePowerup = 'doubleScorer';
         this.secondScorer = this.availablePowerups.doubleScorerId === 0 ? null : this.availablePowerups.doubleScorerId;
+      } else if (this.availablePowerups.tripleScoreMatchId === this.match.id) {
+        this.activePowerup = 'tripleScore';
+      } else if (this.availablePowerups.reversalMatchId === this.match.id) {
+        this.activePowerup = 'reversal';
+      } else {
+        this.activePowerup = null;
       }
     }
     if (changes['scoringSystem'] || changes['prediction'] || changes['availablePowerups'] || changes['match']) {
@@ -88,8 +98,17 @@ export class PredictionTileComponent implements OnInit, OnChanges {
 
   checkStatus() {
     const start = new Date(this.match.startTime);
-    this.isPast = start.getTime() < Date.now();
     this.isLive = this.match.status === 'IN_PLAY' || this.match.status === 'PAUSED';
+    this.isPast = start.getTime() < Date.now() || (this.match.status !== 'SCHEDULED' && this.match.status !== 'TIMED');
+  }
+
+  getCardStyle(): any {
+    if (this.isLive) {
+      return { 'background-color': '#ffe0b2', 'border': '2px solid red' };
+    } else if (this.isPast) {
+      return { 'background-color': '#81c784', 'border': '2px solid black' };
+    }
+    return { 'background-color': '#b1ecb6' };
   }
 
   onSelectOpened(isOpen: boolean) {
@@ -221,16 +240,29 @@ export class PredictionTileComponent implements OnInit, OnChanges {
 
       const groupsMap = new Map<string, ScorerGroup>();
 
-      const addPlayersToGroup = (players: any[], teamName: string, teamCode: string) => {
+      const getPosInfo = (pos: string) => {
+        if (!pos) return { code: '', order: 99 };
+        const p = pos.toLowerCase();
+        if (p.includes('goalkeeper')) return { code: '[GK]', order: 1 };
+        if (p.includes('defen')) return { code: '[DEF]', order: 2 };
+        if (p.includes('midfiel')) return { code: '[MID]', order: 3 };
+        if (p.includes('offen') || p.includes('attack') || p.includes('forward')) return { code: '[FW]', order: 4 };
+        return { code: '', order: 99 };
+      };
+
+      const addPlayersToGroup = (players: any[], teamName: string, teamCode: string, team: Team) => {
         if (!groupsMap.has(teamName)) {
           groupsMap.set(teamName, { name: teamName, scorers: [] });
         }
         players.forEach((p: any) => {
+          const squadPos = team.squad?.find(sp => sp.id === p.id)?.position || p.position;
+          const posInfo = getPosInfo(squadPos);
           groupsMap.get(teamName)!.scorers.push({
             id: p.id,
-            name: p.name,
+            name: posInfo.code ? `${posInfo.code} ${p.name}` : p.name,
             code: teamCode,
-            teamName: teamName
+            teamName: teamName,
+            order: posInfo.order
           });
         });
       };
@@ -240,34 +272,22 @@ export class PredictionTileComponent implements OnInit, OnChanges {
       const homeCode = home.tla || home.shortName || homeName;
       const awayCode = away.tla || away.shortName || awayName;
 
-      addPlayersToGroup(homePlayers, homeName, homeCode);
-      addPlayersToGroup(awayPlayers, awayName, awayCode);
+      addPlayersToGroup(homePlayers, homeName, homeCode, home);
+      addPlayersToGroup(awayPlayers, awayName, awayCode, away);
 
       this.scorerGroups = Array.from(groupsMap.values())
         .sort((a, b) => a.name.localeCompare(b.name));
 
       this.scorerGroups.forEach(group => {
-        group.scorers.sort((a, b) => a.name.localeCompare(b.name));
+        group.scorers.sort((a, b) => {
+          if (a.order !== b.order) {
+            return (a.order || 99) - (b.order || 99);
+          }
+          return a.name.localeCompare(b.name);
+        });
       });
 
       this.cdr.detectChanges();
     });
-  }
-
-  getFlagEmoji(teamName: string): string {
-    const flags: Record<string, string> = {
-      'Argentina': '🇦🇷', 'Australia': '🇦🇺', 'Austria': '🇦🇹', 'Belgium': '🇧🇪',
-      'Brazil': '🇧🇷', 'Cameroon': '🇨🇲', 'Canada': '🇨🇦', 'Colombia': '🇨🇴',
-      'Costa Rica': '🇨🇷', 'Croatia': '🇭🇷', 'Czech Republic': '🇨🇿', 'Denmark': '🇩🇰',
-      'Ecuador': '🇪🇨', 'Egypt': '🇪🇬', 'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'France': '🇫🇷',
-      'Germany': '🇩🇪', 'Ghana': '🇬🇭', 'Iran': '🇮🇷', 'Italy': '🇮🇹',
-      'Ivory Coast': '🇨🇮', 'Japan': '🇯🇵', 'Mexico': '🇲🇽', 'Morocco': '🇲🇦',
-      'Netherlands': '🇳🇱', 'Nigeria': '🇳🇬', 'Norway': '🇳🇴', 'Poland': '🇵🇱',
-      'Portugal': '🇵🇹', 'Qatar': '🇶🇦', 'Saudi Arabia': '🇸🇦', 'Scotland': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
-      'Senegal': '🇸🇳', 'Serbia': '🇷🇸', 'South Korea': '🇰🇷', 'Spain': '🇪🇸',
-      'Sweden': '🇸🇪', 'Switzerland': '🇨🇭', 'Tunisia': '🇹🇳', 'United States': '🇺🇸',
-      'USA': '🇺🇸', 'Uruguay': '🇺🇾', 'Wales': '🏴󠁧󠁢󠁷󠁬󠁳󠁿'
-    };
-    return flags[teamName] || '🏳️';
   }
 }

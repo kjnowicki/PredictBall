@@ -1,4 +1,4 @@
-export type MatchStatus = 'SCHEDULED' | 'LIVE' | 'IN_PLAY' | 'PAUSED' | 'FINISHED' | 'LINEUPS-READY';
+export type MatchStatus = 'SCHEDULED' | 'LIVE' | 'IN_PLAY' | 'PAUSED' | 'FINISHED' | 'LINEUPS-READY' | 'TIMED';
 
 export interface Player {
   id: number;
