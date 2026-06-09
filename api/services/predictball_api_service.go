@@ -48,7 +48,7 @@ func readCache(s *PredictballAPIService, baseName string, target any) bool {
 	var bestExp time.Time
 	for _, f := range files {
 		var expUnix int64
-		if _, err := fmt.Sscanf(filepath.Base(f), baseName+"_%d.json", &expUnix); err == nil {
+		if _, err := fmt.Sscanf(filepath.Base(f), filepath.Base(baseName)+"_%d.json", &expUnix); err == nil {
 			exp := time.Unix(expUnix, 0)
 			if exp.After(bestExp) {
 				bestExp = exp
