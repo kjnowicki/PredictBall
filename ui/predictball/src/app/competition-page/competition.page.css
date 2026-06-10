@@ -15,3 +15,21 @@
     grid-template-columns: 1fr;
   }
 }
+
+.score-summary {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.predictions-count {
+  margin-right: 2rem;
+}
+
+@media (max-width: 520px) {
+  .score-summary { flex-direction: column; }
+  .predictions-count { margin-right: 0; margin-bottom: 0.5rem; }
+}

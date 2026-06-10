@@ -119,23 +119,25 @@ export class CompetitionPage implements OnInit, OnDestroy {
     this.route.paramMap.subscribe(params => {
       this.competitionCode = params.get('id');
       if (this.competitionCode) {
-        this.competitionService.getCompetition(this.competitionCode).subscribe(comp => {
+        forkJoin({
+          comp: this.competitionService.getCompetition(this.competitionCode),
+          matches: this.matchService.getMatchSchedule(this.competitionCode)
+        }).subscribe(({ comp, matches }) => {
           this.competitionName = comp.name;
           this.competition = comp;
           if (comp.currentSeason?.currentMatchday) {
             this.selectedMatchday = comp.currentSeason.currentMatchday;
           }
-          this.loadPowerups();
-          this.cdr.detectChanges();
-        });
-        this.matchService.getMatchSchedule(this.competitionCode).subscribe(matches => {
+
           this.matches = matches;
           this.extractTeams();
+
+          this.loadPowerups();
           this.loadPredictions();
+          this.loadLeagues();
+
           this.cdr.detectChanges();
         });
-
-        this.loadLeagues();
       }
     });
   }
@@ -147,8 +149,8 @@ export class CompetitionPage implements OnInit, OnDestroy {
   }
 
   loadPowerups() {
-    if (this.competitionCode && this.userId) {
-      this.competitionService.getPowerups(this.userId, this.competitionCode).subscribe(data => {
+    if (this.competition && this.competition.id && this.userId) {
+      this.competitionService.getPowerups(this.userId, this.competition.id.toString()).subscribe(data => {
         if (!data || !data.season) {
           data = { season: this.competition?.currentSeason?.startDate?.substring(0, 4) || '2024', matchdays: [] };
         }
@@ -171,9 +173,9 @@ export class CompetitionPage implements OnInit, OnDestroy {
   }
 
   loadPredictions() {
-    if (this.competitionCode && this.userId && this.matches.length > 0) {
+    if (this.competition && this.competition.id && this.userId && this.matches.length > 0) {
       const matchIds = this.matches.map(m => m.id);
-      this.competitionService.getPredictions(this.userId, this.competitionCode, matchIds).subscribe(preds => {
+      this.competitionService.getPredictions(this.userId, this.competition.id.toString(), matchIds).subscribe(preds => {
         this.predictions = {};
         if (preds && Array.isArray(preds)) {
           for (const p of preds) {
@@ -186,8 +188,8 @@ export class CompetitionPage implements OnInit, OnDestroy {
   }
 
   loadLeagues() {
-    if (this.competitionCode && this.userId) {
-      this.predictionLeagueService.getCompetitionLeagues(this.competitionCode, this.userId).subscribe(res => {
+    if (this.competition && this.competition.id && this.userId) {
+      this.predictionLeagueService.getCompetitionLeagues(this.competition.id.toString(), this.userId).subscribe(res => {
         this.publicLeagues = res.publicLeagues;
         this.yourLeagues = res.yourLeagues;
         this.cdr.detectChanges();
@@ -196,8 +198,8 @@ export class CompetitionPage implements OnInit, OnDestroy {
   }
 
   joinLeague() {
-    if (!this.joinCode.trim() || !this.competitionCode || !this.userId) return;
-    this.predictionLeagueService.joinLeagueByCode(this.competitionCode, this.userId, this.joinCode.trim()).subscribe(() => {
+    if (!this.joinCode.trim() || !this.competition || !this.competition.id || !this.userId) return;
+    this.predictionLeagueService.joinLeagueByCode(this.competition.id.toString(), this.userId, this.joinCode.trim()).subscribe(() => {
       this.joinCode = '';
       this.loadLeagues();
       this.cdr.detectChanges();
@@ -205,10 +207,10 @@ export class CompetitionPage implements OnInit, OnDestroy {
   }
 
   createLeague() {
-    if (!this.newLeagueName.trim() || !this.competitionCode || !this.userId) return;
+    if (!this.newLeagueName.trim() || !this.competition || !this.competition.id || !this.userId) return;
     
     this.isCreatingLeague = true;
-    this.predictionLeagueService.createPredictionLeague(this.competitionCode, this.userId, this.newLeagueName.trim())
+    this.predictionLeagueService.createPredictionLeague(this.competition.id.toString(), this.userId, this.newLeagueName.trim())
       .subscribe({
         next: (newLeague) => {
           this.isCreatingLeague = false;
@@ -249,7 +251,7 @@ export class CompetitionPage implements OnInit, OnDestroy {
   }
 
   onPredictionChanged(matchId: number, predictionData: any) {
-    if (!this.userId || !this.competitionCode) return;
+    if (!this.userId || !this.competition || !this.competition.id) return;
     
     const oldPrediction = this.predictions[matchId];
     const oldPowerup = oldPrediction ? oldPrediction.powerup : null;
@@ -284,7 +286,7 @@ export class CompetitionPage implements OnInit, OnDestroy {
         }
       }
 
-      this.competitionService.savePowerups(this.userId, this.competitionCode, this.powerupsData).subscribe();
+      this.competitionService.savePowerups(this.userId, this.competition.id.toString(), this.powerupsData).subscribe();
       this.cdr.detectChanges();
     }
 
@@ -302,7 +304,7 @@ export class CompetitionPage implements OnInit, OnDestroy {
     // Eagerly update locally to block duplicate toggles synchronously while API call processes
     this.predictions[matchId] = prediction;
 
-    this.competitionService.savePrediction(this.userId, this.competitionCode, matchId, prediction as any).subscribe(res => {
+    this.competitionService.savePrediction(this.userId, this.competition.id.toString(), matchId, prediction as any).subscribe(res => {
       res.powerup = prediction.powerup; // preserve the field locally in case backend drops it
       this.predictions[matchId] = res;
     });
