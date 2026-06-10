@@ -101,12 +101,12 @@ export class HomePage implements OnInit {
       if (compIds.length > 0) {
         const compRequests = compIds.map(id =>
           this.competitionService.getCompetition(id.toString()).pipe(
-            catchError(() => of({ id, name: `Unknown Competition (${id})`, points: 0 } as any))
+            catchError(() => of(null))
           )
         );
 
         forkJoin(compRequests).subscribe((comps: any[]) => {
-          this.competitions = comps.map(c => ({ ...c, points: 0 }));
+          this.competitions = comps.filter(c => c !== null).map(c => ({ ...c, points: 0 }));
           
           this.competitions.forEach(comp => {
             this.leagueService.getPredictionLeague(comp.id, 0).subscribe({
@@ -152,11 +152,11 @@ export class HomePage implements OnInit {
 
     const leagueReqs = leagueIds.map(id =>
       this.leagueService.getPredictionLeague(compId, id.toString()).pipe(
-        catchError(() => of({ id: id, name: `Unknown League (${id})` } as PredictionLeague))
+        catchError(() => of(null))
       )
     );
     forkJoin(leagueReqs).subscribe(leagues => {
-      this.leagues = leagues;
+      this.leagues = leagues.filter(l => l !== null);
       this.cdr.detectChanges();
     });
   }
