@@ -49,13 +49,26 @@ export class LeaguePage implements OnInit {
     });
   }
 
+  selectCode(event: MouseEvent) {
+    const element = event.target as HTMLElement;
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }
+
   loadLeague() {
     if (!this.competitionId || !this.leagueId) return;
 
-    this.leagueService.getPredictionLeague(this.competitionId, this.leagueId).subscribe({
-      next: (league: any) => {
+    forkJoin({
+      league: this.leagueService.getPredictionLeague(this.competitionId, this.leagueId),
+      globalLeague: this.leagueService.getPredictionLeague(this.competitionId, 0).pipe(catchError(() => of(null)))
+    }).subscribe({
+      next: ({ league, globalLeague }: { league: any, globalLeague: any }) => {
         this.leagueName = league.name || 'League';
         this.leagueJoinCode = league.joinCode || '';
+        this.cdr.detectChanges();
         
         let users = league.users || [];
         if (users.length === 0 && league.userIds && league.userIds.length > 0) {
@@ -64,6 +77,15 @@ export class LeaguePage implements OnInit {
             name: `Player ${id}`,
             points: 0
           }));
+        }
+
+        if (globalLeague && globalLeague.users) {
+          users.forEach((u: any) => {
+            const globalUser = globalLeague.users.find((gu: any) => gu.userId?.toString() === u.userId?.toString());
+            if (globalUser) {
+              u.points = globalUser.points || 0;
+            }
+          });
         }
 
         const userRequests = users.map((u: any) =>

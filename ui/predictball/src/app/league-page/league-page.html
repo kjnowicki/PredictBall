@@ -32,7 +32,7 @@
       </mat-card-header>
       <mat-card-content style="padding-top: 1rem; text-align: center;">
         <p>Invite friends with this code:</p>
-        <h3 style="letter-spacing: 2px;">{{ leagueJoinCode }}</h3>
+        <h3 style="letter-spacing: 2px; cursor: pointer;" (click)="selectCode($event)" title="Click to select">{{ leagueJoinCode }}</h3>
       </mat-card-content>
     </mat-card>
   }

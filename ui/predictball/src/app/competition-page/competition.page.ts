@@ -166,8 +166,10 @@ export class CompetitionPage implements OnInit, OnDestroy {
       const matchIds = this.matches.map(m => m.id);
       this.competitionService.getPredictions(this.userId, this.competitionCode, matchIds).subscribe(preds => {
         this.predictions = {};
-        for (const p of preds) {
-          this.predictions[p.matchId] = p;
+        if (preds && Array.isArray(preds)) {
+          for (const p of preds) {
+            this.predictions[p.matchId] = p;
+          }
         }
         this.cdr.detectChanges();
       });
@@ -189,6 +191,7 @@ export class CompetitionPage implements OnInit, OnDestroy {
     this.predictionLeagueService.joinLeagueByCode(this.competitionCode, this.userId, this.joinCode.trim()).subscribe(() => {
       this.joinCode = '';
       this.loadLeagues();
+      this.cdr.detectChanges();
     });
   }
 
@@ -202,10 +205,12 @@ export class CompetitionPage implements OnInit, OnDestroy {
           this.isCreatingLeague = false;
           this.newLeagueName = '';
           this.loadLeagues();
+          this.cdr.detectChanges();
           this.router.navigate(['/competition', this.competitionCode, 'league', newLeague.id]);
         },
         error: () => {
           this.isCreatingLeague = false;
+          this.cdr.detectChanges();
         }
       });
   }
