@@ -97,9 +97,18 @@ export class CompetitionPage implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       }, 1000);
 
-      const cookies = this.document.cookie.split('; ');
-      const userIdCookie = cookies.find(row => row.startsWith('userId='));
-      this.userId = userIdCookie ? userIdCookie.split('=')[1] : null;
+      const cookies = this.document.cookie.split(';');
+      for (const cookie of cookies) {
+        const [key, value] = cookie.split('=', 2).map(c => c.trim());
+        if (key === 'userId') {
+          this.userId = value ? decodeURIComponent(value).replace(/^"|"$/g, '') : null;
+          break;
+        }
+      }
+    }
+
+    if (this.userId == undefined || this.userId == null) {
+      console.warn('User is not authenticated.');
     }
 
     this.scoringSystemService.getScoringSystem().subscribe(sys => {

@@ -76,12 +76,17 @@ export class HomePage implements OnInit {
     let userId: string | null = null;
     
     if (isPlatformBrowser(this.platformId)) {
-      const cookies = this.document.cookie.split('; ');
-      const userIdCookie = cookies.find(row => row.startsWith('userId='));
-      userId = userIdCookie ? userIdCookie.split('=')[1] : null;
+      const cookies = this.document.cookie.split(';');
+      for (const cookie of cookies) {
+        const [key, value] = cookie.split('=', 2).map(c => c.trim());
+        if (key === 'userId') {
+          userId = value ? decodeURIComponent(value).replace(/^"|"$/g, '') : null;
+          break;
+        }
+      }
     }
-
-    if (!userId) {
+    
+    if (userId == undefined || userId == null) {
       console.warn('User is not authenticated.');
       return;
     }
