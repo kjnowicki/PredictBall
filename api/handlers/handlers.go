@@ -6,6 +6,7 @@ import (
 	"predictball_api/models"
 	"predictball_api/services"
 	"strconv"
+	"strings"
 )
 
 type APIHandler struct {
@@ -274,9 +275,16 @@ func (h *APIHandler) HandleGetTeamDetails(w http.ResponseWriter, r *http.Request
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "https://predict-ball.eu")
+		origin := r.Header.Get("Origin")
+		lowerOrigin := strings.ToLower(origin)
+		isAllowed := lowerOrigin == "https://predict-ball.eu" || lowerOrigin == "https://www.predict-ball.eu"
+
+		if isAllowed {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, Origin")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, Origin, X-Requested-With, Accept-Encoding, X-CSRF-Token")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		// Handle preflight requests, which are sent by the browser before the actual request.
