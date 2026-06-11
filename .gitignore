@@ -23,6 +23,8 @@ go.work.sum
 
 # env file
 .env
+environment.ts
+environment.development.ts
 
 #data files
 api/cache/
