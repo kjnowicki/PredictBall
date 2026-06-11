@@ -29,7 +29,7 @@
         {{ match.startTime | date:'short' }} ({{ timeZoneString }})
       } @else {
         <span style="color: red; font-weight: bold;">LIVE</span>
-        <span style="color: red; font-weight: bold; margin-left: 0.5rem;">{{ match.matchDetails?.homeScore || 0 }} - {{ match.matchDetails?.awayScore || 0 }}</span>
+        <span style="color: red; font-weight: bold; margin-left: 0.5rem;">{{ match.matchDetails.homeScore || 0 }} - {{ match.matchDetails.awayScore || 0 }}</span>
       }
     </div>
 
