@@ -44,6 +44,7 @@ export class PredictionTileComponent implements OnInit, OnChanges {
   @Input() availablePowerups?: any;
   @Input() scoringSystem?: any;
   @Output() predictionChanged = new EventEmitter<any>();
+  @Output() isModifying = new EventEmitter<boolean>();
 
   private teamService = inject(TeamService);
   private cdr = inject(ChangeDetectorRef);
@@ -63,6 +64,16 @@ export class PredictionTileComponent implements OnInit, OnChanges {
   isLive: boolean = false;
   isSelectOpen: boolean = false;
   private saveTimeout: any;
+  private _isCurrentlyModifying = false;
+  private initialScorer: number | null = null;
+  private initialSecondScorer: number | null = null;
+
+  private setModifyingState(isModifying: boolean) {
+    if (this._isCurrentlyModifying !== isModifying) {
+      this._isCurrentlyModifying = isModifying;
+      this.isModifying.emit(isModifying);
+    }
+  }
 
   ngOnInit() {
     const offset = -new Date().getTimezoneOffset();
@@ -122,9 +133,16 @@ export class PredictionTileComponent implements OnInit, OnChanges {
   onSelectOpened(isOpen: boolean) {
     this.isSelectOpen = isOpen;
     if (isOpen) {
-      if (this.saveTimeout) clearTimeout(this.saveTimeout);
+      this.initialScorer = this.selectedScorer;
+      this.initialSecondScorer = this.secondScorer;
+      if (this.saveTimeout) {
+        clearTimeout(this.saveTimeout);
+        this.saveTimeout = null;
+      }
     } else {
-      this.onPredictionInput();
+      if (this.initialScorer !== this.selectedScorer || this.initialSecondScorer !== this.secondScorer) {
+        this.onPredictionInput();
+      }
     }
   }
 
@@ -153,9 +171,11 @@ export class PredictionTileComponent implements OnInit, OnChanges {
     this.calculatePoints();
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout);
+      this.saveTimeout = null;
     }
 
     this.emitPrediction();
+    this.setModifyingState(false);
   }
 
   onPredictionInput() {
@@ -171,8 +191,12 @@ export class PredictionTileComponent implements OnInit, OnChanges {
       clearTimeout(this.saveTimeout);
     }
 
+    this.setModifyingState(true);
+
     this.saveTimeout = setTimeout(() => {
+      this.saveTimeout = null;
       this.emitPrediction();
+      this.setModifyingState(false);
     }, 1000);
   }
 

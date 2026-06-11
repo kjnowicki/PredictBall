@@ -3,7 +3,7 @@
   <mat-card-header style="display: flex; justify-content: center; text-align: center; padding-top: 1rem;">
     <mat-card-title style="font-size: 1.1rem; margin-bottom: 0; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">
       @if (homeTeam) {
-        @if (homeTeam.area?.flag) {
+        @if (homeTeam.area.flag) {
           <img [src]="homeTeam.area.flag" height="16" style="border-radius: 2px;" alt="flag">
         }
         {{ homeTeam.tla || homeTeam.shortName || homeTeam.name }}
@@ -13,7 +13,7 @@
       <span style="font-weight: normal; margin: 0 0.5rem;">vs</span>
       @if (awayTeam) {
         {{ awayTeam.tla || awayTeam.shortName || awayTeam.name }}
-        @if (awayTeam.area?.flag) {
+        @if (awayTeam.area.flag) {
           <img [src]="awayTeam.area.flag" height="16" style="border-radius: 2px;" alt="flag">
         }
       } @else {
@@ -86,7 +86,7 @@
     @if (activePowerup === 'doubleScorer' || availablePowerups?.doubleScorerMatchId === match.id) {
     <div class="prediction-row">
       <mat-form-field appearance="outline" style="width: 100%;">
-        <mat-label>Second Scorer</mat-label>
+        <mat-label>Another Scorer</mat-label>
         <mat-select [(ngModel)]="secondScorer" (ngModelChange)="onPredictionInput()" (openedChange)="onSelectOpened($event)" [disabled]="isPast || activePowerup !== 'doubleScorer'">
           <mat-option [value]="null">None</mat-option>
         @for (group of scorerGroups; track group.name) {

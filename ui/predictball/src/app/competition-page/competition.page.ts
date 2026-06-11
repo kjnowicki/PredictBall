@@ -8,6 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatInputModule } from '@angular/material/input';
 import { PredictionTileComponent } from '../prediction-tile-component/prediction.tile.component';
 import { CompetitionService } from '../services/competition.service';
@@ -38,6 +39,7 @@ interface PublicLeague {
     MatIconModule,
     FormsModule,
     MatFormFieldModule,
+    MatTooltipModule,
     MatInputModule,
     PredictionTileComponent
   ],
@@ -58,6 +60,9 @@ export class CompetitionPage implements OnInit, OnDestroy {
   timeZoneString: string = '';
   private timeInterval: any;
   
+  modifyingCount = 0;
+  activeRequests = 0;
+
   publicLeagues: PublicLeague[] = [];
   yourLeagues: PublicLeague[] = [];
   joinCode: string = '';
@@ -250,6 +255,14 @@ export class CompetitionPage implements OnInit, OnDestroy {
     }
   }
 
+  onTileModifying(isModifying: boolean) {
+    if (isModifying) {
+      this.modifyingCount++;
+    } else {
+      this.modifyingCount = Math.max(0, this.modifyingCount - 1);
+    }
+  }
+
   onPredictionChanged(matchId: number, predictionData: any) {
     if (!this.userId || !this.competition || !this.competition.id) return;
     
@@ -304,9 +317,17 @@ export class CompetitionPage implements OnInit, OnDestroy {
     // Eagerly update locally to block duplicate toggles synchronously while API call processes
     this.predictions[matchId] = prediction;
 
-    this.competitionService.savePrediction(this.userId, this.competition.id.toString(), matchId, prediction as any).subscribe(res => {
-      res.powerup = prediction.powerup; // preserve the field locally in case backend drops it
-      this.predictions[matchId] = res;
+    this.activeRequests++;
+
+    this.competitionService.savePrediction(this.userId, this.competition.id.toString(), matchId, prediction as any).subscribe({
+      next: (res) => {
+        res.powerup = prediction.powerup; // preserve the field locally in case backend drops it
+        this.predictions[matchId] = res;
+        this.activeRequests = Math.max(0, this.activeRequests - 1);
+      },
+      error: () => {
+        this.activeRequests = Math.max(0, this.activeRequests - 1);
+      }
     });
   }
 
