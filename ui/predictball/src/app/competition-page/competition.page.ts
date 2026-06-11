@@ -18,7 +18,7 @@ import { TeamService } from '../services/team.service';
 import { ScoringSystemService } from '../services/scoring-system.service';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { Match } from '../models';
+import { Match, ScoringSystem } from '../models';
 import { Competition } from '../models/competition';
 
 interface PublicLeague {
@@ -55,7 +55,14 @@ export class CompetitionPage implements OnInit, OnDestroy {
   selectedMatchday: number = 1;
   powerupsData: any = null;
   currentMatchdayPowerups: any = { matchdayNumber: 1, doubleScorerMatchId: 0, doubleScorerId: 0, tripleScoreMatchId: 0, reversalMatchId: 0 };
-  scoringSystem: any = null;
+  scoringSystem: ScoringSystem = {
+    "scorer": 10,
+    "goalDif": 2,
+    "teamGoals": 2,
+    "exactScore": 5,
+    "result": 3,
+    "bothScorers": 5
+  };
   currentTime: Date = new Date();
   timeZoneString: string = '';
   private timeInterval: any;
@@ -375,19 +382,46 @@ export class CompetitionPage implements OnInit, OnDestroy {
 
     let points = 0;
     if (actualHome === predHome && actualAway === predAway) {
-      points += this.scoringSystem.scoreExact;
+      points += this.scoringSystem.exactScore;
     } else {
-      if (actualHome === predHome) points += this.scoringSystem.scoreHomeExact;
-      if (actualAway === predAway) points += this.scoringSystem.scoreAwayExact;
+      if (actualHome === predHome) points += this.scoringSystem.teamGoals;
+      if (actualAway === predAway) points += this.scoringSystem.teamGoals;
+      if (Math.sign(actualHome - actualAway) === Math.sign(predHome - predAway)) {
+        points += this.scoringSystem.result || 0;
+      }
       if (actualHome - actualAway === predHome - predAway) {
-        points += this.scoringSystem.scoreDif;
+        points += this.scoringSystem.goalDif;
       }
     }
 
     const actualScorers = match.matchDetails.scorers?.map((s: any) => s.id) || [];
+    const scorerCounts: Record<number, number> = {};
+    actualScorers.forEach((id: number) => {
+      scorerCounts[id] = (scorerCounts[id] || 0) + 1;
+    });
+
     let scorerPoints = 0;
-    if (prediction.scorerId && actualScorers.includes(prediction.scorerId)) scorerPoints += this.scoringSystem.scorer;
-    if (prediction.powerup === 'doubleScorer' && prediction.doubleScorerId && actualScorers.includes(prediction.doubleScorerId)) scorerPoints += this.scoringSystem.scorer;
+    let firstScorerCorrect = false;
+    let secondScorerCorrect = false;
+
+    if (actualScorers.length === 0 && (!prediction.scorerId || prediction.scorerId === 0)) {
+      scorerPoints += this.scoringSystem.scorer || 0;
+      firstScorerCorrect = true;
+    } else if (prediction.scorerId && scorerCounts[prediction.scorerId] > 0) {
+      scorerPoints += this.scoringSystem.scorer || 0;
+      scorerCounts[prediction.scorerId]--;
+      firstScorerCorrect = true;
+    }
+    
+    if (prediction.powerup === 'doubleScorer' && prediction.doubleScorerId && scorerCounts[prediction.doubleScorerId] > 0) {
+      scorerPoints += this.scoringSystem.scorer || 0;
+      scorerCounts[prediction.doubleScorerId]--;
+      secondScorerCorrect = true;
+    }
+
+    if (firstScorerCorrect && secondScorerCorrect) {
+      scorerPoints += this.scoringSystem.bothScorers || 0;
+    }
 
     points += scorerPoints;
     if (prediction.powerup === 'tripleScore') points *= 3;

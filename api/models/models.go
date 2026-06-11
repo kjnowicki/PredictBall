@@ -81,6 +81,8 @@ type ScoringSystem struct {
 	ScoreHomeExact int `json:"scoreHomeExact"`
 	ScoreAwayExact int `json:"scoreAwayExact"`
 	Scorer         int `json:"scorer"`
+	Result         int `json:"result"`
+	BothScorers    int `json:"bothScorers"`
 }
 
 type Player struct {

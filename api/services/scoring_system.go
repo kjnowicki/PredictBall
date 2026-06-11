@@ -22,5 +22,7 @@ func (s *PredictballAPIService) GetScoringSystem(ctx context.Context) (*models.S
 		ScoreHomeExact: data["teamGoals"],
 		ScoreAwayExact: data["teamGoals"],
 		Scorer:         data["scorer"],
+		BothScorers:    data["bothScorers"],
+		Result:         data["result"],
 	}, nil
 }

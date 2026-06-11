@@ -62,8 +62,13 @@ export class LoginPage {
   onRegister() {
     this.registerError = null;
 
-    if (!/^[a-zA-Z]+$/.test(this.registerData.username)) {
-      this.registerError = 'Username can only contain letters and no spaces.';
+    if(this.registerData.username.length < 5 || this.registerData.username.length > 32) {
+      this.registerError = 'Username must be from 5 to 32 characters long';
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9]+$/.test(this.registerData.username)) {
+      this.registerError = 'Username can only contain letters and numbers';
       return;
     }
 

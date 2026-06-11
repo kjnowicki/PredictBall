@@ -56,11 +56,12 @@ export interface Prediction {
 }
 
 export interface ScoringSystem {
-  scoreDif: number;
-  scoreExact: number;
-  scoreHomeExact: number;
-  scoreAwayExact: number;
+  result: number;
+  goalDif: number;
+  teamGoals: number;
+  exactScore: number;
   scorer: number;
+  bothScorers: number;
 }
 
 export interface Team {

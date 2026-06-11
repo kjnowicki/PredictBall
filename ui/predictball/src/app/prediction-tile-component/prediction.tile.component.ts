@@ -236,18 +236,48 @@ export class PredictionTileComponent implements OnInit, OnChanges {
     let points = 0;
     if (actualHome === predHome && actualAway === predAway) {
       points += this.scoringSystem.scoreExact;
+      points += this.scoringSystem.exactScore || 0;
     } else {
       if (actualHome === predHome) points += this.scoringSystem.scoreHomeExact;
       if (actualAway === predAway) points += this.scoringSystem.scoreAwayExact;
+      if (actualHome === predHome) points += this.scoringSystem.teamGoals || 0;
+      if (actualAway === predAway) points += this.scoringSystem.teamGoals || 0;
+      if (Math.sign(actualHome - actualAway) === Math.sign(predHome - predAway)) {
+        points += this.scoringSystem.result || 0;
+      }
       if (actualHome - actualAway === predHome - predAway) {
         points += this.scoringSystem.scoreDif;
+        points += this.scoringSystem.goalDif || 0;
       }
     }
 
     const actualScorers = this.match.matchDetails.scorers?.map((s: any) => s.id) || [];
+    const scorerCounts: Record<number, number> = {};
+    actualScorers.forEach((id: number) => {
+      scorerCounts[id] = (scorerCounts[id] || 0) + 1;
+    });
+
     let scorerPoints = 0;
-    if (this.selectedScorer && actualScorers.includes(this.selectedScorer)) scorerPoints += this.scoringSystem.scorer;
-    if (this.activePowerup === 'doubleScorer' && this.secondScorer && actualScorers.includes(this.secondScorer)) scorerPoints += this.scoringSystem.scorer;
+    let firstScorerCorrect = false;
+    let secondScorerCorrect = false;
+
+    if (actualScorers.length === 0 && (!this.selectedScorer || this.selectedScorer === 0)) {
+      scorerPoints += this.scoringSystem.scorer || 0;
+      firstScorerCorrect = true;
+    } else if (this.selectedScorer && scorerCounts[this.selectedScorer] > 0) {
+      scorerPoints += this.scoringSystem.scorer || 0;
+      scorerCounts[this.selectedScorer]--;
+      firstScorerCorrect = true;
+    }
+    if (this.activePowerup === 'doubleScorer' && this.secondScorer && scorerCounts[this.secondScorer] > 0) {
+      scorerPoints += this.scoringSystem.scorer || 0;
+      scorerCounts[this.secondScorer]--;
+      secondScorerCorrect = true;
+    }
+
+    if (firstScorerCorrect && secondScorerCorrect) {
+      scorerPoints += this.scoringSystem.bothScorers || 0;
+    }
 
     points += scorerPoints;
     if (this.activePowerup === 'tripleScore') points *= 3;
