@@ -26,7 +26,7 @@ func (s *PredictballAPIService) GetMatchDetails(ctx context.Context, matchID str
 	}
 
 	var apiMatch footballdata.Match
-	if err := s.fetchCached(ctx, fmt.Sprintf("matches/%s", matchID), nil, &apiMatch, 1*time.Minute); err != nil {
+	if err := s.fetchCached(ctx, fmt.Sprintf("matches/%s", matchID), nil, &apiMatch, 2*time.Minute); err != nil {
 		return nil, err
 	}
 
@@ -38,12 +38,14 @@ func (s *PredictballAPIService) GetMatchDetails(ctx context.Context, matchID str
 		awayScore = *apiMatch.Score.FullTime.Away
 	}
 
-	var scorers []models.Player
+	scorers := make([]models.Player, 0)
 	for _, g := range apiMatch.Goals {
-		scorers = append(scorers, models.Player{
-			ID:   g.Scorer.ID,
-			Name: g.Scorer.Name,
-		})
+		if g.Scorer.ID != 0 {
+			scorers = append(scorers, models.Player{
+				ID:   g.Scorer.ID,
+				Name: g.Scorer.Name,
+			})
+		}
 	}
 
 	details := &models.MatchDetails{
@@ -76,4 +78,61 @@ func (s *PredictballAPIService) GetMatchDetails(ctx context.Context, matchID str
 	})
 
 	return details, nil
+}
+
+func (s *PredictballAPIService) GetMatch(ctx context.Context, compID string, matchID string) (*models.Match, error) {
+	var apiMatch footballdata.Match
+	if err := s.fetchCached(ctx, fmt.Sprintf("matches/%s", matchID), nil, &apiMatch, 1*time.Minute); err != nil {
+		return nil, err
+	}
+
+	var homeScore, awayScore int
+	if apiMatch.Score.FullTime.Home != nil {
+		homeScore = *apiMatch.Score.FullTime.Home
+	}
+	if apiMatch.Score.FullTime.Away != nil {
+		awayScore = *apiMatch.Score.FullTime.Away
+	}
+
+	scorers := make([]models.Player, 0)
+	for _, g := range apiMatch.Goals {
+		if g.Scorer.ID != 0 {
+			scorers = append(scorers, models.Player{
+				ID:   g.Scorer.ID,
+				Name: g.Scorer.Name,
+			})
+		}
+	}
+
+	var startTime time.Time
+	if t, err := time.Parse(time.RFC3339, apiMatch.UtcDate); err == nil {
+		startTime = t
+	}
+
+	match := &models.Match{
+		ID:         apiMatch.ID,
+		Matchday:   apiMatch.Matchday,
+		HomeTeamID: apiMatch.HomeTeam.ID,
+		AwayTeamID: apiMatch.AwayTeam.ID,
+		StartTime:  startTime,
+		Status:     models.MatchStatus(apiMatch.Status),
+		MatchDetails: models.MatchDetails{
+			HomeScore: homeScore,
+			AwayScore: awayScore,
+			Scorers:   scorers,
+		},
+	}
+
+	if cached, ok := matchScheduleCache.Load(compID); ok {
+		data := cached.(cachedScheduleData)
+		for i, m := range data.Schedule {
+			if m.ID == match.ID {
+				data.Schedule[i] = *match
+				break
+			}
+		}
+		matchScheduleCache.Store(compID, data)
+	}
+
+	return match, nil
 }

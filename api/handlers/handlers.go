@@ -19,6 +19,7 @@ func NewAPIHandler(svc services.APIService) *APIHandler {
 
 func WriteJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(data)
 }
@@ -31,6 +32,17 @@ func (h *APIHandler) HandleGetMatchSchedule(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	WriteJSON(w, http.StatusOK, schedule)
+}
+
+func (h *APIHandler) HandleGetMatch(w http.ResponseWriter, r *http.Request) {
+	compId := r.PathValue("compId")
+	matchId := r.PathValue("matchId")
+	match, err := h.Service.GetMatch(r.Context(), compId, matchId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, http.StatusOK, match)
 }
 
 func (h *APIHandler) HandleGetMatchDetails(w http.ResponseWriter, r *http.Request) {
@@ -300,6 +312,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 	mux.HandleFunc("GET /competition/{id}/match-schedule", h.HandleGetMatchSchedule)
 	mux.HandleFunc("GET /match-details/{id}", h.HandleGetMatchDetails)
+	mux.HandleFunc("GET /competition/{compId}/match/{matchId}", h.HandleGetMatch)
 
 	mux.HandleFunc("GET /competitions", h.HandleGetCompetitions)
 	mux.HandleFunc("GET /competition/{id}", h.HandleGetCompetition)

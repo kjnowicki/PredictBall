@@ -3,10 +3,26 @@ package services
 import (
 	"context"
 	"predictball_api/models"
+	"sync"
 	"time"
 )
 
+var matchScheduleCache sync.Map
+
+type cachedScheduleData struct {
+	Schedule []models.Match
+	Expiry   time.Time
+}
+
 func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode string) ([]models.Match, error) {
+	now := time.Now().UTC()
+	if cached, ok := matchScheduleCache.Load(compCode); ok {
+		data := cached.(cachedScheduleData)
+		if now.Before(data.Expiry) {
+			return data.Schedule, nil
+		}
+	}
+
 	comp, err := s.GetCompetition(ctx, compCode)
 	if err != nil {
 		return nil, err
@@ -27,12 +43,14 @@ func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode s
 			awayScore = *m.Score.FullTime.Away
 		}
 
-		var scorers []models.Player
+		scorers := make([]models.Player, 0)
 		for _, g := range m.Goals {
-			scorers = append(scorers, models.Player{
-				ID:   g.Scorer.ID,
-				Name: g.Scorer.Name,
-			})
+			if g.Scorer.ID != 0 {
+				scorers = append(scorers, models.Player{
+					ID:   g.Scorer.ID,
+					Name: g.Scorer.Name,
+				})
+			}
 		}
 
 		var startTime time.Time
@@ -54,6 +72,11 @@ func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode s
 			},
 		})
 	}
+
+	matchScheduleCache.Store(compCode, cachedScheduleData{
+		Schedule: schedule,
+		Expiry:   now.Add(10 * time.Minute),
+	})
 
 	return schedule, nil
 }

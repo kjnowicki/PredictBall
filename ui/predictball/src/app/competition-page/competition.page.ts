@@ -20,6 +20,7 @@ import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { Match, ScoringSystem } from '../models';
 import { Competition } from '../models/competition';
+import { calculatePredictionPoints } from '../utils/scoring.utils';
 
 interface PublicLeague {
   id: string;
@@ -95,6 +96,37 @@ export class CompetitionPage implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef
   ) {}
 
+  enrichMatches() {
+    if (!this.competitionCode) return;
+    const matchesToEnrich = this.filteredMatches.filter(m => m.status === 'FINISHED' || m.status === 'IN_PLAY' || m.status === 'PAUSED');
+    
+    if (matchesToEnrich.length > 0) {
+      const requests = matchesToEnrich.map(m => 
+        this.matchService.getMatch(this.competitionCode!, m.id.toString()).pipe(catchError(() => of(null)))
+      );
+      
+      forkJoin(requests).subscribe(updatedMatches => {
+        let changed = false;
+        updatedMatches.forEach(updated => {
+          if (updated) {
+            const index = this.matches.findIndex(x => x.id === updated.id);
+            if (index !== -1) {
+              const m = { ...this.matches[index] };
+              m.status = updated.status;
+              m.matchDetails = updated.matchDetails;
+              this.matches[index] = m;
+              changed = true;
+            }
+          }
+        });
+        if (changed) {
+          this.matches = [...this.matches]; // Reassign array to trigger ngOnChanges in child tiles
+          this.cdr.detectChanges();
+        }
+      });
+    }
+  }
+
   ngOnInit(): void {
     const offset = -new Date().getTimezoneOffset();
     const sign = offset >= 0 ? '+' : '-';
@@ -143,6 +175,7 @@ export class CompetitionPage implements OnInit, OnDestroy {
 
           this.matches = matches;
           this.extractTeams();
+          this.enrichMatches();
 
           this.loadPowerups();
           this.loadPredictions();
@@ -342,12 +375,14 @@ export class CompetitionPage implements OnInit, OnDestroy {
     if (this.selectedMatchday > 1) {
       this.selectedMatchday--;
       this.updateCurrentMatchdayPowerups();
+      this.enrichMatches();
     }
   }
 
   nextMatchday() {
     this.selectedMatchday++;
     this.updateCurrentMatchdayPowerups();
+    this.enrichMatches();
   }
 
   get completedPredictions() {
@@ -361,72 +396,8 @@ export class CompetitionPage implements OnInit, OnDestroy {
   }
 
   calculatePointsForPrediction(match: Match, prediction: any): number {
-    if (!this.scoringSystem || !match || !prediction || !match.matchDetails || match.status !== 'FINISHED') {
-      return 0;
-    }
-
-    const actualHome = match.matchDetails.homeScore;
-    const actualAway = match.matchDetails.awayScore;
-    let predHome = prediction.homeScore;
-    let predAway = prediction.awayScore;
-
-    if (prediction.powerup === 'reversal' && actualHome !== actualAway) {
-        const actualDiff = actualHome - actualAway;
-        const predDiff = predHome - predAway;
-        if ((actualDiff > 0 && predDiff < 0) || (actualDiff < 0 && predDiff > 0)) {
-            const temp = predHome;
-            predHome = predAway;
-            predAway = temp;
-        }
-    }
-
-    let points = 0;
-    if (actualHome === predHome && actualAway === predAway) {
-      points += this.scoringSystem.exactScore;
-    } else {
-      if (actualHome === predHome) points += this.scoringSystem.teamGoals;
-      if (actualAway === predAway) points += this.scoringSystem.teamGoals;
-      if (Math.sign(actualHome - actualAway) === Math.sign(predHome - predAway)) {
-        points += this.scoringSystem.result || 0;
-      }
-      if (actualHome - actualAway === predHome - predAway) {
-        points += this.scoringSystem.goalDif;
-      }
-    }
-
-    const actualScorers = match.matchDetails.scorers?.map((s: any) => s.id) || [];
-    const scorerCounts: Record<number, number> = {};
-    actualScorers.forEach((id: number) => {
-      scorerCounts[id] = (scorerCounts[id] || 0) + 1;
-    });
-
-    let scorerPoints = 0;
-    let firstScorerCorrect = false;
-    let secondScorerCorrect = false;
-
-    if (actualScorers.length === 0 && (!prediction.scorerId || prediction.scorerId === 0)) {
-      scorerPoints += this.scoringSystem.scorer || 0;
-      firstScorerCorrect = true;
-    } else if (prediction.scorerId && scorerCounts[prediction.scorerId] > 0) {
-      scorerPoints += this.scoringSystem.scorer || 0;
-      scorerCounts[prediction.scorerId]--;
-      firstScorerCorrect = true;
-    }
-    
-    if (prediction.powerup === 'doubleScorer' && prediction.doubleScorerId && scorerCounts[prediction.doubleScorerId] > 0) {
-      scorerPoints += this.scoringSystem.scorer || 0;
-      scorerCounts[prediction.doubleScorerId]--;
-      secondScorerCorrect = true;
-    }
-
-    if (firstScorerCorrect && secondScorerCorrect) {
-      scorerPoints += this.scoringSystem.bothScorers || 0;
-    }
-
-    points += scorerPoints;
-    if (prediction.powerup === 'tripleScore') points *= 3;
-
-    return points;
+    const result = calculatePredictionPoints(match, this.scoringSystem, prediction);
+    return result ? result.totalPoints : 0;
   }
 
   get matchdayScore() {

@@ -163,13 +163,13 @@ export class HomePage implements OnInit {
 
   openTaskModal(task: Task): void {
     this.selectedTask = task;
-    this.matchService.getMatch(task.matchId).subscribe({
-      next: (match) => {
-        this.selectedTaskMatch = match;
-        this.dialog.open(this.taskDialog);
-      },
-      error: (err) => console.error('Error fetching match details for task', err)
-    });
+    // this.matchService.getMatch(task.matchId).subscribe({
+    //   next: (match) => {
+    //     this.selectedTaskMatch = match;
+    //     this.dialog.open(this.taskDialog);
+    //   },
+    //   error: (err) => console.error('Error fetching match details for task', err)
+    // });
   }
 
   closeModal(): void {

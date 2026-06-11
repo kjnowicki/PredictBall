@@ -70,6 +70,21 @@ func (s *TemplateService) GetMatchSchedule(ctx context.Context, compID string) (
 	}, nil
 }
 
+func (s *TemplateService) GetMatch(ctx context.Context, compID string, matchID string) (*models.Match, error) {
+	return &models.Match{
+		ID:         1,
+		Matchday:   1,
+		HomeTeamID: 10,
+		AwayTeamID: 20,
+		StartTime:  time.Now().Add(24 * time.Hour),
+		Status:     models.StatusScheduled,
+		MatchDetails: models.MatchDetails{
+			HomeScore: 0,
+			AwayScore: 0,
+		},
+	}, nil
+}
+
 func (s *TemplateService) GetMatchDetails(ctx context.Context, matchID string) (*models.MatchDetails, error) {
 	return &models.MatchDetails{
 		HomeScore: 2,
