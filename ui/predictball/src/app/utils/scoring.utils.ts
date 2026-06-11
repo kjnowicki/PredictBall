@@ -121,25 +121,11 @@ export function calculatePredictionPoints(
 
   const breakdown: string[] = [];
 
-  if (resultPoints > 0) breakdown.push(`Result: ${resultPoints} pts`);
-
-  const goalsText: string[] = [];
-  if (homePoints > 0) goalsText.push('Home');
-  if (awayPoints > 0) goalsText.push('Away');
-  if (isExact) goalsText.push('Exact');
-
-  if (goalsPoints > 0) {
-    breakdown.push(`Goals: ${goalsPoints} pts (${goalsText.join(' + ')})`);
-  }
-
-  if (goalDifPoints > 0) breakdown.push(`Goal difference: ${goalDifPoints} pts`);
-
-  const scorerText: string[] = [];
-  if (firstScorerCorrect) scorerText.push('normal');
-  if (secondScorerCorrect) scorerText.push('additional');
-  if (scorerPoints > 0) {
-    breakdown.push(`Scorers: ${scorerPoints} pts (${scorerText.join(' + ')})`);
-  }
+  breakdown.push(`Result: ${resultPoints} pts`);
+  breakdown.push(`Team goals: ${homePoints + awayPoints} pts`);
+  breakdown.push(`Exact score bonus: ${exactScorePts} pts`);
+  breakdown.push(`Goal difference: ${goalDifPoints} pts`);
+  breakdown.push(`Scorers: ${scorerPoints} pts`);
 
   if (prediction.powerup === 'tripleScore') {
     breakdown.push('x3');

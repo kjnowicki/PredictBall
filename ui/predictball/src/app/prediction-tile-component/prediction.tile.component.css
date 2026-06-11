@@ -1,3 +1,8 @@
 ::ng-deep .multiline-tooltip {
-  white-space: pre-line;
+  white-space: pre-line !important;
+  text-align: left !important;
+}
+
+::ng-deep .multiline-tooltip .mdc-tooltip__surface {
+  text-align: left !important;
 }
