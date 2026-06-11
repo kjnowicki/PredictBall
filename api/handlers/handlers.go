@@ -277,7 +277,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 		lowerOrigin := strings.ToLower(origin)
-		isAllowed := lowerOrigin == "https://predict-ball.eu" || lowerOrigin == "https://www.predict-ball.eu"
+		isAllowed := lowerOrigin == "https://predict-ball.eu" || lowerOrigin == "https://www.predict-ball.eu" || lowerOrigin == "http://localhost:4200"
 
 		if isAllowed {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
