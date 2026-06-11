@@ -14,6 +14,7 @@ import (
 func (s *PredictballAPIService) StartPointsUpdater(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Minute)
 	go func() {
+		s.updateGlobalLeaguePoints(ctx)
 		for {
 			select {
 			case <-ticker.C:
@@ -45,37 +46,38 @@ func calculatePointsForPrediction(match models.Match, prediction models.Predicti
 	}
 
 	points := 0
+	if actualHome == predHome {
+		points += scoring.ScoreHomeExact
+	}
+
+	if actualAway == predAway {
+		points += scoring.ScoreAwayExact
+	}
+
 	if actualHome == predHome && actualAway == predAway {
 		points += scoring.ScoreExact
-	} else {
-		if actualHome == predHome {
-			points += scoring.ScoreHomeExact
-		}
-		if actualAway == predAway {
-			points += scoring.ScoreAwayExact
-		}
+	}
 
-		actualSign := 0
-		if actualHome > actualAway {
-			actualSign = 1
-		} else if actualHome < actualAway {
-			actualSign = -1
-		}
+	actualSign := 0
+	if actualHome > actualAway {
+		actualSign = 1
+	} else if actualHome < actualAway {
+		actualSign = -1
+	}
 
-		predSign := 0
-		if predHome > predAway {
-			predSign = 1
-		} else if predHome < predAway {
-			predSign = -1
-		}
+	predSign := 0
+	if predHome > predAway {
+		predSign = 1
+	} else if predHome < predAway {
+		predSign = -1
+	}
 
-		if actualSign == predSign {
-			points += scoring.Result
-		}
+	if actualSign == predSign {
+		points += scoring.Result
+	}
 
-		if actualHome-actualAway == predHome-predAway {
-			points += scoring.ScoreDif
-		}
+	if actualHome-actualAway == predHome-predAway {
+		points += scoring.ScoreDif
 	}
 
 	scorerCounts := make(map[int]int)
@@ -105,8 +107,8 @@ func calculatePointsForPrediction(match models.Match, prediction models.Predicti
 	if firstScorerCorrect && secondScorerCorrect {
 		scorerPoints += scoring.BothScorers
 	}
-
 	points += scorerPoints
+
 	if activePowerup == "tripleScore" {
 		points *= 3
 	}
@@ -153,6 +155,12 @@ func (s *PredictballAPIService) updateGlobalLeaguePoints(ctx context.Context) {
 
 		matches := make(map[int]models.Match)
 		for _, m := range schedule {
+			if m.Status == "FINISHED" {
+				// Enrich match with details like scorers
+				if detailedMatch, err := s.GetMatch(ctx, compID, strconv.Itoa(m.ID)); err == nil {
+					m = *detailedMatch
+				}
+			}
 			matches[m.ID] = m
 		}
 

@@ -56,29 +56,29 @@ export function calculatePredictionPoints(
   let awayPoints = 0;
   let isExact = false;
 
+  if (actualHome === predHome) {
+    homePoints = teamGoalsPts;
+    goalsPoints += homePoints;
+  }
+  if (actualAway === predAway) {
+    awayPoints = teamGoalsPts;
+    goalsPoints += awayPoints;
+  }
+
   if (actualHome === predHome && actualAway === predAway) {
     isExact = true;
-    goalsPoints = exactScorePts;
-    points += goalsPoints;
-  } else {
-    if (actualHome === predHome) {
-      homePoints = teamGoalsPts;
-      goalsPoints += homePoints;
-    }
-    if (actualAway === predAway) {
-      awayPoints = teamGoalsPts;
-      goalsPoints += awayPoints;
-    }
-    points += goalsPoints;
+    goalsPoints += exactScorePts;
+  }
 
-    if (Math.sign(actualHome - actualAway) === Math.sign(predHome - predAway)) {
-      resultPoints = resultPts;
-      points += resultPoints;
-    }
-    if (actualHome - actualAway === predHome - predAway) {
-      goalDifPoints = goalDifPts;
-      points += goalDifPoints;
-    }
+  points += goalsPoints;
+
+  if (Math.sign(actualHome - actualAway) === Math.sign(predHome - predAway)) {
+    resultPoints = resultPts;
+    points += resultPoints;
+  }
+  if (actualHome - actualAway === predHome - predAway) {
+    goalDifPoints = goalDifPts;
+    points += goalDifPoints;
   }
 
   const actualScorers = match.matchDetails.scorers?.map((s: any) => (s && s.id ? Number(s.id) : 0)).filter((id: number) => id > 0) || [];
@@ -124,12 +124,10 @@ export function calculatePredictionPoints(
   if (resultPoints > 0) breakdown.push(`Result: ${resultPoints} pts`);
 
   const goalsText: string[] = [];
-  if (isExact) {
-    goalsText.push('Exact');
-  } else {
-    if (homePoints > 0) goalsText.push('Home');
-    if (awayPoints > 0) goalsText.push('Away');
-  }
+  if (homePoints > 0) goalsText.push('Home');
+  if (awayPoints > 0) goalsText.push('Away');
+  if (isExact) goalsText.push('Exact');
+
   if (goalsPoints > 0) {
     breakdown.push(`Goals: ${goalsPoints} pts (${goalsText.join(' + ')})`);
   }
