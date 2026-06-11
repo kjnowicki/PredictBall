@@ -6,6 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { Match } from '../models';
 import { TeamService } from '../services/team.service';
 import { Team } from '../models/team';
@@ -24,6 +25,22 @@ interface ScorerGroup {
   scorers: ScorerOption[];
 }
 
+interface ScorePointsResult {
+  points: number;
+  resultPoints: number;
+  goalsPoints: number;
+  goalDifPoints: number;
+  homePoints: number;
+  awayPoints: number;
+  isExact: boolean;
+}
+
+interface ScorerPointsResult {
+  points: number;
+  firstScorerCorrect: boolean;
+  secondScorerCorrect: boolean;
+}
+
 @Component({
   selector: 'app-prediction-tile',
   imports: [
@@ -33,7 +50,8 @@ interface ScorerGroup {
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
-    MatIconModule
+    MatIconModule,
+    MatTooltipModule
   ],
   templateUrl: './prediction.tile.component.html',
   styleUrl: './prediction.tile.component.css',
@@ -58,6 +76,7 @@ export class PredictionTileComponent implements OnInit, OnChanges {
   scoredPoints: number | null = null;
   activePowerup: string | null = null;
   secondScorer: number | null = null;
+  pointsBreakdown: string = '';
   timeZoneString: string = '';
 
   isPast: boolean = false;
@@ -213,45 +232,96 @@ export class PredictionTileComponent implements OnInit, OnChanges {
   }
 
   calculatePoints() {
-    if (!this.scoringSystem || !this.match || !this.match.matchDetails || this.match.status !== 'FINISHED' || this.homeGoalsPrediction === null || this.awayGoalsPrediction === null) {
+    if (!this.canCalculatePoints()) {
       this.scoredPoints = null;
+      this.pointsBreakdown = '';
       return;
     }
 
-    const actualHome = this.match.matchDetails.homeScore;
-    const actualAway = this.match.matchDetails.awayScore;
-    let predHome = this.homeGoalsPrediction;
-    let predAway = this.awayGoalsPrediction;
+    const { predHome, predAway, reversalHelped } = this.applyReversalPowerup();
+
+    const scoreResult = this.calculateScorePoints(predHome, predAway);
+    const scorerResult = this.calculateScorerPoints();
+
+    let totalPoints = scoreResult.points + scorerResult.points;
+
+    if (this.activePowerup === 'tripleScore') {
+      totalPoints *= 3;
+    }
+
+    this.scoredPoints = totalPoints;
+    this.pointsBreakdown = this.buildPointsBreakdown(scoreResult, scorerResult, reversalHelped);
+  }
+
+  private canCalculatePoints(): boolean {
+    return !!(this.scoringSystem &&
+      this.match &&
+      this.match.matchDetails &&
+      this.match.status === 'FINISHED' &&
+      this.homeGoalsPrediction !== null &&
+      this.awayGoalsPrediction !== null);
+  }
+
+  private applyReversalPowerup(): { predHome: number, predAway: number, reversalHelped: boolean } {
+    const actualHome = this.match.matchDetails!.homeScore;
+    const actualAway = this.match.matchDetails!.awayScore;
+    let predHome = this.homeGoalsPrediction!;
+    let predAway = this.awayGoalsPrediction!;
+    let reversalHelped = false;
 
     if (this.activePowerup === 'reversal' && actualHome !== actualAway) {
-        const actualDiff = actualHome - actualAway;
-        const predDiff = predHome - predAway;
-        if ((actualDiff > 0 && predDiff < 0) || (actualDiff < 0 && predDiff > 0)) {
-            const temp = predHome;
-            predHome = predAway;
-            predAway = temp;
-        }
+      const actualDiff = actualHome - actualAway;
+      const predDiff = predHome - predAway;
+      if ((actualDiff > 0 && predDiff < 0) || (actualDiff < 0 && predDiff > 0)) {
+        [predHome, predAway] = [predAway, predHome];
+        reversalHelped = true;
+      }
     }
+    return { predHome, predAway, reversalHelped };
+  }
+
+  private calculateScorePoints(predHome: number, predAway: number): ScorePointsResult {
+    const actualHome = this.match.matchDetails!.homeScore;
+    const actualAway = this.match.matchDetails!.awayScore;
 
     let points = 0;
+    let resultPoints = 0;
+    let goalsPoints = 0;
+    let goalDifPoints = 0;
+    let homePoints = 0;
+    let awayPoints = 0;
+    let isExact = false;
+
     if (actualHome === predHome && actualAway === predAway) {
-      points += this.scoringSystem.scoreExact;
-      points += this.scoringSystem.exactScore || 0;
+      isExact = true;
+      goalsPoints = (this.scoringSystem.scoreExact || 0) + (this.scoringSystem.exactScore || 0);
+      points += goalsPoints;
     } else {
-      if (actualHome === predHome) points += this.scoringSystem.scoreHomeExact;
-      if (actualAway === predAway) points += this.scoringSystem.scoreAwayExact;
-      if (actualHome === predHome) points += this.scoringSystem.teamGoals || 0;
-      if (actualAway === predAway) points += this.scoringSystem.teamGoals || 0;
+      if (actualHome === predHome) {
+        homePoints = (this.scoringSystem.scoreHomeExact || 0) + (this.scoringSystem.teamGoals || 0);
+        goalsPoints += homePoints;
+      }
+      if (actualAway === predAway) {
+        awayPoints = (this.scoringSystem.scoreAwayExact || 0) + (this.scoringSystem.teamGoals || 0);
+        goalsPoints += awayPoints;
+      }
+      points += goalsPoints;
+
       if (Math.sign(actualHome - actualAway) === Math.sign(predHome - predAway)) {
-        points += this.scoringSystem.result || 0;
+        resultPoints = this.scoringSystem.result || 0;
+        points += resultPoints;
       }
       if (actualHome - actualAway === predHome - predAway) {
-        points += this.scoringSystem.scoreDif;
-        points += this.scoringSystem.goalDif || 0;
+        goalDifPoints = (this.scoringSystem.scoreDif || 0) + (this.scoringSystem.goalDif || 0);
+        points += goalDifPoints;
       }
     }
 
-    const actualScorers = this.match.matchDetails.scorers?.map((s: any) => s.id) || [];
+    return { points, resultPoints, goalsPoints, goalDifPoints, homePoints, awayPoints, isExact };
+  }
+
+  private calculateScorerPoints(): ScorerPointsResult {
+    const actualScorers = this.match.matchDetails!.scorers?.map((s: any) => s.id) || [];
     const scorerCounts: Record<number, number> = {};
     actualScorers.forEach((id: number) => {
       scorerCounts[id] = (scorerCounts[id] || 0) + 1;
@@ -269,6 +339,7 @@ export class PredictionTileComponent implements OnInit, OnChanges {
       scorerCounts[this.selectedScorer]--;
       firstScorerCorrect = true;
     }
+
     if (this.activePowerup === 'doubleScorer' && this.secondScorer && scorerCounts[this.secondScorer] > 0) {
       scorerPoints += this.scoringSystem.scorer || 0;
       scorerCounts[this.secondScorer]--;
@@ -279,10 +350,47 @@ export class PredictionTileComponent implements OnInit, OnChanges {
       scorerPoints += this.scoringSystem.bothScorers || 0;
     }
 
-    points += scorerPoints;
-    if (this.activePowerup === 'tripleScore') points *= 3;
+    return { points: scorerPoints, firstScorerCorrect, secondScorerCorrect };
+  }
 
-    this.scoredPoints = points;
+  private buildPointsBreakdown(
+    scoreResult: ScorePointsResult,
+    scorerResult: ScorerPointsResult,
+    reversalHelped: boolean
+  ): string {
+    const breakdown: string[] = [];
+
+    if (scoreResult.resultPoints > 0) breakdown.push(`Result: ${scoreResult.resultPoints} pts`);
+
+    const goalsText: string[] = [];
+    if (scoreResult.isExact) {
+      goalsText.push('Exact');
+    } else {
+      if (scoreResult.homePoints > 0) goalsText.push('Home');
+      if (scoreResult.awayPoints > 0) goalsText.push('Away');
+    }
+    if (scoreResult.goalsPoints > 0) {
+      breakdown.push(`Goals: ${scoreResult.goalsPoints} pts (${goalsText.join(' + ')})`);
+    }
+
+    if (scoreResult.goalDifPoints > 0) breakdown.push(`Goal difference: ${scoreResult.goalDifPoints} pts`);
+
+    const scorerText: string[] = [];
+    if (scorerResult.firstScorerCorrect) scorerText.push('normal');
+    if (scorerResult.secondScorerCorrect) scorerText.push('additional');
+    if (scorerResult.points > 0) {
+      breakdown.push(`Scorers: ${scorerResult.points} pts (${scorerText.join(' + ')})`);
+    }
+
+    if (this.activePowerup === 'tripleScore') {
+      breakdown.push('x3');
+    }
+
+    if (reversalHelped) {
+      breakdown.push('SCORE REVERSAL USED!');
+    }
+
+    return breakdown.join('\n');
   }
 
   loadData() {

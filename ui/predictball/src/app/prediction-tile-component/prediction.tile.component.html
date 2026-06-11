@@ -105,7 +105,13 @@
 
     <!-- Row 6: Scored points -->
     <div class="prediction-row" style="text-align: center; font-size: 1.1rem;">
-      <strong>Points: </strong> {{ scoredPoints !== null ? scoredPoints : '-' }}
+      @if (scoredPoints !== null) {
+      <span style="cursor: help;" [matTooltip]="pointsBreakdown" matTooltipClass="multiline-tooltip">
+        <strong>Points: </strong> {{ scoredPoints }}
+      </span>
+      } @else {
+      <strong>Points: </strong> -
+      }
     </div>
   </mat-card-content>
 </mat-card>
