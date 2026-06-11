@@ -12,7 +12,7 @@ import (
 )
 
 func (s *PredictballAPIService) StartPointsUpdater(ctx context.Context) {
-	ticker := time.NewTicker(30 * time.Minute)
+	ticker := time.NewTicker(10 * time.Minute)
 	go func() {
 		for {
 			select {
@@ -54,22 +54,56 @@ func calculatePointsForPrediction(match models.Match, prediction models.Predicti
 		if actualAway == predAway {
 			points += scoring.ScoreAwayExact
 		}
+
+		actualSign := 0
+		if actualHome > actualAway {
+			actualSign = 1
+		} else if actualHome < actualAway {
+			actualSign = -1
+		}
+
+		predSign := 0
+		if predHome > predAway {
+			predSign = 1
+		} else if predHome < predAway {
+			predSign = -1
+		}
+
+		if actualSign == predSign {
+			points += scoring.Result
+		}
+
 		if actualHome-actualAway == predHome-predAway {
 			points += scoring.ScoreDif
 		}
 	}
 
-	actualScorers := make(map[int]bool)
+	scorerCounts := make(map[int]int)
 	for _, s := range match.MatchDetails.Scorers {
-		actualScorers[s.ID] = true
+		scorerCounts[s.ID]++
 	}
 
 	scorerPoints := 0
-	if prediction.ScorerID != 0 && actualScorers[prediction.ScorerID] {
+	firstScorerCorrect := false
+	secondScorerCorrect := false
+
+	if len(match.MatchDetails.Scorers) == 0 && prediction.ScorerID == 0 {
 		scorerPoints += scoring.Scorer
+		firstScorerCorrect = true
+	} else if prediction.ScorerID != 0 && scorerCounts[prediction.ScorerID] > 0 {
+		scorerPoints += scoring.Scorer
+		scorerCounts[prediction.ScorerID]--
+		firstScorerCorrect = true
 	}
-	if activePowerup == "doubleScorer" && doubleScorerID != 0 && actualScorers[doubleScorerID] {
+
+	if activePowerup == "doubleScorer" && doubleScorerID != 0 && scorerCounts[doubleScorerID] > 0 {
 		scorerPoints += scoring.Scorer
+		scorerCounts[doubleScorerID]--
+		secondScorerCorrect = true
+	}
+
+	if firstScorerCorrect && secondScorerCorrect {
+		scorerPoints += scoring.BothScorers
 	}
 
 	points += scorerPoints

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -23,6 +24,8 @@ func main() {
 
 	svc := services.NewFootballAPIService(apiKey)
 	mockSvc := services.NewTemplateService()
+
+	svc.StartPointsUpdater(context.Background())
 
 	handler := handlers.NewAPIHandler(svc)
 	mockHandler := handlers.NewAPIHandler(mockSvc)
