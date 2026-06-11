@@ -325,7 +325,10 @@ export class CompetitionPage implements OnInit, OnDestroy {
   get completedPredictions() {
     return this.filteredMatches.filter(m => {
       const p = this.predictions[m.id];
-      return p && p.homeScore !== null && p.awayScore !== null && p.scorerId && p.scorerId !== 0;
+      if (!p) return false;
+      let areScoresSet = p.homeScore !== null && p.awayScore !== null;
+      let isScorerSetProperly = areScoresSet && (p.homeScore + p.awayScore == 0) || p.scorerId && p.scorerId !== 0;
+      return areScoresSet && isScorerSetProperly;
     }).length;
   }
 
