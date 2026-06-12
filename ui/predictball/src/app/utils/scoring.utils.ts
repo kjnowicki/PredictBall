@@ -123,7 +123,7 @@ export function calculatePredictionPoints(
 
   breakdown.push(`Result: ${resultPoints} pts`);
   breakdown.push(`Team goals: ${homePoints + awayPoints} pts`);
-  breakdown.push(`Exact score bonus: ${exactScorePts} pts`);
+  breakdown.push(`Exact score bonus: ${isExact ? exactScorePts : 0} pts`);
   breakdown.push(`Goal difference: ${goalDifPoints} pts`);
   breakdown.push(`Scorers: ${scorerPoints} pts`);
 

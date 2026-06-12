@@ -405,7 +405,27 @@ export class CompetitionPage implements OnInit, OnDestroy {
     for (const match of this.filteredMatches) {
       const p = this.predictions[match.id];
       if (p) {
-        total += this.calculatePointsForPrediction(match, p);
+        let powerup = p.powerup || null;
+        let doubleScorerId = p.doubleScorerId || null;
+
+        if (this.currentMatchdayPowerups) {
+          if (this.currentMatchdayPowerups.doubleScorerMatchId === match.id) {
+            powerup = 'doubleScorer';
+            doubleScorerId = this.currentMatchdayPowerups.doubleScorerId || 0;
+          } else if (this.currentMatchdayPowerups.tripleScoreMatchId === match.id) {
+            powerup = 'tripleScore';
+          } else if (this.currentMatchdayPowerups.reversalMatchId === match.id) {
+            powerup = 'reversal';
+          }
+        }
+
+        const enrichedPrediction = {
+          ...p,
+          powerup,
+          doubleScorerId
+        };
+
+        total += this.calculatePointsForPrediction(match, enrichedPrediction);
       }
     }
     return total;
