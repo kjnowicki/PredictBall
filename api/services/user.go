@@ -13,51 +13,95 @@ import (
 )
 
 var usersLoaded bool
+var usersLastModified time.Time
 var userLeaguesLoaded bool
+var userLeaguesLastModified time.Time
 var userLeagues map[string][]models.UserCompetitionLeagues
 
 func (s *PredictballAPIService) initUsers() {
-	if usersLoaded {
+	info, err := os.Stat("data/users.json")
+	if err != nil {
+		usersLoaded = true
 		return
 	}
+	if usersLoaded && !info.ModTime().After(usersLastModified) {
+		return
+	}
+
 	data, err := os.ReadFile("data/users.json")
 	if err == nil {
 		json.Unmarshal(data, &s.users)
 	}
 	usersLoaded = true
+	usersLastModified = info.ModTime()
 }
 
 func (s *PredictballAPIService) initUserLeagues() {
-	if userLeaguesLoaded {
+	info, err := os.Stat("data/userLeagues.json")
+	if err != nil {
+		if !userLeaguesLoaded {
+			userLeagues = make(map[string][]models.UserCompetitionLeagues)
+			userLeaguesLoaded = true
+		}
 		return
 	}
-	userLeagues = make(map[string][]models.UserCompetitionLeagues)
+	if userLeaguesLoaded && !info.ModTime().After(userLeaguesLastModified) {
+		return // No external changes
+	}
+
+	newUserLeagues := make(map[string][]models.UserCompetitionLeagues)
 	data, err := os.ReadFile("data/userLeagues.json")
 	if err == nil {
 		var uLeagues []models.UserLeagues
 		json.Unmarshal(data, &uLeagues)
 		for _, ul := range uLeagues {
-			userLeagues[fmt.Sprint(ul.UserID)] = ul.Competitions
+			newUserLeagues[fmt.Sprint(ul.UserID)] = ul.Competitions
 		}
 	}
+	userLeagues = newUserLeagues
 	userLeaguesLoaded = true
+	userLeaguesLastModified = info.ModTime()
+}
+
+func (s *PredictballAPIService) ensureUsersLoaded() {
+	info, err := os.Stat("data/users.json")
+	s.mu.RLock()
+	needsUpdate := !usersLoaded || (err == nil && info.ModTime().After(usersLastModified))
+	s.mu.RUnlock()
+
+	if needsUpdate {
+		s.mu.Lock()
+		s.initUsers()
+		s.mu.Unlock()
+	}
+}
+
+func (s *PredictballAPIService) ensureUserLeaguesLoaded() {
+	info, err := os.Stat("data/userLeagues.json")
+	s.mu.RLock()
+	needsUpdate := !userLeaguesLoaded || (err == nil && info.ModTime().After(userLeaguesLastModified))
+	s.mu.RUnlock()
+
+	if needsUpdate {
+		s.mu.Lock()
+		s.initUserLeagues()
+		s.mu.Unlock()
+	}
 }
 
 func (s *PredictballAPIService) saveUsers() {
 	os.MkdirAll("data", 0755)
 	data, _ := json.MarshalIndent(s.users, "", "  ")
 	os.WriteFile("data/users.json", data, 0644)
+	if info, err := os.Stat("data/users.json"); err == nil {
+		usersLastModified = info.ModTime()
+	}
 }
 
 func (s *PredictballAPIService) GetUser(ctx context.Context, userID string) (*models.User, error) {
+	s.ensureUsersLoaded()
+
 	s.mu.RLock()
-	if !usersLoaded {
-		s.mu.RUnlock()
-		s.mu.Lock()
-		s.initUsers()
-		s.mu.Unlock()
-		s.mu.RLock()
-	}
 	defer s.mu.RUnlock()
 
 	if user, exists := s.users[userID]; exists {
@@ -174,14 +218,9 @@ func (s *PredictballAPIService) DeleteUser(ctx context.Context, userID string, p
 }
 
 func (s *PredictballAPIService) AuthenticateUser(ctx context.Context, req models.User) (*models.User, error) {
+	s.ensureUsersLoaded()
+
 	s.mu.RLock()
-	if !usersLoaded {
-		s.mu.RUnlock()
-		s.mu.Lock()
-		s.initUsers()
-		s.mu.Unlock()
-		s.mu.RLock()
-	}
 	defer s.mu.RUnlock()
 
 	for _, user := range s.users {
@@ -198,14 +237,9 @@ func (s *PredictballAPIService) AuthenticateUser(ctx context.Context, req models
 }
 
 func (s *PredictballAPIService) GetUserLeagues(ctx context.Context, userID string) (*models.UserLeagues, error) {
+	s.ensureUserLeaguesLoaded()
+
 	s.mu.RLock()
-	if !userLeaguesLoaded {
-		s.mu.RUnlock()
-		s.mu.Lock()
-		s.initUserLeagues()
-		s.mu.Unlock()
-		s.mu.RLock()
-	}
 	userComps, exists := userLeagues[userID]
 	s.mu.RUnlock()
 
