@@ -105,6 +105,74 @@ func (s *PredictballAPIService) PutUser(ctx context.Context, user models.User) (
 	return &safeUser, nil
 }
 
+func (s *PredictballAPIService) ChangePassword(ctx context.Context, userID string, oldPassword string, newPassword string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.initUsers()
+
+	user, ok := s.users[userID]
+	if !ok {
+		return fmt.Errorf("user not found")
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(oldPassword)); err != nil {
+		return fmt.Errorf("invalid old password")
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %v", err)
+	}
+	user.Password = string(hash)
+
+	s.users[userID] = user
+	s.saveUsers()
+
+	return nil
+}
+
+func (s *PredictballAPIService) UpdateDisplayName(ctx context.Context, userID string, displayName string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.initUsers()
+
+	user, ok := s.users[userID]
+	if !ok {
+		return fmt.Errorf("user not found")
+	}
+
+	user.DisplayName = displayName
+	user.NameLastChanged = time.Now()
+
+	s.users[userID] = user
+	s.saveUsers()
+
+	return nil
+}
+
+func (s *PredictballAPIService) DeleteUser(ctx context.Context, userID string, password string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.initUsers()
+
+	user, ok := s.users[userID]
+	if !ok {
+		return fmt.Errorf("user not found")
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		return fmt.Errorf("invalid password")
+	}
+
+	delete(s.users, userID)
+	s.saveUsers()
+
+	return nil
+}
+
 func (s *PredictballAPIService) AuthenticateUser(ctx context.Context, req models.User) (*models.User, error) {
 	s.mu.RLock()
 	if !usersLoaded {

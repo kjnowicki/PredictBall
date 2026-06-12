@@ -133,6 +133,58 @@ func (h *APIHandler) HandlePutUser(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, created)
 }
 
+func (h *APIHandler) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		OldPassword string `json:"oldPassword"`
+		NewPassword string `json:"newPassword"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	err := h.Service.ChangePassword(r.Context(), id, req.OldPassword, req.NewPassword)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]string{"message": "success"})
+}
+
+func (h *APIHandler) HandleUpdateDisplayName(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		DisplayName string `json:"displayName"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	err := h.Service.UpdateDisplayName(r.Context(), id, req.DisplayName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]string{"message": "success"})
+}
+
+func (h *APIHandler) HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	err := h.Service.DeleteUser(r.Context(), id, req.Password)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]string{"message": "success"})
+}
+
 func (h *APIHandler) HandleGetCompetitionLeagues(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	userID := r.URL.Query().Get("user")
@@ -320,6 +372,9 @@ func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 	mux.HandleFunc("GET /user/{id}", h.HandleGetUser)
 	mux.HandleFunc("GET /user/{id}/leagues", h.HandleGetUserLeagues)
 	mux.HandleFunc("PUT /user", h.HandlePutUser)
+	mux.HandleFunc("PUT /user/{id}/password", h.HandleChangePassword)
+	mux.HandleFunc("PUT /user/{id}/display-name", h.HandleUpdateDisplayName)
+	mux.HandleFunc("POST /user/{id}/delete", h.HandleDeleteUser)
 	mux.HandleFunc("POST /user/authenticate", h.HandleAuthenticateUser)
 
 	mux.HandleFunc("GET /competition/{compId}/league/{leagueId}", h.HandleGetPredictionLeague)

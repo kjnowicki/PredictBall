@@ -121,6 +121,18 @@ func (s *TemplateService) PutUser(ctx context.Context, user models.User) (*model
 	return &user, nil
 }
 
+func (s *TemplateService) ChangePassword(ctx context.Context, userID string, oldPassword string, newPassword string) error {
+	return nil
+}
+
+func (s *TemplateService) UpdateDisplayName(ctx context.Context, userID string, displayName string) error {
+	return nil
+}
+
+func (s *TemplateService) DeleteUser(ctx context.Context, userID string, password string) error {
+	return nil
+}
+
 func (s *TemplateService) AuthenticateUser(ctx context.Context, req models.User) (*models.User, error) {
 	return &req, nil
 }

@@ -24,4 +24,16 @@ export class UserService {
   getYourLeagues(userId: string): Observable<UserLeagues> {
     return this.api.get<UserLeagues>(`user/${userId}/leagues`);
   }
+
+  changePassword(userId: string, oldPassword: string, newPassword: string): Observable<any> {
+    return this.api.put(`user/${userId}/password`, { oldPassword, newPassword });
+  }
+
+  updateDisplayName(userId: string, displayName: string): Observable<any> {
+    return this.api.put(`user/${userId}/display-name`, { displayName });
+  }
+
+  deleteUser(userId: string, password: string): Observable<any> {
+    return this.api.post(`user/${userId}/delete`, { password });
+  }
 }

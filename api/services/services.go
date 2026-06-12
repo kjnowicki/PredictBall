@@ -13,6 +13,9 @@ type APIService interface {
 
 	GetUser(ctx context.Context, userID string) (*models.User, error)
 	PutUser(ctx context.Context, user models.User) (*models.User, error)
+	ChangePassword(ctx context.Context, userID string, oldPassword string, newPassword string) error
+	UpdateDisplayName(ctx context.Context, userID string, displayName string) error
+	DeleteUser(ctx context.Context, userID string, password string) error
 	AuthenticateUser(ctx context.Context, req models.User) (*models.User, error)
 	GetUserLeagues(ctx context.Context, userID string) (*models.UserLeagues, error)
 
