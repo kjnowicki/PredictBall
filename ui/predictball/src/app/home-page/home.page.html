@@ -35,12 +35,24 @@
           </td>
         </ng-container>
 
+        <!-- Participants Column -->
+        <ng-container matColumnDef="participants">
+          <th mat-header-cell *matHeaderCellDef>Participants</th>
+          <td mat-cell *matCellDef="let league">{{ league.participants }}</td>
+        </ng-container>
+
+        <!-- Rank Column -->
+        <ng-container matColumnDef="rank">
+          <th mat-header-cell *matHeaderCellDef>Your Rank</th>
+          <td mat-cell *matCellDef="let league">{{ league.rank || '-' }}</td>
+        </ng-container>
+
         <tr mat-header-row *matHeaderRowDef="leaguesDisplayedColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: leaguesDisplayedColumns"></tr>
 
         <!-- Row shown when there is no data. -->
         <tr class="mat-row" *matNoDataRow>
-          <td class="mat-cell" colspan="1">
+          <td class="mat-cell" colspan="3">
             No leagues found.
           </td>
         </tr>
@@ -103,7 +115,7 @@
   <h2 mat-dialog-title>Task Details</h2>
   <mat-dialog-content>
     @if (selectedTaskMatch) {
-        <app-prediction-tile [match]="selectedTaskMatch"></app-prediction-tile>
+        <!-- <app-prediction-tile [match]="selectedTaskMatch"></app-prediction-tile> -->
     }
   </mat-dialog-content>
   <mat-dialog-actions align="end">

@@ -28,6 +28,16 @@ export interface PredictionLeague {
   userIds?: number[];
 }
 
+export interface LeagueUser {
+  userId: number;
+  name: string;
+  points: number;
+}
+
+export interface GlobalLeague extends PredictionLeague {
+  users: LeagueUser[];
+}
+
 export interface Match {
   id: string;
   matchday?: number;

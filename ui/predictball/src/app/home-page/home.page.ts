@@ -16,7 +16,7 @@ import { MatchService } from '../services/match.service';
 import { Competition } from '../models/competition';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { PredictionLeague, Match } from '../models';
+import { PredictionLeague, Match, GlobalLeague } from '../models/predictball.models';
 
 interface Task {
   matchId: string;
@@ -44,7 +44,8 @@ interface Task {
 })
 export class HomePage implements OnInit {
   competitions: (Competition & { points?: number })[] = [];
-  leagues: PredictionLeague[] = [];
+  leagues: (PredictionLeague & { participants?: number; rank?: number })[] = [];
+  globalLeagues: { [competitionId: number]: GlobalLeague } = {};
   userLeaguesMap: { [competitionId: number]: number[] } = {};
 
   tasksFeatureEnabled = false;
@@ -57,8 +58,9 @@ export class HomePage implements OnInit {
   selectedCompetitionId = signal(-1);
   selectedTask: Task | null = null;
   selectedTaskMatch: Match | null = null;
+  currentUserId: number | null = null;
 
-  leaguesDisplayedColumns: string[] = ['name'];
+  leaguesDisplayedColumns: string[] = ['name', 'participants', 'rank'];
   tasksDisplayedColumns: string[] = ['matchName', 'date', 'status'];
 
   readonly dialog = inject(MatDialog);
@@ -90,6 +92,8 @@ export class HomePage implements OnInit {
       console.warn('User is not authenticated.');
       return;
     }
+    
+    this.currentUserId = parseInt(userId, 10);
 
     this.userService.getYourLeagues(userId).subscribe((userLeagues) => {
       const comps = userLeagues.competitions || [];
@@ -112,11 +116,16 @@ export class HomePage implements OnInit {
             this.leagueService.getPredictionLeague(comp.id, 0).subscribe({
               next: (league: any) => {
                 if (league && league.users) {
+                  this.globalLeagues[comp.id] = league;
                   const userRecord = league.users.find((u: any) => u.userId.toString() === userId);
                   if (userRecord) {
                     comp.points = userRecord.points;
-                    this.cdr.detectChanges();
                   }
+                  
+                  if (this.selectedCompetitionId() === comp.id) {
+                    this.updateLeaguesData();
+                  }
+                  this.cdr.detectChanges();
                 }
               },
               error: () => {}
@@ -157,7 +166,38 @@ export class HomePage implements OnInit {
     );
     forkJoin(leagueReqs).subscribe(leagues => {
       this.leagues = leagues.filter(l => l !== null);
+      this.updateLeaguesData();
       this.cdr.detectChanges();
+    });
+  }
+
+  updateLeaguesData() {
+    const compId = this.selectedCompetitionId();
+    const globalLeague = this.globalLeagues[compId];
+
+    this.leagues = this.leagues.map(l => {
+      let participants = 0;
+      let rank = 0;
+      
+      const isGlobal = l.id === 0 || l.id === '0';
+      const actualLeague = isGlobal && globalLeague ? globalLeague : l;
+
+      if ((actualLeague as any).users) {
+         participants = (actualLeague as any).users.length;
+         if (this.currentUserId) {
+           const sortedUsers = [...(actualLeague as any).users].sort((a: any, b: any) => (b.points || 0) - (a.points || 0));
+           rank = sortedUsers.findIndex((u: any) => u.userId === this.currentUserId) + 1;
+         }
+      } else if (l.userIds) {
+         participants = l.userIds.length;
+         if (globalLeague && this.currentUserId && l.userIds.includes(this.currentUserId)) {
+           const leagueUsers = globalLeague.users.filter(u => l.userIds!.includes(u.userId));
+           const sortedUsers = leagueUsers.sort((a, b) => (b.points || 0) - (a.points || 0));
+           rank = sortedUsers.findIndex(u => u.userId === this.currentUserId) + 1;
+         }
+      }
+
+      return { ...l, participants, rank };
     });
   }
 
