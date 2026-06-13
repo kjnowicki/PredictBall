@@ -25,7 +25,18 @@
   <mat-card-content style="padding-top: 1rem;">
     <!-- Row 2: Match Time and Live Status -->
     <div style="text-align: center; margin-bottom: 1rem; font-size: 0.9rem; color: #555;">
-      @if (!isLive) {
+      @if (match.status === 'FINISHED') {
+        <div style="color: black; font-weight: bold;">
+          @if (match.matchDetails.scorers && match.matchDetails.scorers.length > 0) {
+            <span style="cursor: help;" [matTooltip]="getScorersTooltip()" matTooltipClass="multiline-tooltip"
+                  #scoreTooltip="matTooltip" (click)="scoreTooltip.toggle()" matTooltipTouchGestures="off">
+              <span style="text-decoration: underline;">{{ match.matchDetails.homeScore || 0 }} - {{ match.matchDetails.awayScore || 0 }}</span><sup>?</sup>
+            </span>
+          } @else {
+            <span style="text-decoration: underline;">{{ match.matchDetails.homeScore || 0 }} - {{ match.matchDetails.awayScore || 0 }}</span>
+          }
+        </div>
+      } @else if (!isLive) {
         {{ match.startTime | date:'short' }} ({{ timeZoneString }})
       } @else {
         <span style="color: red; font-weight: bold;">LIVE</span>
@@ -108,8 +119,9 @@
     <!-- Row 6: Scored points -->
     <div class="prediction-row" style="text-align: center; font-size: 1.1rem;">
       @if (scoredPoints !== null) {
-      <span style="cursor: help;" [matTooltip]="pointsBreakdown" matTooltipClass="multiline-tooltip">
-        <strong>Points: </strong> {{ scoredPoints }}
+      <span style="cursor: help;" [matTooltip]="pointsBreakdown" matTooltipClass="multiline-tooltip"
+            #pointsTooltip="matTooltip" (click)="pointsTooltip.toggle()" matTooltipTouchGestures="off">
+        <strong>Points: </strong> <span style="font-size:larger;">{{ scoredPoints }}</span><sup> ?</sup>
       </span>
       } @else {
       <strong>Points: </strong> -

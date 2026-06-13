@@ -289,6 +289,11 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
+  getScorersTooltip(): string {
+    const scorers = this.match.matchDetails?.scorers || [];
+    return scorers.map((s: any) => s.name || s).join('\n');
+  }
+
   loadData() {
     forkJoin({
       home: this.teamService.getTeamDetails(this.match.homeTeamId),
