@@ -29,12 +29,23 @@ const (
 	StatusLineupsReady MatchStatus = "LINEUPS-READY"
 )
 
+type Substitution struct {
+	Minute    int    `json:"minute"`
+	TeamID    int    `json:"teamId"`
+	TeamName  string `json:"teamName"`
+	PlayerOut Player `json:"playerOut"`
+	PlayerIn  Player `json:"playerIn"`
+}
+
 type MatchDetails struct {
-	HomeScore  int       `json:"homeScore"`
-	HomeLineup TeamSquad `json:"homeLineup"`
-	AwayScore  int       `json:"awayScore"`
-	AwayLineup TeamSquad `json:"awayLineup"`
-	Scorers    []Player  `json:"scorers"`
+	HomeScore     int            `json:"homeScore"`
+	HomeLineup    TeamSquad      `json:"homeLineup"`
+	HomeBench     TeamSquad      `json:"homeBench,omitempty"`
+	AwayScore     int            `json:"awayScore"`
+	AwayLineup    TeamSquad      `json:"awayLineup"`
+	AwayBench     TeamSquad      `json:"awayBench,omitempty"`
+	Scorers       []Player       `json:"scorers"`
+	Substitutions []Substitution `json:"substitutions,omitempty"`
 }
 
 type PredictionLeague struct {
@@ -98,6 +109,6 @@ type TeamSquad struct {
 
 type TeamDetails struct {
 	TeamID int    `json:"teamId"`
-	Name   string `string:"teamName"`
-	Crest  string `string:"crestUrl"`
+	Name   string `json:"teamName"`
+	Crest  string `json:"crestUrl"`
 }

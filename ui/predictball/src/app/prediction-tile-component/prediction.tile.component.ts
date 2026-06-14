@@ -5,7 +5,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
+import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Match } from '../models';
 import { TeamService } from '../services/team.service';
@@ -13,6 +13,7 @@ import { MatchService } from '../services/match.service';
 import { Team } from '../models/team';
 import { forkJoin } from 'rxjs';
 import { calculatePredictionPoints } from '../utils/scoring.utils';
+import { TeamSelect } from '../team-select/team-select';
 
 interface ScorerOption {
   id: number;
@@ -35,7 +36,7 @@ interface ScorerGroup {
     MatCardModule,
     MatFormFieldModule,
     MatInputModule,
-    MatSelectModule,
+    MatDialogModule,
     MatIconModule,
     MatTooltipModule
   ],
@@ -47,13 +48,14 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
   @Input() prediction?: any;
   @Input() availablePowerups?: any;
   @Input() scoringSystem?: any;
-  @Input() competitionId?: string;
+  @Input() competition?: any;
   @Output() predictionChanged = new EventEmitter<any>();
   @Output() isModifying = new EventEmitter<boolean>();
 
   private teamService = inject(TeamService);
   private cdr = inject(ChangeDetectorRef);
   private matchService = inject(MatchService);
+  private dialog = inject(MatDialog);
 
   homeTeam?: Team;
   awayTeam?: Team;
@@ -69,12 +71,9 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
 
   isPast: boolean = false;
   isLive: boolean = false;
-  isSelectOpen: boolean = false;
   private liveUpdateInterval: any;
   private saveTimeout: any;
   private _isCurrentlyModifying = false;
-  private initialScorer: number | null = null;
-  private initialSecondScorer: number | null = null;
 
   private setModifyingState(isModifying: boolean) {
     if (this._isCurrentlyModifying !== isModifying) {
@@ -145,8 +144,8 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   fetchMatchUpdate() {
-    if (this.competitionId) {
-      this.matchService.getMatch(this.competitionId, this.match.id.toString()).subscribe(updatedMatch => {
+    if (this.competition && this.competition.code) {
+      this.matchService.getMatch(this.competition.code, this.match.id.toString()).subscribe(updatedMatch => {
         if (this.match) {
           this.match.status = updatedMatch.status;
           if (this.match.matchDetails && updatedMatch.matchDetails) {
@@ -188,20 +187,32 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
     return { 'background-color': '#b1ecb6' };
   }
 
-  onSelectOpened(isOpen: boolean) {
-    this.isSelectOpen = isOpen;
-    if (isOpen) {
-      this.initialScorer = this.selectedScorer;
-      this.initialSecondScorer = this.secondScorer;
-      if (this.saveTimeout) {
-        clearTimeout(this.saveTimeout);
-        this.saveTimeout = null;
+  openTeamSelect(type: 'scorer' | 'secondScorer') {
+    if (this.isPast) return;
+    if (type === 'secondScorer' && this.activePowerup !== 'doubleScorer') return;
+    
+    const dialogRef = this.dialog.open(TeamSelect, {
+      width: '95vw',
+      maxWidth: '1000px',
+      maxHeight: '90vh',
+      data: {
+        competitionCode: this.competition?.code,
+        match: this.match,
+        homeTeam: this.homeTeam,
+        awayTeam: this.awayTeam
       }
-    } else {
-      if (this.initialScorer !== this.selectedScorer || this.initialSecondScorer !== this.secondScorer) {
+    });
+
+    dialogRef.afterClosed().subscribe((playerId: number | undefined) => {
+      if (playerId !== undefined) {
+        if (type === 'scorer') {
+          this.selectedScorer = playerId === 0 ? null : playerId;
+        } else {
+          this.secondScorer = playerId === 0 ? null : playerId;
+        }
         this.onPredictionInput();
       }
-    }
+    });
   }
 
   togglePowerup(powerup: string) {
@@ -237,7 +248,7 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onPredictionInput() {
-    if (this.isPast || this.isSelectOpen) return;
+    if (this.isPast) return;
 
     if (this.activePowerup === 'reversal' && this.homeGoalsPrediction !== null && this.awayGoalsPrediction !== null && this.homeGoalsPrediction === this.awayGoalsPrediction) {
       this.activePowerup = null;
@@ -289,6 +300,15 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
+  getScorerName(id: number | null): string {
+    if (!id) return 'None';
+    for (const group of this.scorerGroups) {
+      const scorer = group.scorers.find(s => s.id === id);
+      if (scorer) return scorer.name;
+    }
+    return 'Unknown';
+  }
+
   getScorersTooltip(): string {
     const scorers = this.match.matchDetails?.scorers || [];
     return scorers.map((s: any) => s.name || s).join('\n');
@@ -303,10 +323,10 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
       this.awayTeam = away;
 
       const homePlayers = this.match.matchDetails?.homeLineup?.players?.length 
-        ? this.match.matchDetails.homeLineup.players 
+        ? [...this.match.matchDetails.homeLineup.players, ...(this.match.matchDetails.homeBench?.players || [])]
         : (home.squad || []);
       const awayPlayers = this.match.matchDetails?.awayLineup?.players?.length 
-        ? this.match.matchDetails.awayLineup.players 
+        ? [...this.match.matchDetails.awayLineup.players, ...(this.match.matchDetails.awayBench?.players || [])]
         : (away.squad || []);
 
       const groupsMap = new Map<string, ScorerGroup>();
@@ -330,7 +350,7 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
           const posInfo = getPosInfo(squadPos);
           groupsMap.get(teamName)!.scorers.push({
             id: p.id,
-            name: posInfo.code ? `${posInfo.code} ${p.name}` : p.name,
+          name: p.name,
             code: teamCode,
             teamName: teamName,
             order: posInfo.order

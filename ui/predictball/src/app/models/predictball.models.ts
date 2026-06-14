@@ -46,6 +46,7 @@ export interface Match {
   awayTeam: string;
   startTime: Date;
   status: 'scheduled' | 'in_progress' | 'finished';
+  matchDetails?: { homeScore: number, awayScore: number, scorers: any[], substitutions?: any[] };
 }
 
 export interface Task {

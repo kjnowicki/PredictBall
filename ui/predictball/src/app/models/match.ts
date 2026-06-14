@@ -11,12 +11,23 @@ export interface TeamSquad {
 	players: Player[];
 }
 
+export interface Substitution {
+	minute: number;
+	teamId: number;
+	teamName: string;
+	playerOut: Player;
+	playerIn: Player;
+}
+
 export interface MatchDetails {
 	homeScore: number;
 	homeLineup: TeamSquad;
+	homeBench?: TeamSquad;
 	awayScore: number;
 	awayLineup: TeamSquad;
+	awayBench?: TeamSquad;
 	scorers: Player[];
+	substitutions?: Substitution[];
 }
 
 export interface Match {

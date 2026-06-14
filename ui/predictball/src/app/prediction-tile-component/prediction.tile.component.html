@@ -53,20 +53,12 @@
 
     <!-- Row 4: Scorer select input -->
     <div class="prediction-row">
-      <mat-form-field appearance="outline" style="width: 100%;">
+      <mat-form-field appearance="outline" style="width: 100%; cursor: pointer;" (click)="openTeamSelect('scorer')">
         <mat-label>Scorer</mat-label>
-        <mat-select [(ngModel)]="selectedScorer" (ngModelChange)="onPredictionInput()" (openedChange)="onSelectOpened($event)" [disabled]="isPast">
-          <mat-option [value]="null">None</mat-option>
-        @for (group of scorerGroups; track group.name) {
-          <mat-optgroup [label]="group.name">
-            @for (scorer of group.scorers; track scorer.id) {
-              <mat-option [value]="scorer.id">
-                {{ scorer.name }}
-              </mat-option>
-            }
-          </mat-optgroup>
+        <input matInput [value]="getScorerName(selectedScorer)" readonly [disabled]="isPast" style="cursor: pointer; pointer-events: none;">
+        @if (!isPast) {
+          <mat-icon matSuffix>arrow_drop_down</mat-icon>
         }
-        </mat-select>
       </mat-form-field>
     </div>
 
@@ -98,20 +90,12 @@
     <!-- Row 5.5: Second Scorer select input (only visible when Double Scorer powerup is active on this match) -->
     @if (activePowerup === 'doubleScorer' || availablePowerups?.doubleScorerMatchId === match.id) {
     <div class="prediction-row">
-      <mat-form-field appearance="outline" style="width: 100%;">
+      <mat-form-field appearance="outline" style="width: 100%; cursor: pointer;" (click)="openTeamSelect('secondScorer')">
         <mat-label>Another Scorer</mat-label>
-        <mat-select [(ngModel)]="secondScorer" (ngModelChange)="onPredictionInput()" (openedChange)="onSelectOpened($event)" [disabled]="isPast || activePowerup !== 'doubleScorer'">
-          <mat-option [value]="null">None</mat-option>
-        @for (group of scorerGroups; track group.name) {
-          <mat-optgroup [label]="group.name">
-            @for (scorer of group.scorers; track scorer.id) {
-              <mat-option [value]="scorer.id">
-                {{ scorer.name }}
-              </mat-option>
-            }
-          </mat-optgroup>
+        <input matInput [value]="getScorerName(secondScorer)" readonly [disabled]="isPast || activePowerup !== 'doubleScorer'" style="cursor: pointer; pointer-events: none;">
+        @if (!isPast && activePowerup === 'doubleScorer') {
+          <mat-icon matSuffix>arrow_drop_down</mat-icon>
         }
-        </mat-select>
       </mat-form-field>
     </div>
     }

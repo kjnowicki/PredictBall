@@ -1,0 +1,38 @@
+.tables-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  padding-top: 1rem;
+}
+
+@media (max-width: 720px) {
+  .tables-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+table {
+  width: 100%;
+}
+
+.team-title {
+  margin-bottom: 0.5rem;
+}
+
+.mat-column-position { width: 15%; }
+.mat-column-name { width: 45%; }
+.mat-column-minutesPlayed { width: 20%; }
+.mat-column-goals { width: 20%; }
+
+.center-text {
+  text-align: center;
+}
+
+td.mat-cell, th.mat-header-cell {
+  padding: 8px;
+}
+
+.player-row:hover {
+  background-color: #f0f0f0;
+  cursor: pointer;
+}
