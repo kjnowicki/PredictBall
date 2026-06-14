@@ -317,11 +317,14 @@ export class CompetitionPage implements OnInit, OnDestroy {
   }
 
   onTileModifying(isModifying: boolean) {
-    if (isModifying) {
-      this.modifyingCount++;
-    } else {
-      this.modifyingCount = Math.max(0, this.modifyingCount - 1);
-    }
+    setTimeout(() => {
+      if (isModifying) {
+        this.modifyingCount++;
+      } else {
+        this.modifyingCount = Math.max(0, this.modifyingCount - 1);
+      }
+      this.cdr.detectChanges();
+    }, 0);
   }
 
   onPredictionChanged(matchId: number, predictionData: any) {
@@ -363,7 +366,6 @@ export class CompetitionPage implements OnInit, OnDestroy {
       this.competitionService.savePowerups(this.userId, this.competition.id.toString(), this.powerupsData).subscribe({
         error: err => console.error('Failed to save powerups:', err)
       });
-      this.cdr.detectChanges();
     }
 
     const prediction = {
@@ -380,18 +382,23 @@ export class CompetitionPage implements OnInit, OnDestroy {
     // Eagerly update locally to block duplicate toggles synchronously while API call processes
     this.predictions[matchId] = prediction;
 
-    this.activeRequests++;
+    setTimeout(() => {
+      this.activeRequests++;
+      this.cdr.detectChanges();
 
-    this.competitionService.savePrediction(this.userId, this.competition.id.toString(), matchId, prediction as any).subscribe({
-      next: (res) => {
-        res.powerup = prediction.powerup; // preserve the field locally in case backend drops it
-        this.predictions[matchId] = res;
-        this.activeRequests = Math.max(0, this.activeRequests - 1);
-      },
-      error: () => {
-        this.activeRequests = Math.max(0, this.activeRequests - 1);
-      }
-    });
+      this.competitionService.savePrediction(this.userId!, this.competition!.id!.toString(), matchId, prediction as any).subscribe({
+        next: (res) => {
+          res.powerup = prediction.powerup; // preserve the field locally in case backend drops it
+          this.predictions[matchId] = res;
+          this.activeRequests = Math.max(0, this.activeRequests - 1);
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.activeRequests = Math.max(0, this.activeRequests - 1);
+          this.cdr.detectChanges();
+        }
+      });
+    }, 0);
   }
 
   prevMatchday() {
