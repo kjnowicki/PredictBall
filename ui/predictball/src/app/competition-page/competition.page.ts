@@ -105,24 +105,27 @@ export class CompetitionPage implements OnInit, OnDestroy {
         this.matchService.getMatch(this.competitionCode!, m.id.toString()).pipe(catchError(() => of(null)))
       );
       
-      forkJoin(requests).subscribe(updatedMatches => {
-        let changed = false;
-        updatedMatches.forEach(updated => {
-          if (updated) {
-            const index = this.matches.findIndex(x => x.id === updated.id);
-            if (index !== -1) {
-              const m = { ...this.matches[index] };
-              m.status = updated.status;
-              m.matchDetails = updated.matchDetails;
-              this.matches[index] = m;
-              changed = true;
+      forkJoin(requests).subscribe({
+        next: updatedMatches => {
+          let changed = false;
+          updatedMatches.forEach(updated => {
+            if (updated) {
+              const index = this.matches.findIndex(x => x.id === updated.id);
+              if (index !== -1) {
+                const m = { ...this.matches[index] };
+                m.status = updated.status;
+                m.matchDetails = updated.matchDetails;
+                this.matches[index] = m;
+                changed = true;
+              }
             }
+          });
+          if (changed) {
+            this.matches = [...this.matches]; // Reassign array to trigger ngOnChanges in child tiles
+            this.cdr.detectChanges();
           }
-        });
-        if (changed) {
-          this.matches = [...this.matches]; // Reassign array to trigger ngOnChanges in child tiles
-          this.cdr.detectChanges();
-        }
+        },
+        error: err => console.error('Error enriching matches:', err)
       });
     }
   }
@@ -155,9 +158,12 @@ export class CompetitionPage implements OnInit, OnDestroy {
       console.warn('User is not authenticated.');
     }
 
-    this.scoringSystemService.getScoringSystem().subscribe(sys => {
-      this.scoringSystem = sys;
-      this.cdr.detectChanges();
+    this.scoringSystemService.getScoringSystem().subscribe({
+      next: sys => {
+        this.scoringSystem = sys;
+        this.cdr.detectChanges();
+      },
+      error: err => console.error('Error fetching scoring system:', err)
     });
 
     this.route.paramMap.subscribe(params => {
@@ -166,22 +172,25 @@ export class CompetitionPage implements OnInit, OnDestroy {
         forkJoin({
           comp: this.competitionService.getCompetition(this.competitionCode),
           matches: this.matchService.getMatchSchedule(this.competitionCode)
-        }).subscribe(({ comp, matches }) => {
-          this.competitionName = comp.name;
-          this.competition = comp;
-          if (comp.currentSeason?.currentMatchday) {
-            this.selectedMatchday = comp.currentSeason.currentMatchday;
-          }
+        }).subscribe({
+          next: ({ comp, matches }) => {
+            this.competitionName = comp.name;
+            this.competition = comp;
+            if (comp.currentSeason?.currentMatchday) {
+              this.selectedMatchday = comp.currentSeason.currentMatchday;
+            }
 
-          this.matches = matches;
-          this.extractTeams();
-          this.enrichMatches();
+            this.matches = matches;
+            this.extractTeams();
+            this.enrichMatches();
 
-          this.loadPowerups();
-          this.loadPredictions();
-          this.loadLeagues();
+            this.loadPowerups();
+            this.loadPredictions();
+            this.loadLeagues();
 
-          this.cdr.detectChanges();
+            this.cdr.detectChanges();
+          },
+          error: err => console.error('Error fetching competition data:', err)
         });
       }
     });
@@ -195,12 +204,15 @@ export class CompetitionPage implements OnInit, OnDestroy {
 
   loadPowerups() {
     if (this.competition && this.competition.id && this.userId) {
-      this.competitionService.getPowerups(this.userId, this.competition.id.toString()).subscribe(data => {
-        if (!data || !data.season) {
-          data = { season: this.competition?.currentSeason?.startDate?.substring(0, 4) || '2024', matchdays: [] };
-        }
-        this.powerupsData = data;
-        this.updateCurrentMatchdayPowerups();
+      this.competitionService.getPowerups(this.userId, this.competition.id.toString()).subscribe({
+        next: data => {
+          if (!data || !data.season) {
+            data = { season: this.competition?.currentSeason?.startDate?.substring(0, 4) || '2024', matchdays: [] };
+          }
+          this.powerupsData = data;
+          this.updateCurrentMatchdayPowerups();
+        },
+        error: err => console.error('Error loading powerups:', err)
       });
     }
   }
@@ -220,34 +232,43 @@ export class CompetitionPage implements OnInit, OnDestroy {
   loadPredictions() {
     if (this.competition && this.competition.id && this.userId && this.matches.length > 0) {
       const matchIds = this.matches.map(m => m.id);
-      this.competitionService.getPredictions(this.userId, this.competition.id.toString(), matchIds).subscribe(preds => {
-        this.predictions = {};
-        if (preds && Array.isArray(preds)) {
-          for (const p of preds) {
-            this.predictions[p.matchId] = p;
+      this.competitionService.getPredictions(this.userId, this.competition.id.toString(), matchIds).subscribe({
+        next: preds => {
+          this.predictions = {};
+          if (preds && Array.isArray(preds)) {
+            for (const p of preds) {
+              this.predictions[p.matchId] = p;
+            }
           }
-        }
-        this.cdr.detectChanges();
+          this.cdr.detectChanges();
+        },
+        error: err => console.error('Error loading predictions:', err)
       });
     }
   }
 
   loadLeagues() {
     if (this.competition && this.competition.id && this.userId) {
-      this.predictionLeagueService.getCompetitionLeagues(this.competition.id.toString(), this.userId).subscribe(res => {
-        this.publicLeagues = res.publicLeagues;
-        this.yourLeagues = res.yourLeagues;
-        this.cdr.detectChanges();
+      this.predictionLeagueService.getCompetitionLeagues(this.competition.id.toString(), this.userId).subscribe({
+        next: res => {
+          this.publicLeagues = res.publicLeagues;
+          this.yourLeagues = res.yourLeagues;
+          this.cdr.detectChanges();
+        },
+        error: err => console.error('Error loading leagues:', err)
       });
     }
   }
 
   joinLeague() {
     if (!this.joinCode.trim() || !this.competition || !this.competition.id || !this.userId) return;
-    this.predictionLeagueService.joinLeagueByCode(this.competition.id.toString(), this.userId, this.joinCode.trim()).subscribe(() => {
-      this.joinCode = '';
-      this.loadLeagues();
-      this.cdr.detectChanges();
+    this.predictionLeagueService.joinLeagueByCode(this.competition.id.toString(), this.userId, this.joinCode.trim()).subscribe({
+      next: () => {
+        this.joinCode = '';
+        this.loadLeagues();
+        this.cdr.detectChanges();
+      },
+      error: err => console.error('Error joining league:', err)
     });
   }
 
@@ -262,7 +283,7 @@ export class CompetitionPage implements OnInit, OnDestroy {
           this.newLeagueName = '';
           this.loadLeagues();
           this.cdr.detectChanges();
-          this.router.navigate(['/competition', this.competitionCode, 'league', newLeague.id]);
+          this.router.navigate(['/competition', this.competitionCode, 'league', newLeague.id]).catch(err => console.error('Navigation error:', err));
         },
         error: () => {
           this.isCreatingLeague = false;
@@ -339,7 +360,9 @@ export class CompetitionPage implements OnInit, OnDestroy {
         }
       }
 
-      this.competitionService.savePowerups(this.userId, this.competition.id.toString(), this.powerupsData).subscribe();
+      this.competitionService.savePowerups(this.userId, this.competition.id.toString(), this.powerupsData).subscribe({
+        error: err => console.error('Failed to save powerups:', err)
+      });
       this.cdr.detectChanges();
     }
 
@@ -386,13 +409,28 @@ export class CompetitionPage implements OnInit, OnDestroy {
   }
 
   get completedPredictions() {
-    return this.filteredMatches.filter(m => {
+    let count = 0;
+    for (const m of this.filteredMatches) {
       const p = this.predictions[m.id];
-      if (!p) return false;
-      let areScoresSet = p.homeScore !== null && p.awayScore !== null;
-      let isScorerSetProperly = areScoresSet && (p.homeScore + p.awayScore == 0) || p.scorerId && p.scorerId !== 0;
-      return areScoresSet && isScorerSetProperly;
-    }).length;
+      if (!p) continue;
+      
+      const homeScore = p.homeScore;
+      const awayScore = p.awayScore;
+      
+      const areScoresSet = homeScore !== null && homeScore !== undefined && 
+                           awayScore !== null && awayScore !== undefined && 
+                           homeScore !== '' && awayScore !== '';
+                           
+      if (areScoresSet) {
+        const isDrawZero = (Number(homeScore) + Number(awayScore) === 0);
+        const isScorerSelected = !!p.scorerId && p.scorerId !== 0;
+        
+        if (isDrawZero || isScorerSelected) {
+          count++;
+        }
+      }
+    }
+    return count;
   }
 
   calculatePointsForPrediction(match: Match, prediction: any): number {

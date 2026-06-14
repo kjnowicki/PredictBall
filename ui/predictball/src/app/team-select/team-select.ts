@@ -85,17 +85,24 @@ export class TeamSelect implements OnInit {
           return;
         }
 
-        forkJoin(requests).subscribe(detailsArray => {
-          const validMatches: Match[] = [];
-          detailsArray.forEach((details, index) => {
-            if (details) {
-              validMatches.push({ ...pastMatches[index], matchDetails: details });
-            }
-          });
-          this.homePlayers = this.calculateStats(this.data.homeTeam, pastMatches, validMatches);
-          this.awayPlayers = this.calculateStats(this.data.awayTeam, pastMatches, validMatches);
-          this.loading = false;
-          this.cdr.detectChanges();
+        forkJoin(requests).subscribe({
+          next: detailsArray => {
+            const validMatches: Match[] = [];
+            detailsArray.forEach((details, index) => {
+              if (details) {
+                validMatches.push({ ...pastMatches[index], matchDetails: details });
+              }
+            });
+            this.homePlayers = this.calculateStats(this.data.homeTeam, pastMatches, validMatches);
+            this.awayPlayers = this.calculateStats(this.data.awayTeam, pastMatches, validMatches);
+            this.loading = false;
+            this.cdr.detectChanges();
+          },
+          error: err => {
+            console.error('Error fetching match details:', err);
+            this.loading = false;
+            this.cdr.detectChanges();
+          }
         });
       },
       error: () => {

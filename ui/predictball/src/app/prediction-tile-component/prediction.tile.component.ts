@@ -145,35 +145,41 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
 
   fetchMatchUpdate() {
     if (this.competition && this.competition.code) {
-      this.matchService.getMatch(this.competition.code, this.match.id.toString()).subscribe(updatedMatch => {
-        if (this.match) {
-          this.match.status = updatedMatch.status;
-          if (this.match.matchDetails && updatedMatch.matchDetails) {
-            this.match.matchDetails.homeScore = updatedMatch.matchDetails.homeScore ?? 0;
-            this.match.matchDetails.awayScore = updatedMatch.matchDetails.awayScore ?? 0;
-            this.match.matchDetails.scorers = updatedMatch.matchDetails.scorers || [];
-          } else {
-            this.match.matchDetails = updatedMatch.matchDetails;
+      this.matchService.getMatch(this.competition.code, this.match.id.toString()).subscribe({
+        next: updatedMatch => {
+          if (this.match) {
+            this.match.status = updatedMatch.status;
+            if (this.match.matchDetails && updatedMatch.matchDetails) {
+              this.match.matchDetails.homeScore = updatedMatch.matchDetails.homeScore ?? 0;
+              this.match.matchDetails.awayScore = updatedMatch.matchDetails.awayScore ?? 0;
+              this.match.matchDetails.scorers = updatedMatch.matchDetails.scorers || [];
+            } else {
+              this.match.matchDetails = updatedMatch.matchDetails;
+            }
           }
-        }
-        this.checkStatus();
-        this.calculatePoints();
-        this.cdr.detectChanges();
+          this.checkStatus();
+          this.calculatePoints();
+          this.cdr.detectChanges();
+        },
+        error: err => console.error('Error fetching match update:', err)
       });
     } else {
-      this.matchService.getMatchDetails(this.match.id.toString()).subscribe(details => {
-        if (this.match) {
-          if (this.match.matchDetails && details) {
-            this.match.matchDetails.homeScore = details.homeScore ?? 0;
-            this.match.matchDetails.awayScore = details.awayScore ?? 0;
-            this.match.matchDetails.scorers = details.scorers || [];
-          } else {
-            this.match.matchDetails = details;
+      this.matchService.getMatchDetails(this.match.id.toString()).subscribe({
+        next: details => {
+          if (this.match) {
+            if (this.match.matchDetails && details) {
+              this.match.matchDetails.homeScore = details.homeScore ?? 0;
+              this.match.matchDetails.awayScore = details.awayScore ?? 0;
+              this.match.matchDetails.scorers = details.scorers || [];
+            } else {
+              this.match.matchDetails = details;
+            }
           }
-        }
-        this.checkStatus();
-        this.calculatePoints();
-        this.cdr.detectChanges();
+          this.checkStatus();
+          this.calculatePoints();
+          this.cdr.detectChanges();
+        },
+        error: err => console.error('Error fetching match details:', err)
       });
     }
   }
@@ -203,14 +209,25 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
       }
     });
 
-    dialogRef.afterClosed().subscribe((playerId: number | undefined) => {
-      if (playerId !== undefined) {
+    dialogRef.afterClosed().subscribe((playerId: any) => {
+      if (playerId !== undefined && playerId !== '') {
+        let changed = false;
+        const newId = playerId === 0 ? null : Number(playerId);
         if (type === 'scorer') {
-          this.selectedScorer = playerId === 0 ? null : playerId;
+          if (this.selectedScorer !== newId) {
+            this.selectedScorer = newId;
+            changed = true;
+          }
         } else {
-          this.secondScorer = playerId === 0 ? null : playerId;
+          if (this.secondScorer !== newId) {
+            this.secondScorer = newId;
+            changed = true;
+          }
         }
-        this.onPredictionInput();
+
+        if (changed) {
+          this.onPredictionInput();
+        }
       }
     });
   }
@@ -318,67 +335,70 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
     forkJoin({
       home: this.teamService.getTeamDetails(this.match.homeTeamId),
       away: this.teamService.getTeamDetails(this.match.awayTeamId)
-    }).subscribe(({ home, away }) => {
-      this.homeTeam = home;
-      this.awayTeam = away;
-
-      const homePlayers = this.match.matchDetails?.homeLineup?.players?.length 
-        ? [...this.match.matchDetails.homeLineup.players, ...(this.match.matchDetails.homeBench?.players || [])]
-        : (home.squad || []);
-      const awayPlayers = this.match.matchDetails?.awayLineup?.players?.length 
-        ? [...this.match.matchDetails.awayLineup.players, ...(this.match.matchDetails.awayBench?.players || [])]
-        : (away.squad || []);
-
-      const groupsMap = new Map<string, ScorerGroup>();
-
-      const getPosInfo = (pos: string) => {
-        if (!pos) return { code: '', order: 99 };
-        const p = pos.toLowerCase();
-        if (p.includes('goalkeeper')) return { code: '[GK]', order: 1 };
-        if (p.includes('defen')) return { code: '[DEF]', order: 2 };
-        if (p.includes('midfiel')) return { code: '[MID]', order: 3 };
-        if (p.includes('offen') || p.includes('attack') || p.includes('forward')) return { code: '[FW]', order: 4 };
-        return { code: '', order: 99 };
-      };
-
-      const addPlayersToGroup = (players: any[], teamName: string, teamCode: string, team: Team) => {
-        if (!groupsMap.has(teamName)) {
-          groupsMap.set(teamName, { name: teamName, scorers: [] });
-        }
-        players.forEach((p: any) => {
-          const squadPos = team.squad?.find(sp => sp.id === p.id)?.position || p.position;
-          const posInfo = getPosInfo(squadPos);
-          groupsMap.get(teamName)!.scorers.push({
-            id: p.id,
-          name: p.name,
-            code: teamCode,
-            teamName: teamName,
-            order: posInfo.order
+    }).subscribe({
+      next: ({ home, away }) => {
+        this.homeTeam = home;
+        this.awayTeam = away;
+  
+        const homePlayers = this.match.matchDetails?.homeLineup?.players?.length 
+          ? [...this.match.matchDetails.homeLineup.players, ...(this.match.matchDetails.homeBench?.players || [])]
+          : (home.squad || []);
+        const awayPlayers = this.match.matchDetails?.awayLineup?.players?.length 
+          ? [...this.match.matchDetails.awayLineup.players, ...(this.match.matchDetails.awayBench?.players || [])]
+          : (away.squad || []);
+  
+        const groupsMap = new Map<string, ScorerGroup>();
+  
+        const getPosInfo = (pos: string) => {
+          if (!pos) return { code: '', order: 99 };
+          const p = pos.toLowerCase();
+          if (p.includes('goalkeeper')) return { code: '[GK]', order: 1 };
+          if (p.includes('defen')) return { code: '[DEF]', order: 2 };
+          if (p.includes('midfiel')) return { code: '[MID]', order: 3 };
+          if (p.includes('offen') || p.includes('attack') || p.includes('forward')) return { code: '[FW]', order: 4 };
+          return { code: '', order: 99 };
+        };
+  
+        const addPlayersToGroup = (players: any[], teamName: string, teamCode: string, team: Team) => {
+          if (!groupsMap.has(teamName)) {
+            groupsMap.set(teamName, { name: teamName, scorers: [] });
+          }
+          players.forEach((p: any) => {
+            const squadPos = team.squad?.find(sp => sp.id === p.id)?.position || p.position;
+            const posInfo = getPosInfo(squadPos);
+            groupsMap.get(teamName)!.scorers.push({
+              id: p.id,
+              name: p.name,
+              code: teamCode,
+              teamName: teamName,
+              order: posInfo.order
+            });
+          });
+        };
+  
+        const homeName = home.name || 'Home';
+        const awayName = away.name || 'Away';
+        const homeCode = home.tla || home.shortName || homeName;
+        const awayCode = away.tla || away.shortName || awayName;
+  
+        addPlayersToGroup(homePlayers, homeName, homeCode, home);
+        addPlayersToGroup(awayPlayers, awayName, awayCode, away);
+  
+        this.scorerGroups = Array.from(groupsMap.values())
+          .sort((a, b) => a.name.localeCompare(b.name));
+  
+        this.scorerGroups.forEach(group => {
+          group.scorers.sort((a, b) => {
+            if (a.order !== b.order) {
+              return (a.order || 99) - (b.order || 99);
+            }
+            return a.name.localeCompare(b.name);
           });
         });
-      };
-
-      const homeName = home.name || 'Home';
-      const awayName = away.name || 'Away';
-      const homeCode = home.tla || home.shortName || homeName;
-      const awayCode = away.tla || away.shortName || awayName;
-
-      addPlayersToGroup(homePlayers, homeName, homeCode, home);
-      addPlayersToGroup(awayPlayers, awayName, awayCode, away);
-
-      this.scorerGroups = Array.from(groupsMap.values())
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-      this.scorerGroups.forEach(group => {
-        group.scorers.sort((a, b) => {
-          if (a.order !== b.order) {
-            return (a.order || 99) - (b.order || 99);
-          }
-          return a.name.localeCompare(b.name);
-        });
-      });
-
-      this.cdr.detectChanges();
+  
+        this.cdr.detectChanges();
+      },
+      error: err => console.error('Error loading team data:', err)
     });
   }
 }
