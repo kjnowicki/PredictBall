@@ -104,17 +104,19 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['prediction'] && this.prediction) {
-      this.homeGoalsPrediction = this.prediction.homeScore;
-      this.awayGoalsPrediction = this.prediction.awayScore;
-      this.selectedScorer = this.prediction.scorerId === 0 ? null : this.prediction.scorerId;
-      if (!this.activePowerup) {
-        this.activePowerup = this.prediction.powerup || null;
+      if (!this.saveTimeout) {
+        this.homeGoalsPrediction = this.prediction.homeScore;
+        this.awayGoalsPrediction = this.prediction.awayScore;
+        this.selectedScorer = this.prediction.scorerId === 0 ? null : this.prediction.scorerId;
       }
     }
     if (changes['availablePowerups'] && this.availablePowerups) {
       if (this.availablePowerups.doubleScorerMatchId === this.match.id) {
         this.activePowerup = 'doubleScorer';
-        this.secondScorer = this.availablePowerups.doubleScorerId === 0 ? null : this.availablePowerups.doubleScorerId;
+        const prev = changes['availablePowerups'].previousValue;
+        if (!prev || prev.doubleScorerMatchId !== this.match.id || prev.doubleScorerId !== this.availablePowerups.doubleScorerId) {
+          this.secondScorer = this.availablePowerups.doubleScorerId === 0 ? null : this.availablePowerups.doubleScorerId;
+        }
       } else if (this.availablePowerups.tripleScoreMatchId === this.match.id) {
         this.activePowerup = 'tripleScore';
       } else if (this.availablePowerups.reversalMatchId === this.match.id) {
@@ -232,7 +234,18 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  togglePowerup(powerup: string) {
+  get isDrawPrediction(): boolean {
+    const h = Number(this.homeGoalsPrediction) || 0;
+    const a = Number(this.awayGoalsPrediction) || 0;
+    return h === a;
+  }
+
+  togglePowerup(powerup: string, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+
     if (this.isPast) return;
 
     if (this.activePowerup !== powerup) {
@@ -240,7 +253,7 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
       if (powerup === 'tripleScore' && this.availablePowerups?.tripleScoreMatchId && this.availablePowerups.tripleScoreMatchId !== this.match.id) return;
       if (powerup === 'reversal') {
         if (this.availablePowerups?.reversalMatchId && this.availablePowerups.reversalMatchId !== this.match.id) return;
-        if (this.homeGoalsPrediction !== null && this.awayGoalsPrediction !== null && this.homeGoalsPrediction === this.awayGoalsPrediction) return;
+        if (this.isDrawPrediction) return;
       }
     }
 
@@ -253,21 +266,23 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
       this.activePowerup = powerup;
     }
 
-    this.onPredictionInput();
     this.calculatePoints();
-    if (this.saveTimeout) {
-      clearTimeout(this.saveTimeout);
-      this.saveTimeout = null;
-    }
 
     this.emitPrediction();
-    this.setModifyingState(false);
+
+    // Manually trigger the modifying state timeout to simulate the saving indicator delay safely
+    if (this.saveTimeout) clearTimeout(this.saveTimeout);
+    this.setModifyingState(true);
+    this.saveTimeout = setTimeout(() => {
+      this.saveTimeout = null;
+      this.setModifyingState(false);
+    }, 1000);
   }
 
   onPredictionInput() {
     if (this.isPast) return;
 
-    if (this.activePowerup === 'reversal' && this.homeGoalsPrediction !== null && this.awayGoalsPrediction !== null && this.homeGoalsPrediction === this.awayGoalsPrediction) {
+    if (this.activePowerup === 'reversal' && this.isDrawPrediction) {
       this.activePowerup = null;
     }
 

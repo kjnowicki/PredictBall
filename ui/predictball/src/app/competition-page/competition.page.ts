@@ -331,7 +331,12 @@ export class CompetitionPage implements OnInit, OnDestroy {
     if (!this.userId || !this.competition || !this.competition.id) return;
     
     const oldPrediction = this.predictions[matchId];
-    const oldPowerup = oldPrediction ? oldPrediction.powerup : null;
+    let oldPowerup = null;
+    if (this.currentMatchdayPowerups) {
+      if (this.currentMatchdayPowerups.doubleScorerMatchId === matchId) oldPowerup = 'doubleScorer';
+      else if (this.currentMatchdayPowerups.tripleScoreMatchId === matchId) oldPowerup = 'tripleScore';
+      else if (this.currentMatchdayPowerups.reversalMatchId === matchId) oldPowerup = 'reversal';
+    }
     const newPowerup = predictionData.powerup;
     const newDoubleScorerId = predictionData.doubleScorerId || 0;
 

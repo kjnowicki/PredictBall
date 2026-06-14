@@ -28,7 +28,7 @@
       @if (match.status === 'FINISHED') {
         <div style="color: black; font-weight: bold;">
           @if (match.matchDetails.scorers && match.matchDetails.scorers.length > 0) {
-            <span style="cursor: help;" [matTooltip]="getScorersTooltip()" matTooltipClass="multiline-tooltip"
+          <span style="cursor: help;" [matTooltip]="getScorersTooltip()" matTooltipClass="multiline-tooltip" matTooltipShowDelay="0"
                   #scoreTooltip="matTooltip" (click)="scoreTooltip.toggle()" matTooltipTouchGestures="off">
               <span style="text-decoration: underline;">{{ match.matchDetails.homeScore || 0 }} - {{ match.matchDetails.awayScore || 0 }}</span><sup>?</sup>
             </span>
@@ -66,24 +66,27 @@
     <div class="prediction-row" style="display: flex; justify-content: center; gap: 1.5rem; margin-bottom: 1rem;">
       @if (activePowerup === 'doubleScorer' || (!activePowerup && (!availablePowerups?.doubleScorerMatchId || availablePowerups?.doubleScorerMatchId === match.id))) {
       <mat-icon 
-        (click)="togglePowerup('doubleScorer')"
+        (click)="togglePowerup('doubleScorer', $event)"
         [style.color]="activePowerup === 'doubleScorer' ? '#1976d2' : '#555'"
         [style.cursor]="isPast ? 'default' : 'pointer'"
-        title="Double Scorer">sports_soccer</mat-icon>
+        matTooltip="Double Scorer"
+        matTooltipShowDelay="0">sports_soccer</mat-icon>
       }
       @if (activePowerup === 'tripleScore' || (!activePowerup && (!availablePowerups?.tripleScoreMatchId || availablePowerups?.tripleScoreMatchId === match.id))) {
       <mat-icon 
-        (click)="togglePowerup('tripleScore')"
+        (click)="togglePowerup('tripleScore', $event)"
         [style.color]="activePowerup === 'tripleScore' ? '#1976d2' : '#555'"
         [style.cursor]="isPast ? 'default' : 'pointer'"
-        title="Triple Score">star_border</mat-icon>
+        matTooltip="Triple Score"
+        matTooltipShowDelay="0">star_border</mat-icon>
       }
       @if (activePowerup === 'reversal' || (!activePowerup && (!availablePowerups?.reversalMatchId || availablePowerups?.reversalMatchId === match.id))) {
       <mat-icon 
-        (click)="togglePowerup('reversal')"
-        [style.color]="activePowerup === 'reversal' ? '#1976d2' : '#555'"
-        [style.cursor]="isPast || (homeGoalsPrediction !== null && homeGoalsPrediction === awayGoalsPrediction) ? 'default' : 'pointer'"
-        title="Reversal">swap_horiz</mat-icon>
+        (click)="togglePowerup('reversal', $event)"
+        [style.color]="activePowerup === 'reversal' ? '#1976d2' : (isDrawPrediction ? 'darkred' : '#555')"
+        [style.cursor]="isPast || isDrawPrediction ? 'default' : 'pointer'"
+        [matTooltip]="isDrawPrediction ? 'Can\'t select on a draw!' : 'Reversal'"
+        matTooltipShowDelay="0">swap_horiz</mat-icon>
       }
     </div>
 
@@ -103,7 +106,7 @@
     <!-- Row 6: Scored points -->
     <div class="prediction-row" style="text-align: center; font-size: 1.1rem;">
       @if (scoredPoints !== null) {
-      <span style="cursor: help;" [matTooltip]="pointsBreakdown" matTooltipClass="multiline-tooltip"
+      <span style="cursor: help;" [matTooltip]="pointsBreakdown" matTooltipClass="multiline-tooltip" matTooltipShowDelay="0"
             #pointsTooltip="matTooltip" (click)="pointsTooltip.toggle()" matTooltipTouchGestures="off">
         <strong>Points: </strong> <span style="font-size:larger;">{{ scoredPoints }}</span><sup> ?</sup>
       </span>

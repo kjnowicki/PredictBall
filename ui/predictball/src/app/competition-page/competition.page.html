@@ -24,7 +24,7 @@
 
             <div class="score-summary">
               <span class="predictions-count">
-                <strong>Predictions: </strong> <strong style="cursor: help;" [style.color]="(modifyingCount > 0 || activeRequests > 0) ? 'grey' : 'green'" [matTooltip]="(modifyingCount > 0 || activeRequests > 0) ? 'syncing data...' : 'data synced!'">{{ completedPredictions }}</strong> / {{ filteredMatches.length }}
+                <strong>Predictions: </strong> <strong style="cursor: help;" [style.color]="(modifyingCount > 0 || activeRequests > 0) ? 'grey' : 'green'" [matTooltip]="(modifyingCount > 0 || activeRequests > 0) ? 'syncing data...' : 'data synced!'" matTooltipShowDelay="0">{{ completedPredictions }}</strong> / {{ filteredMatches.length }}
               </span>
               <span class="matchday-score"><strong>Matchday Score:</strong> {{ matchdayScore }}</span>
             </div>
