@@ -118,6 +118,11 @@ func (s *PredictballAPIService) GetMatchDetails(ctx context.Context, matchID str
 }
 
 func (s *PredictballAPIService) GetMatch(ctx context.Context, compCode string, matchID string) (*models.Match, error) {
+	compID, err := s.ResolveCompetitionID(ctx, compCode)
+	if err != nil {
+		return nil, err
+	}
+
 	apiMatch, err := s.fetchMatchCachedDynamic(ctx, matchID)
 	if err != nil {
 		return nil, err
@@ -190,7 +195,7 @@ func (s *PredictballAPIService) GetMatch(ctx context.Context, compCode string, m
 		},
 	}
 
-	cacheBaseName := filepath.Join("cache", "schedules", compCode)
+	cacheBaseName := filepath.Join("cache", "schedules", compID)
 	var schedule []models.Match
 	if readCache(s, cacheBaseName, &schedule) {
 		for i, m := range schedule {

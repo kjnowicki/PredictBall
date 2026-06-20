@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"predictball_api/models"
 	"time"
@@ -18,7 +19,7 @@ func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode s
 		return nil, err
 	}
 
-	cacheBaseName := filepath.Join("cache", "schedules", compCode)
+	cacheBaseName := filepath.Join("cache", "schedules", fmt.Sprint(comp.ID))
 	var existingSchedule []models.Match
 	cacheExists := readCache(s, cacheBaseName, &existingSchedule)
 

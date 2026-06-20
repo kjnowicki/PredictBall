@@ -26,3 +26,12 @@ func (s *PredictballAPIService) GetCompetition(ctx context.Context, code string)
 	}
 	return nil, fmt.Errorf("competition not found")
 }
+
+func (s *PredictballAPIService) ResolveCompetitionID(ctx context.Context, code string) (string, error) {
+	comp, err := s.GetCompetition(ctx, code)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprint(comp.ID), nil
+}
+

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"predictball_api/models"
+	"time"
 )
 
 func getPredictionsPath(userID, compID string) string {
@@ -50,10 +51,15 @@ func savePredictions(userID, compID string, predMap map[int]models.Prediction) e
 }
 
 func (s *PredictballAPIService) GetPredictions(ctx context.Context, userID string, compID string, matchIDs []int) ([]models.Prediction, error) {
+	resolvedCompID, err := s.ResolveCompetitionID(ctx, compID)
+	if err != nil {
+		return nil, err
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	predMap, err := loadPredictions(userID, compID)
+	predMap, err := loadPredictions(userID, resolvedCompID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load predictions: %v", err)
 	}
@@ -68,7 +74,12 @@ func (s *PredictballAPIService) GetPredictions(ctx context.Context, userID strin
 }
 
 func (s *PredictballAPIService) PutPrediction(ctx context.Context, userID string, compID string, prediction models.Prediction) (*models.Prediction, error) {
-	schedule, err := s.GetMatchSchedule(ctx, compID)
+	resolvedCompID, err := s.ResolveCompetitionID(ctx, compID)
+	if err != nil {
+		return nil, err
+	}
+
+	schedule, err := s.GetMatchSchedule(ctx, resolvedCompID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch schedule to validate prediction: %v", err)
 	}
@@ -78,7 +89,7 @@ func (s *PredictballAPIService) PutPrediction(ctx context.Context, userID string
 	for _, m := range schedule {
 		if m.ID == prediction.MatchID {
 			matchFound = true
-			if string(m.Status) == "SCHEDULED" || string(m.Status) == "TIMED" {
+			if (string(m.Status) == "SCHEDULED" || string(m.Status) == "TIMED" || string(m.Status) == "LINEUPS-READY") && m.StartTime.After(time.Now()) {
 				validStatus = true
 			}
 			break
@@ -96,7 +107,7 @@ func (s *PredictballAPIService) PutPrediction(ctx context.Context, userID string
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	predMap, err := loadPredictions(userID, compID)
+	predMap, err := loadPredictions(userID, resolvedCompID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load predictions: %v", err)
 	}
@@ -109,7 +120,7 @@ func (s *PredictballAPIService) PutPrediction(ctx context.Context, userID string
 
 	predMap[prediction.MatchID] = prediction
 
-	if err := savePredictions(userID, compID, predMap); err != nil {
+	if err := savePredictions(userID, resolvedCompID, predMap); err != nil {
 		return nil, fmt.Errorf("failed to save predictions: %v", err)
 	}
 
@@ -121,10 +132,15 @@ func getPowerupsPath(userID, compID string) string {
 }
 
 func (s *PredictballAPIService) GetPowerups(ctx context.Context, userID string, compID string) (*models.PowerupsData, error) {
+	resolvedCompID, err := s.ResolveCompetitionID(ctx, compID)
+	if err != nil {
+		return nil, err
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	path := getPowerupsPath(userID, compID)
+	path := getPowerupsPath(userID, resolvedCompID)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -140,10 +156,15 @@ func (s *PredictballAPIService) GetPowerups(ctx context.Context, userID string, 
 }
 
 func (s *PredictballAPIService) PutPowerups(ctx context.Context, userID string, compID string, data models.PowerupsData) (*models.PowerupsData, error) {
+	resolvedCompID, err := s.ResolveCompetitionID(ctx, compID)
+	if err != nil {
+		return nil, err
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	path := getPowerupsPath(userID, compID)
+	path := getPowerupsPath(userID, resolvedCompID)
 	os.MkdirAll(filepath.Dir(path), 0755)
 
 	b, err := json.MarshalIndent(data, "", "  ")

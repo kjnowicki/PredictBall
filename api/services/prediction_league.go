@@ -15,6 +15,11 @@ import (
 )
 
 func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, competitionID string, leagueID string) (any, error) {
+	compID, err := s.ResolveCompetitionID(ctx, competitionID)
+	if err != nil {
+		return nil, err
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -30,7 +35,7 @@ func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, competi
 		filename = fmt.Sprintf("%s.json", leagueID)
 	}
 
-	path := filepath.Join("data", "competitions", competitionID, "leagues", filename)
+	path := filepath.Join("data", "competitions", compID, "leagues", filename)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("prediction league not found: %v", err)
@@ -57,7 +62,12 @@ func generateJoinCode(length int) (string, error) {
 }
 
 func (s *PredictballAPIService) PutPredictionLeague(ctx context.Context, competitionID string, userID string, league models.PredictionLeague) (*models.PredictionLeague, error) {
-	_, err := s.GetUser(ctx, userID)
+	compID, err := s.ResolveCompetitionID(ctx, competitionID)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = s.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found for league creation: %v", err)
 	}
@@ -65,7 +75,7 @@ func (s *PredictballAPIService) PutPredictionLeague(ctx context.Context, competi
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	dir := filepath.Join("data", "competitions", competitionID, "leagues")
+	dir := filepath.Join("data", "competitions", compID, "leagues")
 	os.MkdirAll(dir, 0755)
 
 	if league.ID == 0 { // This is a new league
@@ -93,7 +103,7 @@ func (s *PredictballAPIService) PutPredictionLeague(ctx context.Context, competi
 		league.UserIDs = []int{uid}
 
 		s.initUserLeagues()
-		compIDInt, _ := strconv.Atoi(competitionID)
+		compIDInt, _ := strconv.Atoi(compID)
 		comps := userLeagues[userID]
 		foundComp := false
 		for i, c := range comps {
@@ -135,6 +145,11 @@ func (s *PredictballAPIService) PutPredictionLeague(ctx context.Context, competi
 }
 
 func (s *PredictballAPIService) JoinGlobalLeague(ctx context.Context, competitionID string, userID string) (*models.GlobalLeague, error) {
+	compID, err := s.ResolveCompetitionID(ctx, competitionID)
+	if err != nil {
+		return nil, err
+	}
+
 	user, err := s.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %v", err)
@@ -143,7 +158,7 @@ func (s *PredictballAPIService) JoinGlobalLeague(ctx context.Context, competitio
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	dir := fmt.Sprintf("data/competitions/%s/leagues", competitionID)
+	dir := fmt.Sprintf("data/competitions/%s/leagues", compID)
 	os.MkdirAll(dir, 0755)
 	path := filepath.Join(dir, "0.json")
 
@@ -152,7 +167,7 @@ func (s *PredictballAPIService) JoinGlobalLeague(ctx context.Context, competitio
 	if err == nil {
 		json.Unmarshal(data, &globalLeague)
 	} else {
-		compIDInt, _ := strconv.Atoi(competitionID)
+		compIDInt, _ := strconv.Atoi(compID)
 		globalLeague.PredictionLeague = models.PredictionLeague{
 			ID:       0 * compIDInt,
 			Name:     "Global League",
@@ -178,7 +193,7 @@ func (s *PredictballAPIService) JoinGlobalLeague(ctx context.Context, competitio
 	os.WriteFile(path, b, 0644)
 
 	s.initUserLeagues()
-	compIDInt, _ := strconv.Atoi(competitionID)
+	compIDInt, _ := strconv.Atoi(compID)
 	comps := userLeagues[userID]
 	foundComp := false
 	for i, c := range comps {
@@ -226,10 +241,15 @@ type LeaguesResponse struct {
 }
 
 func (s *PredictballAPIService) GetCompetitionLeagues(ctx context.Context, competitionID string, userID string) (any, error) {
+	compID, err := s.ResolveCompetitionID(ctx, competitionID)
+	if err != nil {
+		return nil, err
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	dir := filepath.Join("data", "competitions", competitionID, "leagues")
+	dir := filepath.Join("data", "competitions", compID, "leagues")
 	files, err := os.ReadDir(dir)
 
 	resp := LeaguesResponse{
@@ -299,7 +319,12 @@ func (s *PredictballAPIService) GetCompetitionLeagues(ctx context.Context, compe
 }
 
 func (s *PredictballAPIService) JoinLeagueByCode(ctx context.Context, competitionID string, userID string, joinCode string) (any, error) {
-	_, err := s.GetUser(ctx, userID)
+	compID, err := s.ResolveCompetitionID(ctx, competitionID)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = s.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %v", err)
 	}
@@ -307,7 +332,7 @@ func (s *PredictballAPIService) JoinLeagueByCode(ctx context.Context, competitio
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	dir := filepath.Join("data", "competitions", competitionID, "leagues")
+	dir := filepath.Join("data", "competitions", compID, "leagues")
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("competition leagues not found")
@@ -360,7 +385,7 @@ func (s *PredictballAPIService) JoinLeagueByCode(ctx context.Context, competitio
 		os.WriteFile(leagueFilePath, b, 0644)
 
 		s.initUserLeagues()
-		compIDInt, _ := strconv.Atoi(competitionID)
+		compIDInt, _ := strconv.Atoi(compID)
 		comps := userLeagues[userID]
 		foundComp := false
 		leagueIDFloat, _ := foundLeague["id"].(float64)

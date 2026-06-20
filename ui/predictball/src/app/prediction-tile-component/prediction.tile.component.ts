@@ -1,5 +1,5 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, OnDestroy, SimpleChanges, inject, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, OnDestroy, SimpleChanges, inject, ChangeDetectorRef, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -56,6 +56,7 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   private matchService = inject(MatchService);
   private dialog = inject(MatDialog);
+  private platformId = inject(PLATFORM_ID);
 
   homeTeam?: Team;
   awayTeam?: Team;
@@ -72,6 +73,7 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
   isPast: boolean = false;
   isLive: boolean = false;
   private liveUpdateInterval: any;
+  private statusCheckInterval: any;
   private saveTimeout: any;
   private _isCurrentlyModifying = false;
 
@@ -93,6 +95,7 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
     if (this.match) {
       this.checkStatus();
       this.loadData();
+      this.startStatusTimer();
     }
   }
 
@@ -100,6 +103,7 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
     if (this.liveUpdateInterval) {
       clearInterval(this.liveUpdateInterval);
     }
+    this.stopStatusTimer();
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -128,20 +132,53 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
     if (changes['scoringSystem'] || changes['prediction'] || changes['availablePowerups'] || changes['match']) {
       this.calculatePoints();
     }
+    if (changes['match'] && this.match) {
+      this.checkStatus();
+      this.startStatusTimer();
+    }
   }
 
   checkStatus() {
     const start = new Date(this.match.startTime);
     this.isLive = this.match.status === 'IN_PLAY' || this.match.status === 'PAUSED';
-    this.isPast = start.getTime() < Date.now() || (this.match.status !== 'SCHEDULED' && this.match.status !== 'TIMED');
+    this.isPast = start.getTime() < Date.now() || (this.match.status !== 'SCHEDULED' && this.match.status !== 'TIMED' && this.match.status !== 'LINEUPS-READY');
 
-    if (this.isLive && !this.liveUpdateInterval) {
-      this.liveUpdateInterval = setInterval(() => {
-        this.fetchMatchUpdate();
-      }, 60000);
-    } else if (!this.isLive && this.liveUpdateInterval) {
-      clearInterval(this.liveUpdateInterval);
-      this.liveUpdateInterval = null;
+    if (this.isPast) {
+      this.stopStatusTimer();
+    }
+
+    if (isPlatformBrowser(this.platformId)) {
+      if (this.isLive && !this.liveUpdateInterval) {
+        this.liveUpdateInterval = setInterval(() => {
+          this.fetchMatchUpdate();
+        }, 60000);
+      } else if (!this.isLive && this.liveUpdateInterval) {
+        clearInterval(this.liveUpdateInterval);
+        this.liveUpdateInterval = null;
+      }
+    }
+  }
+
+  private startStatusTimer() {
+    if (this.statusCheckInterval) {
+      clearInterval(this.statusCheckInterval);
+      this.statusCheckInterval = null;
+    }
+    if (isPlatformBrowser(this.platformId) && !this.isPast) {
+      this.statusCheckInterval = setInterval(() => {
+        const wasPast = this.isPast;
+        this.checkStatus();
+        if (this.isPast !== wasPast) {
+          this.cdr.detectChanges();
+        }
+      }, 5000);
+    }
+  }
+
+  private stopStatusTimer() {
+    if (this.statusCheckInterval) {
+      clearInterval(this.statusCheckInterval);
+      this.statusCheckInterval = null;
     }
   }
 

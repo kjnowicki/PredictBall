@@ -10,6 +10,7 @@ import { CompetitionService } from '../services/competition.service';
 import { PredictionLeagueService } from '../services/prediction-league.service';
 import { UserService } from '../services/user.service';
 import { Competition as APICompetition } from '../models/competition';
+import { GlobalLeague } from '../models/predictball.models';
 
 export interface Competition {
   id: string | number;
@@ -24,12 +25,12 @@ export interface Competition {
 @Component({
   selector: 'app-competitions-page',
   imports: [
-    CommonModule, 
-    RouterModule, 
-    MatCardModule, 
-    MatTableModule, 
-    MatFormFieldModule, 
-    MatInputModule, 
+    CommonModule,
+    RouterModule,
+    MatCardModule,
+    MatTableModule,
+    MatFormFieldModule,
+    MatInputModule,
     MatButtonModule
   ],
   templateUrl: './competitions-page.html',
@@ -69,7 +70,7 @@ export class CompetitionsPage implements OnInit {
     this.competitionService.getAllCompetitions().subscribe(allComps => {
       this.userService.getYourLeagues(this.userId!).subscribe(userLeagues => {
         const myCompIds = new Set((userLeagues.competitions || []).map(c => c.competitionId.toString()));
-        
+
         const mappedComps: Competition[] = allComps.map((c: APICompetition) => ({
           id: c.id,
           code: c.code,
@@ -82,18 +83,18 @@ export class CompetitionsPage implements OnInit {
 
         this.myCompetitionsData = mappedComps.filter(c => myCompIds.has(c.id.toString()));
         this.allCompetitionsData = mappedComps;
-        
+
         this.updateTables();
 
         mappedComps.forEach(comp => {
           this.leagueService.getPredictionLeague(comp.id, 0).subscribe({
-            next: (league: any) => {
-              if (league && league.users) {
-                comp.playersCount = league.users.length;
-                this.updateTables();
-              }
+            next: (league: GlobalLeague) => {
+              comp.playersCount = league.users.length;
+              comp.score = league.users.find(u => u.userId === Number(this.userId))?.points || 0;
+              comp.globalRank = league.users.findIndex(u => u.userId === Number(this.userId)) + 1;
+              this.updateTables();
             },
-            error: () => {}
+            error: () => { }
           });
         });
       });
@@ -102,7 +103,7 @@ export class CompetitionsPage implements OnInit {
 
   updateTables() {
     this.myCompetitions.data = [...this.myCompetitionsData];
-    
+
     const myCompIds = new Set(this.myCompetitionsData.map(c => c.id));
     this.availableCompetitions.data = this.allCompetitionsData.filter(c => !myCompIds.has(c.id));
     this.cdr.detectChanges();
