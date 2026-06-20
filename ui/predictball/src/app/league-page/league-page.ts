@@ -86,30 +86,40 @@ export class LeaguePage implements OnInit {
             const globalUser = globalLeague.users.find((gu: any) => gu.userId?.toString() === u.userId?.toString());
             if (globalUser) {
               u.points = globalUser.points || 0;
+              u.name = globalUser.name || u.name;
             }
           });
         }
 
-        const userRequests = users.map((u: any) =>
-          this.userService.getUser(u.userId.toString()).pipe(
-            map(userDetails => ({ ...u, name: userDetails.displayName || u.name })),
-            catchError(() => of(u))
-          )
-        );
+        const userRequests = users
+          .filter((u: any) => u.name === `Player ${u.userId}`)
+          .map((u: any) =>
+            this.userService.getUser(u.userId.toString()).pipe(
+              map(userDetails => {
+                u.name = userDetails.displayName || u.name;
+                return u;
+              }),
+              catchError(() => of(u))
+            )
+          );
+
+        const finalizePlayers = () => {
+          users.sort((a: any, b: any) => (b.points || 0) - (a.points || 0));
+          this.players = users.map((u: any, index: number) => ({
+            position: index + 1,
+            name: u.name,
+            points: u.points || 0
+          }));
+          this.cdr.detectChanges();
+        };
 
         if (userRequests.length > 0) {
-          forkJoin(userRequests).subscribe((populatedUsers: any) => {
-            populatedUsers.sort((a: any, b: any) => (b.points || 0) - (a.points || 0));
-            this.players = populatedUsers.map((u: any, index: number) => ({
-              position: index + 1,
-              name: u.name,
-              points: u.points || 0
-            }));
-            this.cdr.detectChanges();
+          forkJoin(userRequests).subscribe({
+            next: () => finalizePlayers(),
+            error: () => finalizePlayers()
           });
         } else {
-          this.players = [];
-          this.cdr.detectChanges();
+          finalizePlayers();
         }
       },
       error: (err) => {

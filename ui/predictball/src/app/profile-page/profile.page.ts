@@ -1,7 +1,7 @@
 import { Component, signal, OnInit, inject, PLATFORM_ID } from '@angular/core';
 import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { Router } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatListModule } from '@angular/material/list';
 import { MatButtonModule } from '@angular/material/button';
@@ -57,7 +57,7 @@ export class ProfilePage implements OnInit {
     }
   }
 
-  onChangePassword() {
+  onChangePassword(form: NgForm) {
     if (!this.userId) return;
     if (this.passwordData.newPassword !== this.passwordData.confirmPassword) {
       alert('Passwords do not match');
@@ -66,19 +66,20 @@ export class ProfilePage implements OnInit {
     this.userService.changePassword(this.userId, this.passwordData.oldPassword, this.passwordData.newPassword).subscribe({
       next: () => {
         alert('Password changed successfully');
-        this.passwordData = { oldPassword: '', newPassword: '', confirmPassword: '' };
+        form.resetForm();
       },
       error: (err) => alert('Failed to change password: ' + (err.error || err.message))
     });
   }
 
-  onChangeDisplayName() {
+  onChangeDisplayName(form: NgForm) {
     if (!this.userId || !this.displayNameData.newDisplayName.trim()) return;
-    this.userService.updateDisplayName(this.userId, this.displayNameData.newDisplayName).subscribe({
+    const newName = this.displayNameData.newDisplayName;
+    this.userService.updateDisplayName(this.userId, newName).subscribe({
       next: () => {
         alert('Display name updated successfully');
-        this.currentDisplayName = this.displayNameData.newDisplayName;
-        this.displayNameData.newDisplayName = '';
+        this.currentDisplayName = newName;
+        form.resetForm();
       },
       error: (err) => alert('Failed to update display name: ' + (err.error || err.message))
     });

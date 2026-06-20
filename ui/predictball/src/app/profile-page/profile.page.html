@@ -25,7 +25,7 @@
         <mat-card-title>Change Password</mat-card-title>
       </mat-card-header>
       <mat-card-content>
-        <form (ngSubmit)="onChangePassword()" class="profile-form">
+        <form #passwordForm="ngForm" (ngSubmit)="onChangePassword(passwordForm)" class="profile-form">
           <mat-form-field appearance="outline">
             <mat-label>Old Password</mat-label>
             <input matInput type="password" [(ngModel)]="passwordData.oldPassword" name="oldPassword" autocomplete="current-password" required>
@@ -50,7 +50,7 @@
         }</mat-card-title>
       </mat-card-header>
       <mat-card-content>
-        <form (ngSubmit)="onChangeDisplayName()" class="profile-form">
+        <form #displayNameForm="ngForm" (ngSubmit)="onChangeDisplayName(displayNameForm)" class="profile-form">
           <mat-form-field appearance="outline">
             <mat-label>New Display Name</mat-label>
             <input matInput type="text" [(ngModel)]="displayNameData.newDisplayName" name="newDisplayName" required>

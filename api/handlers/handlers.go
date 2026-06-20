@@ -249,10 +249,6 @@ func (h *APIHandler) HandleJoinGlobalLeague(w http.ResponseWriter, r *http.Reque
 
 func (h *APIHandler) HandleGetUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if !h.authorizeUser(r, id) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
 	user, err := h.Service.GetUser(r.Context(), id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

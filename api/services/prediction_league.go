@@ -20,9 +20,6 @@ func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, competi
 		return nil, err
 	}
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	idInt, err := strconv.Atoi(leagueID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid league id")
@@ -45,6 +42,35 @@ func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, competi
 	if err := json.Unmarshal(data, &league); err != nil {
 		return nil, fmt.Errorf("failed to parse league data: %v", err)
 	}
+
+	s.ensureUsersLoaded()
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if usersList, ok := league["users"].([]any); ok {
+		for _, uVal := range usersList {
+			if userMap, ok := uVal.(map[string]any); ok {
+				var uID string
+				if idVal, ok := userMap["userId"]; ok {
+					switch v := idVal.(type) {
+					case float64:
+						uID = strconv.Itoa(int(v))
+					case string:
+						uID = v
+					case int:
+						uID = strconv.Itoa(v)
+					}
+				}
+				if uID != "" {
+					if user, exists := s.users[uID]; exists {
+						userMap["name"] = user.DisplayName
+					}
+				}
+			}
+		}
+	}
+
 	return league, nil
 }
 
