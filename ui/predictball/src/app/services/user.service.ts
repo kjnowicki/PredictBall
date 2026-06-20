@@ -36,4 +36,8 @@ export class UserService {
   deleteUser(userId: string, password: string): Observable<any> {
     return this.api.post(`user/${userId}/delete`, { password });
   }
+
+  logout(): Observable<any> {
+    return this.api.post('user/logout', {});
+  }
 }

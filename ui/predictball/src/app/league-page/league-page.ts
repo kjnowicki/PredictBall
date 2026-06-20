@@ -29,6 +29,7 @@ export class LeaguePage implements OnInit {
   competitionId: string | null = null;
   leagueName = 'League';
   leagueJoinCode = '';
+  errorMessage: string | null = null;
 
   players: Player[] = [];
   displayedColumns: string[] = ['position', 'name', 'points'];
@@ -66,6 +67,7 @@ export class LeaguePage implements OnInit {
       globalLeague: this.leagueService.getPredictionLeague(this.competitionId, 0).pipe(catchError(() => of(null)))
     }).subscribe({
       next: ({ league, globalLeague }: { league: any, globalLeague: any }) => {
+        this.errorMessage = null;
         this.leagueName = league.name || 'League';
         this.leagueJoinCode = league.joinCode || '';
         this.cdr.detectChanges();
@@ -110,7 +112,11 @@ export class LeaguePage implements OnInit {
           this.cdr.detectChanges();
         }
       },
-      error: (err) => console.error('Error fetching league details', err)
+      error: (err) => {
+        console.error('Error fetching league details', err);
+        this.errorMessage = 'You are not authorized to view this league, or it does not exist.';
+        this.cdr.detectChanges();
+      }
     });
   }
 }

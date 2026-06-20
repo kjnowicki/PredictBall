@@ -10,6 +10,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { map } from 'rxjs/operators';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { UserService } from '../services/user.service';
 
 @Component({
   selector: 'app-top-navigation',
@@ -28,6 +29,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 })
 export class TopNavigation {
   private breakpointObserver = inject(BreakpointObserver);
+  private userService = inject(UserService);
 
   isMobile = toSignal(
     this.breakpointObserver.observe('(max-width: 719.98px)').pipe(
@@ -47,7 +49,20 @@ export class TopNavigation {
   ) {}
 
   logout() {
-    this.document.cookie = 'isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    this.userService.logout().subscribe({
+      next: () => {
+        this.clearCookiesAndRedirect();
+      },
+      error: (err) => {
+        console.error('Logout API failed, performing fallback local logout', err);
+        this.clearCookiesAndRedirect();
+      }
+    });
+  }
+
+  private clearCookiesAndRedirect() {
+    this.document.cookie = 'isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    this.document.cookie = 'userId=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     this.router.navigate(['/login']);
   }
 

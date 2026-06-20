@@ -93,8 +93,8 @@ export class LoginPage {
 
   private handleSuccessfulAuth(userId: number | string) {
     // Set cookie that expires in 1 day (86400 seconds)
-    this.document.cookie = 'isAuthenticated=true; path=/; max-age=86400; SameSite=Strict';
-    this.document.cookie = `userId=${userId}; path=/; max-age=86400; SameSite=Strict`;
+    this.document.cookie = 'isAuthenticated=true; path=/; max-age=86400; SameSite=Lax';
+    this.document.cookie = `userId=${userId}; path=/; max-age=86400; SameSite=Lax`;
     this.router.navigate(['/home']);
   }
 }

@@ -1,20 +1,178 @@
 package handlers
 
 import (
+	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"io"
+	"log"
 	"net/http"
+	"os"
 	"predictball_api/models"
 	"predictball_api/services"
 	"strconv"
 	"strings"
+	"time"
 )
 
+type contextKey string
+const userIDKey contextKey = "userID"
+
+type SessionEncryptor struct {
+	key []byte
+}
+
+var defaultSessionKey = []byte("change_this_default_session_key_") // Exactly 32 bytes
+
+func NewSessionEncryptor() *SessionEncryptor {
+	keyHex := os.Getenv("SESSION_KEY")
+	if keyHex != "" {
+		key, err := hex.DecodeString(keyHex)
+		if err == nil && len(key) == 32 {
+			return &SessionEncryptor{key: key}
+		}
+	}
+	return &SessionEncryptor{key: defaultSessionKey}
+}
+
+func (e *SessionEncryptor) Encrypt(plaintext string) (string, error) {
+	block, err := aes.NewCipher(e.key)
+	if err != nil {
+		return "", err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", err
+	}
+	ciphertext := gcm.Seal(nonce, nonce, []byte(plaintext), nil)
+	return hex.EncodeToString(ciphertext), nil
+}
+
+func (e *SessionEncryptor) Decrypt(ciphertextHex string) (string, error) {
+	ciphertext, err := hex.DecodeString(ciphertextHex)
+	if err != nil {
+		return "", err
+	}
+	block, err := aes.NewCipher(e.key)
+	if err != nil {
+		return "", err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+	nonceSize := gcm.NonceSize()
+	if len(ciphertext) < nonceSize {
+		return "", fmt.Errorf("ciphertext too short")
+	}
+	nonce, actualCiphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
+	plaintext, err := gcm.Open(nil, nonce, actualCiphertext, nil)
+	if err != nil {
+		return "", err
+	}
+	return string(plaintext), nil
+}
+
 type APIHandler struct {
-	Service services.APIService
+	Service          services.APIService
+	SessionEncryptor *SessionEncryptor
 }
 
 func NewAPIHandler(svc services.APIService) *APIHandler {
-	return &APIHandler{Service: svc}
+	return &APIHandler{
+		Service:          svc,
+		SessionEncryptor: NewSessionEncryptor(),
+	}
+}
+
+func (h *APIHandler) setSessionCookie(w http.ResponseWriter, r *http.Request, userID int) {
+	expiration := time.Now().Add(24 * time.Hour)
+	plaintext := fmt.Sprintf("%d:%d", userID, expiration.Unix())
+	encrypted, err := h.SessionEncryptor.Encrypt(plaintext)
+	if err != nil {
+		log.Printf("failed to encrypt session cookie: %v", err)
+		return
+	}
+
+	secure := false
+	origin := r.Header.Get("Origin")
+	if strings.HasPrefix(strings.ToLower(origin), "https://") {
+		secure = true
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session",
+		Value:    encrypted,
+		Path:     "/",
+		Expires:  expiration,
+		MaxAge:   86400,
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func (h *APIHandler) authorizeUser(r *http.Request, userID string) bool {
+	authID, ok := r.Context().Value(userIDKey).(string)
+	return ok && authID == userID
+}
+
+func (h *APIHandler) AuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		path := r.URL.Path
+		if (path == "/user/authenticate" && r.Method == http.MethodPost) || (path == "/user" && r.Method == http.MethodPut) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		cookie, err := r.Cookie("session")
+		if err != nil {
+			http.Error(w, "Unauthorized: missing session cookie", http.StatusUnauthorized)
+			return
+		}
+
+		userID, err := h.decryptSession(cookie.Value)
+		if err != nil {
+			http.Error(w, "Unauthorized: invalid session", http.StatusUnauthorized)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), userIDKey, userID)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (h *APIHandler) decryptSession(cookieValue string) (string, error) {
+	decrypted, err := h.SessionEncryptor.Decrypt(cookieValue)
+	if err != nil {
+		return "", err
+	}
+	parts := strings.Split(decrypted, ":")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid session format")
+	}
+	userID := parts[0]
+	expiresUnix, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return "", err
+	}
+	if time.Now().Unix() > expiresUnix {
+		return "", fmt.Errorf("session expired")
+	}
+	return userID, nil
 }
 
 func WriteJSON(w http.ResponseWriter, status int, data any) {
@@ -77,6 +235,10 @@ func (h *APIHandler) HandleGetCompetition(w http.ResponseWriter, r *http.Request
 func (h *APIHandler) HandleJoinGlobalLeague(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	userID := r.URL.Query().Get("user")
+	if !h.authorizeUser(r, userID) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	league, err := h.Service.JoinGlobalLeague(r.Context(), id, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -87,6 +249,10 @@ func (h *APIHandler) HandleJoinGlobalLeague(w http.ResponseWriter, r *http.Reque
 
 func (h *APIHandler) HandleGetUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if !h.authorizeUser(r, id) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	user, err := h.Service.GetUser(r.Context(), id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -97,6 +263,10 @@ func (h *APIHandler) HandleGetUser(w http.ResponseWriter, r *http.Request) {
 
 func (h *APIHandler) HandleGetUserLeagues(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if !h.authorizeUser(r, id) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	leagues, err := h.Service.GetUserLeagues(r.Context(), id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -116,6 +286,9 @@ func (h *APIHandler) HandleAuthenticateUser(w http.ResponseWriter, r *http.Reque
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
+
+	h.setSessionCookie(w, r, authenticatedUser.ID)
+
 	WriteJSON(w, http.StatusOK, authenticatedUser)
 }
 
@@ -130,11 +303,18 @@ func (h *APIHandler) HandlePutUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	h.setSessionCookie(w, r, created.ID)
+
 	WriteJSON(w, http.StatusOK, created)
 }
 
 func (h *APIHandler) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if !h.authorizeUser(r, id) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	var req struct {
 		OldPassword string `json:"oldPassword"`
 		NewPassword string `json:"newPassword"`
@@ -153,6 +333,10 @@ func (h *APIHandler) HandleChangePassword(w http.ResponseWriter, r *http.Request
 
 func (h *APIHandler) HandleUpdateDisplayName(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if !h.authorizeUser(r, id) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	var req struct {
 		DisplayName string `json:"displayName"`
 	}
@@ -170,6 +354,10 @@ func (h *APIHandler) HandleUpdateDisplayName(w http.ResponseWriter, r *http.Requ
 
 func (h *APIHandler) HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if !h.authorizeUser(r, id) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	var req struct {
 		Password string `json:"password"`
 	}
@@ -182,12 +370,52 @@ func (h *APIHandler) HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
+
+	// Clear session cookie
+	secure := false
+	origin := r.Header.Get("Origin")
+	if strings.HasPrefix(strings.ToLower(origin), "https://") {
+		secure = true
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	})
+
 	WriteJSON(w, http.StatusOK, map[string]string{"message": "success"})
+}
+
+func (h *APIHandler) HandleLogout(w http.ResponseWriter, r *http.Request) {
+	secure := false
+	origin := r.Header.Get("Origin")
+	if strings.HasPrefix(strings.ToLower(origin), "https://") {
+		secure = true
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	})
+	WriteJSON(w, http.StatusOK, map[string]string{"message": "logged out"})
 }
 
 func (h *APIHandler) HandleGetCompetitionLeagues(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	userID := r.URL.Query().Get("user")
+	if !h.authorizeUser(r, userID) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	leagues, err := h.Service.GetCompetitionLeagues(r.Context(), id, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -199,6 +427,10 @@ func (h *APIHandler) HandleGetCompetitionLeagues(w http.ResponseWriter, r *http.
 func (h *APIHandler) HandleJoinLeagueByCode(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	userID := r.URL.Query().Get("user")
+	if !h.authorizeUser(r, userID) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	var req struct {
 		JoinCode string `json:"joinCode"`
 	}
@@ -214,17 +446,70 @@ func (h *APIHandler) HandleJoinLeagueByCode(w http.ResponseWriter, r *http.Reque
 func (h *APIHandler) HandleGetPredictionLeague(w http.ResponseWriter, r *http.Request) {
 	compId := r.PathValue("compId")
 	leagueId := r.PathValue("leagueId")
+
+	authID, ok := r.Context().Value(userIDKey).(string)
+	if !ok || authID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	league, err := h.Service.GetPredictionLeague(r.Context(), compId, leagueId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Authorize league access
+	leagueJSON, err := json.Marshal(league)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var leagueCheck struct {
+		ID     int  `json:"id"`
+		Public bool `json:"public"`
+		Users  []struct {
+			UserID int `json:"userId"`
+		} `json:"users"`
+		UserIDs []int `json:"userIds"`
+	}
+	if err := json.Unmarshal(leagueJSON, &leagueCheck); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if !leagueCheck.Public {
+		uid, _ := strconv.Atoi(authID)
+		isMember := false
+		for _, u := range leagueCheck.Users {
+			if u.UserID == uid {
+				isMember = true
+				break
+			}
+		}
+		for _, uID := range leagueCheck.UserIDs {
+			if uID == uid {
+				isMember = true
+				break
+			}
+		}
+		if !isMember {
+			http.Error(w, "Forbidden: you are not a member of this private league", http.StatusForbidden)
+			return
+		}
+	}
+
 	WriteJSON(w, http.StatusOK, league)
 }
 
 func (h *APIHandler) HandlePutPredictionLeague(w http.ResponseWriter, r *http.Request) {
 	compId := r.PathValue("compId")
 	userID := r.URL.Query().Get("user")
+	if !h.authorizeUser(r, userID) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	var league models.PredictionLeague
 
 	if err := json.NewDecoder(r.Body).Decode(&league); err != nil {
@@ -242,6 +527,10 @@ func (h *APIHandler) HandlePutPredictionLeague(w http.ResponseWriter, r *http.Re
 
 func (h *APIHandler) HandleGetPredictions(w http.ResponseWriter, r *http.Request) {
 	userId := r.PathValue("id")
+	if !h.authorizeUser(r, userId) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	compId := r.PathValue("compId")
 	var req struct {
 		MatchIDs []int `json:"matchIds"`
@@ -260,6 +549,10 @@ func (h *APIHandler) HandleGetPredictions(w http.ResponseWriter, r *http.Request
 
 func (h *APIHandler) HandlePutPrediction(w http.ResponseWriter, r *http.Request) {
 	userId := r.PathValue("id")
+	if !h.authorizeUser(r, userId) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	compId := r.PathValue("compId")
 	matchIdStr := r.PathValue("matchId")
 	matchId, err := strconv.Atoi(matchIdStr)
@@ -286,6 +579,10 @@ func (h *APIHandler) HandlePutPrediction(w http.ResponseWriter, r *http.Request)
 
 func (h *APIHandler) HandleGetPowerups(w http.ResponseWriter, r *http.Request) {
 	userId := r.PathValue("id")
+	if !h.authorizeUser(r, userId) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	compId := r.PathValue("compId")
 
 	data, err := h.Service.GetPowerups(r.Context(), userId, compId)
@@ -298,6 +595,10 @@ func (h *APIHandler) HandleGetPowerups(w http.ResponseWriter, r *http.Request) {
 
 func (h *APIHandler) HandlePutPowerups(w http.ResponseWriter, r *http.Request) {
 	userId := r.PathValue("id")
+	if !h.authorizeUser(r, userId) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	compId := r.PathValue("compId")
 
 	var req models.PowerupsData
@@ -376,6 +677,7 @@ func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 	mux.HandleFunc("PUT /user/{id}/display-name", h.HandleUpdateDisplayName)
 	mux.HandleFunc("POST /user/{id}/delete", h.HandleDeleteUser)
 	mux.HandleFunc("POST /user/authenticate", h.HandleAuthenticateUser)
+	mux.HandleFunc("POST /user/logout", h.HandleLogout)
 
 	mux.HandleFunc("GET /competition/{compId}/league/{leagueId}", h.HandleGetPredictionLeague)
 	mux.HandleFunc("PUT /competition/{compId}/league", h.HandlePutPredictionLeague)
@@ -392,5 +694,5 @@ func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 	mux.HandleFunc("GET /scoring-system", h.HandleGetScoringSystem)
 	mux.HandleFunc("GET /team-details/{id}", h.HandleGetTeamDetails)
 
-	return corsMiddleware(mux)
+	return corsMiddleware(h.AuthMiddleware(mux))
 }
