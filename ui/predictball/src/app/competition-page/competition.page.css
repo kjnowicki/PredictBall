@@ -33,3 +33,16 @@
   .score-summary { flex-direction: column; }
   .predictions-count { margin-right: 0; margin-bottom: 0.5rem; }
 }
+
+.multiplier-badge {
+  background: linear-gradient(135deg, #ff9d00, #ff5100);
+  color: white;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+  display: inline-block;
+  box-shadow: 0 2px 4px rgba(255, 81, 0, 0.2);
+  vertical-align: middle;
+}

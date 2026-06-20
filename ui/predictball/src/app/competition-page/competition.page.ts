@@ -547,7 +547,30 @@ export class CompetitionPage implements OnInit, OnDestroy {
     return result ? result.totalPoints : 0;
   }
 
-  get matchdayScore() {
+  get maxMatchesPerMatchday(): number {
+    if (!this.matches || this.matches.length === 0) return 0;
+    const counts: Record<string, number> = {};
+    this.matches.forEach(m => {
+      const key = m.matchday > 0 ? m.matchday.toString() : m.stage;
+      if (key) {
+        counts[key] = (counts[key] || 0) + 1;
+      }
+    });
+    const values = Object.values(counts);
+    return values.length > 0 ? Math.max(...values) : 0;
+  }
+
+  get currentMatchdayMultiplier(): number {
+    const numMatches = this.filteredMatches.length;
+    if (numMatches === 0) return 1;
+    const N = this.maxMatchesPerMatchday;
+    if (numMatches === 1) return 4;
+    if (numMatches >= 2 && numMatches <= 4) return 3;
+    if (numMatches >= 5 && numMatches <= Math.floor(N / 2)) return 2;
+    return 1;
+  }
+
+  get rawMatchdayScore() {
     let total = 0;
     for (const match of this.filteredMatches) {
       const p = this.predictions[match.id];
@@ -577,4 +600,9 @@ export class CompetitionPage implements OnInit, OnDestroy {
     }
     return total;
   }
+
+  get matchdayScore() {
+    return this.rawMatchdayScore * this.currentMatchdayMultiplier;
+  }
+
 }

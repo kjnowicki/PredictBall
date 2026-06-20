@@ -153,6 +153,22 @@ func (s *PredictballAPIService) updateGlobalLeaguePoints(ctx context.Context) {
 			continue
 		}
 
+		// Group schedule matches by matchday/stage key to get match counts and N
+		matchdayCounts := make(map[string]int)
+		for _, m := range schedule {
+			key := getMatchdayKey(m)
+			if key != "" {
+				matchdayCounts[key]++
+			}
+		}
+
+		N := 0
+		for _, count := range matchdayCounts {
+			if count > N {
+				N = count
+			}
+		}
+
 		matches := make(map[int]models.Match)
 		for _, m := range schedule {
 			if m.Status == "FINISHED" {
@@ -202,13 +218,28 @@ func (s *PredictballAPIService) updateGlobalLeaguePoints(ctx context.Context) {
 				}
 			}
 
-			totalPoints := 0
+			matchdayRawPoints := make(map[string]int)
+			fallbackPoints := 0
 			for _, pred := range preds {
 				if match, ok := matches[pred.MatchID]; ok {
 					activePowerup := powerupForMatch[match.ID]
 					doubleScorerID := doubleScorerForMatch[match.ID]
-					totalPoints += calculatePointsForPrediction(match, pred, activePowerup, doubleScorerID, scoring)
+					pts := calculatePointsForPrediction(match, pred, activePowerup, doubleScorerID, scoring)
+
+					key := getMatchdayKey(match)
+					if key != "" {
+						matchdayRawPoints[key] += pts
+					} else {
+						fallbackPoints += pts
+					}
 				}
+			}
+
+			totalPoints := fallbackPoints
+			for key, rawSum := range matchdayRawPoints {
+				numMatches := matchdayCounts[key]
+				mult := getMatchdayMultiplier(numMatches, N)
+				totalPoints += rawSum * mult
 			}
 
 			if globalLeague.Users[i].Points != totalPoints {
@@ -227,3 +258,24 @@ func (s *PredictballAPIService) updateGlobalLeaguePoints(ctx context.Context) {
 		}
 	}
 }
+
+func getMatchdayKey(m models.Match) string {
+	if m.Matchday > 0 {
+		return strconv.Itoa(m.Matchday)
+	}
+	return m.Stage
+}
+
+func getMatchdayMultiplier(numMatches int, N int) int {
+	if numMatches == 1 {
+		return 4
+	}
+	if numMatches >= 2 && numMatches <= 4 {
+		return 3
+	}
+	if numMatches >= 5 && numMatches <= N/2 {
+		return 2
+	}
+	return 1
+}
+
