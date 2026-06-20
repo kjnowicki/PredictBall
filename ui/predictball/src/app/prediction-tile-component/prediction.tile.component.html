@@ -53,17 +53,17 @@
 
     <!-- Row 3: Home & Away goals prediction input -->
     <div class="prediction-row" style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-      <input type="number" min="0" max="99" style="width: 3.5rem; height: 3rem; text-align: center; font-size: 1.5rem; padding: 0; border: 1px solid #ccc; border-radius: 4px;" [(ngModel)]="homeGoalsPrediction" (ngModelChange)="onPredictionInput()" [disabled]="isPast">
+      <input type="number" min="0" max="99" style="width: 3.5rem; height: 3rem; text-align: center; font-size: 1.5rem; padding: 0; border: 1px solid #ccc; border-radius: 4px;" [(ngModel)]="homeGoalsPrediction" (ngModelChange)="onPredictionInput()" [disabled]="isPredictionDisabled">
       <strong style="font-size: 2rem; color: #555;">-</strong>
-      <input type="number" min="0" max="99" style="width: 3.5rem; height: 3rem; text-align: center; font-size: 1.5rem; padding: 0; border: 1px solid #ccc; border-radius: 4px;" [(ngModel)]="awayGoalsPrediction" (ngModelChange)="onPredictionInput()" [disabled]="isPast">
+      <input type="number" min="0" max="99" style="width: 3.5rem; height: 3rem; text-align: center; font-size: 1.5rem; padding: 0; border: 1px solid #ccc; border-radius: 4px;" [(ngModel)]="awayGoalsPrediction" (ngModelChange)="onPredictionInput()" [disabled]="isPredictionDisabled">
     </div>
 
     <!-- Row 4: Scorer select input -->
     <div class="prediction-row">
       <mat-form-field appearance="outline" style="width: 100%; cursor: pointer;" (click)="openTeamSelect('scorer')">
         <mat-label>Scorer</mat-label>
-        <input matInput [value]="getScorerName(selectedScorer)" readonly [disabled]="isPast" style="cursor: pointer; pointer-events: none;">
-        @if (!isPast) {
+        <input matInput [value]="getScorerName(selectedScorer)" readonly [disabled]="isPredictionDisabled" style="cursor: pointer; pointer-events: none;">
+        @if (!isPredictionDisabled) {
           <mat-icon matSuffix>arrow_drop_down</mat-icon>
         }
       </mat-form-field>
@@ -75,7 +75,7 @@
       <mat-icon 
         (click)="togglePowerup('doubleScorer', $event)"
         [style.color]="activePowerup === 'doubleScorer' ? '#1976d2' : '#555'"
-        [style.cursor]="isPast ? 'default' : 'pointer'"
+        [style.cursor]="isPredictionDisabled ? 'default' : 'pointer'"
         matTooltip="Double Scorer"
         matTooltipShowDelay="0">sports_soccer</mat-icon>
       }
@@ -83,7 +83,7 @@
       <mat-icon 
         (click)="togglePowerup('tripleScore', $event)"
         [style.color]="activePowerup === 'tripleScore' ? '#1976d2' : '#555'"
-        [style.cursor]="isPast ? 'default' : 'pointer'"
+        [style.cursor]="isPredictionDisabled ? 'default' : 'pointer'"
         matTooltip="Triple Score"
         matTooltipShowDelay="0">star_border</mat-icon>
       }
@@ -91,7 +91,7 @@
       <mat-icon 
         (click)="togglePowerup('reversal', $event)"
         [style.color]="activePowerup === 'reversal' ? '#1976d2' : (isDrawPrediction ? 'darkred' : '#555')"
-        [style.cursor]="isPast || isDrawPrediction ? 'default' : 'pointer'"
+        [style.cursor]="isPredictionDisabled || isDrawPrediction ? 'default' : 'pointer'"
         [matTooltip]="isDrawPrediction ? 'Can\'t select on a draw!' : 'Reversal'"
         matTooltipShowDelay="0">swap_horiz</mat-icon>
       }
@@ -102,8 +102,8 @@
     <div class="prediction-row">
       <mat-form-field appearance="outline" style="width: 100%; cursor: pointer;" (click)="openTeamSelect('secondScorer')">
         <mat-label>Another Scorer</mat-label>
-        <input matInput [value]="getScorerName(secondScorer)" readonly [disabled]="isPast || activePowerup !== 'doubleScorer'" style="cursor: pointer; pointer-events: none;">
-        @if (!isPast && activePowerup === 'doubleScorer') {
+        <input matInput [value]="getScorerName(secondScorer)" readonly [disabled]="isPredictionDisabled || activePowerup !== 'doubleScorer'" style="cursor: pointer; pointer-events: none;">
+        @if (!isPredictionDisabled && activePowerup === 'doubleScorer') {
           <mat-icon matSuffix>arrow_drop_down</mat-icon>
         }
       </mat-form-field>

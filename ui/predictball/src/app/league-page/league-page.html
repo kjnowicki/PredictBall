@@ -24,7 +24,13 @@
           </ng-container>
           <ng-container matColumnDef="name">
             <th mat-header-cell *matHeaderCellDef>Player</th>
-            <td mat-cell *matCellDef="let player">{{ player.name }}</td>
+            <td mat-cell *matCellDef="let player">
+              @if (player.userId && player.userId.toString() !== currentUserId) {
+                <a [routerLink]="['/competition', competitionId]" [queryParams]="{ viewUser: player.userId, viewUserName: player.name }" style="cursor: pointer; text-decoration: underline; color: #1a73e8; font-weight: 500;">{{ player.name }}</a>
+              } @else {
+                {{ player.name }} (You)
+              }
+            </td>
           </ng-container>
           <ng-container matColumnDef="points">
             <th mat-header-cell *matHeaderCellDef>Points</th>

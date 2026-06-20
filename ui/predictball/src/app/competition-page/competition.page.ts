@@ -78,6 +78,9 @@ export class CompetitionPage implements OnInit, OnDestroy {
   newLeagueName: string = '';
   isCreatingLeague: boolean = false;
   userId: string | null = null;
+  viewedUserId: string | null = null;
+  viewedUserName: string | null = null;
+  private lastLoadedUserId: string | null = null;
   
   leaguesDisplayedColumns: string[] = ['name', 'participants'];
   teams: any[] = [];
@@ -167,6 +170,25 @@ export class CompetitionPage implements OnInit, OnDestroy {
       error: err => console.error('Error fetching scoring system:', err)
     });
 
+    this.route.queryParamMap.subscribe(queryParams => {
+      this.viewedUserId = queryParams.get('viewUser');
+      this.viewedUserName = queryParams.get('viewUserName');
+
+      const matchdayParam = queryParams.get('matchday');
+      if (matchdayParam) {
+        const mdNum = parseInt(matchdayParam, 10);
+        this.selectedMatchday = isNaN(mdNum) ? matchdayParam : mdNum;
+        this.updateCurrentMatchdayPowerups();
+      }
+
+      const targetUserId = this.viewedUserId || this.userId;
+      if (targetUserId && targetUserId !== this.lastLoadedUserId) {
+        this.lastLoadedUserId = targetUserId;
+        this.loadPowerups();
+        this.loadPredictions();
+      }
+    });
+
     this.route.paramMap.subscribe(params => {
       this.competitionCode = params.get('id');
       if (this.competitionCode) {
@@ -236,7 +258,9 @@ export class CompetitionPage implements OnInit, OnDestroy {
 
   loadPowerups() {
     if (this.competition && this.competition.id && this.userId) {
-      this.competitionService.getPowerups(this.userId, this.competition.id.toString()).subscribe({
+      const targetUserId = this.viewedUserId || this.userId;
+      this.lastLoadedUserId = targetUserId;
+      this.competitionService.getPowerups(targetUserId, this.competition.id.toString()).subscribe({
         next: data => {
           if (!data || !data.season) {
             data = { season: this.competition?.currentSeason?.startDate?.substring(0, 4) || '2024', matchdays: [] };
@@ -264,7 +288,9 @@ export class CompetitionPage implements OnInit, OnDestroy {
   loadPredictions() {
     if (this.competition && this.competition.id && this.userId && this.matches.length > 0) {
       const matchIds = this.matches.map(m => m.id);
-      this.competitionService.getPredictions(this.userId, this.competition.id.toString(), matchIds).subscribe({
+      const targetUserId = this.viewedUserId || this.userId;
+      this.lastLoadedUserId = targetUserId;
+      this.competitionService.getPredictions(targetUserId, this.competition.id.toString(), matchIds).subscribe({
         next: preds => {
           this.predictions = {};
           if (preds && Array.isArray(preds)) {
@@ -461,6 +487,11 @@ export class CompetitionPage implements OnInit, OnDestroy {
       this.selectedMatchday = this.matchdaySteps[idx - 1];
       this.updateCurrentMatchdayPowerups();
       this.enrichMatches();
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { matchday: this.selectedMatchday },
+        queryParamsHandling: 'merge'
+      });
     }
   }
 
@@ -470,7 +501,20 @@ export class CompetitionPage implements OnInit, OnDestroy {
       this.selectedMatchday = this.matchdaySteps[idx + 1];
       this.updateCurrentMatchdayPowerups();
       this.enrichMatches();
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { matchday: this.selectedMatchday },
+        queryParamsHandling: 'merge'
+      });
     }
+  }
+
+  clearViewUser() {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { viewUser: null, viewUserName: null },
+      queryParamsHandling: 'merge'
+    });
   }
 
   get completedPredictions() {

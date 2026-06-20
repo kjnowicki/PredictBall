@@ -523,8 +523,9 @@ func (h *APIHandler) HandlePutPredictionLeague(w http.ResponseWriter, r *http.Re
 
 func (h *APIHandler) HandleGetPredictions(w http.ResponseWriter, r *http.Request) {
 	userId := r.PathValue("id")
-	if !h.authorizeUser(r, userId) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+	authID, ok := r.Context().Value(userIDKey).(string)
+	if !ok || authID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 	compId := r.PathValue("compId")
@@ -540,6 +541,32 @@ func (h *APIHandler) HandleGetPredictions(w http.ResponseWriter, r *http.Request
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// If requesting someone else's predictions, only allow predictions for matches that have already started (locked)
+	if authID != userId {
+		schedule, err := h.Service.GetMatchSchedule(r.Context(), compId)
+		if err != nil {
+			http.Error(w, "Failed to load match schedule for verification: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		lockedMatches := make(map[int]bool)
+		for _, m := range schedule {
+			isPredictable := (string(m.Status) == "SCHEDULED" || string(m.Status) == "TIMED" || string(m.Status) == "LINEUPS-READY") && m.StartTime.After(time.Now())
+			if !isPredictable {
+				lockedMatches[m.ID] = true
+			}
+		}
+
+		var filteredPreds []models.Prediction
+		for _, p := range preds {
+			if lockedMatches[p.MatchID] {
+				filteredPreds = append(filteredPreds, p)
+			}
+		}
+		preds = filteredPreds
+	}
+
 	WriteJSON(w, http.StatusOK, preds)
 }
 
@@ -575,8 +602,9 @@ func (h *APIHandler) HandlePutPrediction(w http.ResponseWriter, r *http.Request)
 
 func (h *APIHandler) HandleGetPowerups(w http.ResponseWriter, r *http.Request) {
 	userId := r.PathValue("id")
-	if !h.authorizeUser(r, userId) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+	authID, ok := r.Context().Value(userIDKey).(string)
+	if !ok || authID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 	compId := r.PathValue("compId")
@@ -586,6 +614,45 @@ func (h *APIHandler) HandleGetPowerups(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// If requesting someone else's powerups, mask powerups for matches that have not started yet (not locked)
+	if authID != userId {
+		schedule, err := h.Service.GetMatchSchedule(r.Context(), compId)
+		if err != nil {
+			http.Error(w, "Failed to load match schedule for verification: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		lockedMatches := make(map[int]bool)
+		for _, m := range schedule {
+			isPredictable := (string(m.Status) == "SCHEDULED" || string(m.Status) == "TIMED" || string(m.Status) == "LINEUPS-READY") && m.StartTime.After(time.Now())
+			if !isPredictable {
+				lockedMatches[m.ID] = true
+			}
+		}
+
+		if data != nil && len(data.Matchdays) > 0 {
+			var filteredMatchdays []models.MatchdayPowerups
+			for _, md := range data.Matchdays {
+				filteredMd := models.MatchdayPowerups{
+					MatchdayNumber: md.MatchdayNumber,
+				}
+				if md.DoubleScorerMatchId > 0 && lockedMatches[md.DoubleScorerMatchId] {
+					filteredMd.DoubleScorerMatchId = md.DoubleScorerMatchId
+					filteredMd.DoubleScorerId = md.DoubleScorerId
+				}
+				if md.TripleScoreMatchId > 0 && lockedMatches[md.TripleScoreMatchId] {
+					filteredMd.TripleScoreMatchId = md.TripleScoreMatchId
+				}
+				if md.ReversalMatchId > 0 && lockedMatches[md.ReversalMatchId] {
+					filteredMd.ReversalMatchId = md.ReversalMatchId
+				}
+				filteredMatchdays = append(filteredMatchdays, filteredMd)
+			}
+			data.Matchdays = filteredMatchdays
+		}
+	}
+
 	WriteJSON(w, http.StatusOK, data)
 }
 

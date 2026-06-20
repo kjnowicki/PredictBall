@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { CommonModule, DOCUMENT } from '@angular/common';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatTableModule } from '@angular/material/table';
 import { PredictionLeagueService } from '../services/prediction-league.service';
@@ -12,6 +12,7 @@ interface Player {
   position: number;
   name: string;
   points: number;
+  userId?: number;
 }
 
 @Component({
@@ -19,7 +20,8 @@ interface Player {
   imports: [
     CommonModule,
     MatCardModule,
-    MatTableModule
+    MatTableModule,
+    RouterModule
   ],
   templateUrl: './league-page.html',
   styleUrl: './league-page.css',
@@ -30,6 +32,7 @@ export class LeaguePage implements OnInit {
   leagueName = 'League';
   leagueJoinCode = '';
   errorMessage: string | null = null;
+  currentUserId: string | null = null;
 
   players: Player[] = [];
   displayedColumns: string[] = ['position', 'name', 'points'];
@@ -38,8 +41,18 @@ export class LeaguePage implements OnInit {
   private leagueService = inject(PredictionLeagueService);
   private userService = inject(UserService);
   private cdr = inject(ChangeDetectorRef);
+  private document = inject(DOCUMENT);
 
   ngOnInit(): void {
+    const cookies = this.document.cookie.split(';');
+    for (const cookie of cookies) {
+      const [key, value] = cookie.split('=', 2).map(c => c.trim());
+      if (key === 'userId') {
+        this.currentUserId = value ? decodeURIComponent(value).replace(/^"|"$/g, '') : null;
+        break;
+      }
+    }
+
     this.route.paramMap.subscribe(params => {
       this.leagueId = params.get('id');
       this.competitionId = params.get('compId') || this.route.parent?.snapshot.paramMap.get('id') || null;
@@ -108,7 +121,8 @@ export class LeaguePage implements OnInit {
           this.players = users.map((u: any, index: number) => ({
             position: index + 1,
             name: u.name,
-            points: u.points || 0
+            points: u.points || 0,
+            userId: u.userId
           }));
           this.cdr.detectChanges();
         };
