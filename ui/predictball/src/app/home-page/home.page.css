@@ -22,8 +22,9 @@
   width: 100%;
 }
 
-.task-row {
-  cursor: pointer;
+.past-date {
+  color: #d32f2f !important;
+  font-weight: 500;
 }
 
 @media (max-width: 1023px) {

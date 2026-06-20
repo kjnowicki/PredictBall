@@ -1,7 +1,7 @@
 package models
 
 type MatchdayPowerups struct {
-	MatchdayNumber      int `json:"matchdayNumber"`
+	MatchdayNumber      any `json:"matchdayNumber"`
 	DoubleScorerMatchId int `json:"doubleScorerMatchId"`
 	DoubleScorerId      int `json:"doubleScorerId"`
 	TripleScoreMatchId  int `json:"tripleScoreMatchId"`

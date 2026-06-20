@@ -179,6 +179,7 @@ func (s *PredictballAPIService) GetMatch(ctx context.Context, compCode string, m
 	match := &models.Match{
 		ID:         apiMatch.ID,
 		Matchday:   apiMatch.Matchday,
+		Stage:      apiMatch.Stage,
 		HomeTeamID: apiMatch.HomeTeam.ID,
 		AwayTeamID: apiMatch.AwayTeam.ID,
 		StartTime:  startTime,

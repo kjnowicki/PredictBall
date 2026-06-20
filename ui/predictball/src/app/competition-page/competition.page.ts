@@ -53,7 +53,8 @@ export class CompetitionPage implements OnInit, OnDestroy {
   competition: Competition | null = null;
   matches: Match[] = [];
   predictions: Record<number, any> = {};
-  selectedMatchday: number = 1;
+  selectedMatchday: any = 1;
+  matchdaySteps: (number | string)[] = [];
   powerupsData: any = null;
   currentMatchdayPowerups: any = { matchdayNumber: 1, doubleScorerMatchId: 0, doubleScorerId: 0, tripleScoreMatchId: 0, reversalMatchId: 0 };
   scoringSystem: ScoringSystem = {
@@ -176,11 +177,42 @@ export class CompetitionPage implements OnInit, OnDestroy {
           next: ({ comp, matches }) => {
             this.competitionName = comp.name;
             this.competition = comp;
-            if (comp.currentSeason?.currentMatchday) {
-              this.selectedMatchday = comp.currentSeason.currentMatchday;
+            this.matches = matches;
+
+            // Extract unique matchdays and stages sorted chronologically by earliest match start time
+            const groups: { [key: string]: { key: number | string, earliestTime: number } } = {};
+            matches.forEach(m => {
+              const key = m.matchday > 0 ? m.matchday : m.stage;
+              if (!key) return;
+              const time = new Date(m.startTime).getTime();
+              if (!groups[key]) {
+                groups[key] = { key, earliestTime: time };
+              } else if (time < groups[key].earliestTime) {
+                groups[key].earliestTime = time;
+              }
+            });
+            const sortedGroups = Object.values(groups).sort((a, b) => a.earliestTime - b.earliestTime);
+            this.matchdaySteps = sortedGroups.map(g => g.key);
+
+            const matchdayParam = this.route.snapshot.queryParamMap.get('matchday');
+            if (matchdayParam) {
+              const mdNum = parseInt(matchdayParam, 10);
+              this.selectedMatchday = isNaN(mdNum) ? matchdayParam : mdNum;
             }
 
-            this.matches = matches;
+            if (!matchdayParam || !this.matchdaySteps.includes(this.selectedMatchday)) {
+              const currentMd = comp.currentSeason?.currentMatchday;
+              if (currentMd && this.matchdaySteps.includes(currentMd)) {
+                this.selectedMatchday = currentMd;
+              } else {
+                const unfinishedGroup = this.matchdaySteps.find(step => {
+                  const groupMatches = this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === step);
+                  return groupMatches.some(m => m.status !== 'FINISHED');
+                });
+                this.selectedMatchday = unfinishedGroup || this.matchdaySteps[0] || 1;
+              }
+            }
+
             this.extractTeams();
             this.enrichMatches();
 
@@ -293,7 +325,7 @@ export class CompetitionPage implements OnInit, OnDestroy {
   }
 
   get filteredMatches() {
-    return this.matches.filter(m => m.matchday === this.selectedMatchday);
+    return this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === this.selectedMatchday);
   }
 
   extractTeams() {
@@ -406,18 +438,39 @@ export class CompetitionPage implements OnInit, OnDestroy {
     }, 0);
   }
 
+  formatMatchdayHeader(val: number | string): string {
+    if (typeof val === 'number') {
+      return `Matchday ${val}`;
+    }
+    const num = Number(val);
+    if (!isNaN(num)) {
+      return `Matchday ${num}`;
+    }
+    return val
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+      .replace('Of', 'of');
+  }
+
   prevMatchday() {
-    if (this.selectedMatchday > 1) {
-      this.selectedMatchday--;
+    const idx = this.matchdaySteps.indexOf(this.selectedMatchday);
+    if (idx > 0) {
+      this.selectedMatchday = this.matchdaySteps[idx - 1];
       this.updateCurrentMatchdayPowerups();
       this.enrichMatches();
     }
   }
 
   nextMatchday() {
-    this.selectedMatchday++;
-    this.updateCurrentMatchdayPowerups();
-    this.enrichMatches();
+    const idx = this.matchdaySteps.indexOf(this.selectedMatchday);
+    if (idx !== -1 && idx < this.matchdaySteps.length - 1) {
+      this.selectedMatchday = this.matchdaySteps[idx + 1];
+      this.updateCurrentMatchdayPowerups();
+      this.enrichMatches();
+    }
   }
 
   get completedPredictions() {

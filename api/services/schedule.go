@@ -41,6 +41,7 @@ func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode s
 			// Merge new schedule info while keeping previous match enrichment
 			existingMatch.StartTime = startTime
 			existingMatch.Status = models.MatchStatus(m.Status)
+			existingMatch.Stage = m.Stage
 			updatedSchedule = append(updatedSchedule, existingMatch)
 		} else {
 			var homeScore, awayScore int
@@ -64,6 +65,7 @@ func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode s
 			updatedSchedule = append(updatedSchedule, models.Match{
 				ID:         m.ID,
 				Matchday:   m.Matchday,
+				Stage:      m.Stage,
 				HomeTeamID: m.HomeTeam.ID,
 				AwayTeamID: m.AwayTeam.ID,
 				StartTime:  startTime,

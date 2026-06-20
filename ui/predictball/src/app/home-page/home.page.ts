@@ -1,28 +1,31 @@
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
-import { Component, OnInit, signal, TemplateRef, ViewChild, inject, PLATFORM_ID, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, signal, inject, PLATFORM_ID, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { PredictionTileComponent } from '../prediction-tile-component/prediction.tile.component';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
-import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { UserService } from '../services/user.service';
 import { CompetitionService } from '../services/competition.service';
 import { PredictionLeagueService } from '../services/prediction-league.service';
 import { MatchService } from '../services/match.service';
 import { Competition } from '../models/competition';
 import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
-import { PredictionLeague, Match, GlobalLeague } from '../models/predictball.models';
+import { catchError, map, switchMap } from 'rxjs/operators';
+import { PredictionLeague, GlobalLeague } from '../models/predictball.models';
+import { Match } from '../models';
 
 interface Task {
-  matchId: string;
-  matchName: string;
-  date: string;
-  status: 'missing' | 'invalid';
+  competitionId: number;
+  competitionName: string;
+  competitionCode: string;
+  matchday: number | string;
+  startTime: Date;
+  isPast: boolean;
+  predictionsMissingCount: number;
 }
 
 @Component({
@@ -31,13 +34,12 @@ interface Task {
     FormsModule,
     RouterLink,
     CommonModule,
-    PredictionTileComponent,
     MatCardModule,
     MatFormFieldModule,
     MatSelectModule,
     MatTableModule,
-    MatDialogModule,
     MatButtonModule,
+    MatIconModule,
   ],
   templateUrl: './home.page.html',
   styleUrl: './home.page.css',
@@ -48,22 +50,16 @@ export class HomePage implements OnInit {
   globalLeagues: { [competitionId: number]: GlobalLeague } = {};
   userLeaguesMap: { [competitionId: number]: number[] } = {};
 
-  tasksFeatureEnabled = false;
+  tasksFeatureEnabled = true;
 
-  tasks: Task[] = [
-    { matchId: 't1', matchName: 'Arsenal vs Chelsea', date: '2023-10-21', status: 'missing' },
-    { matchId: 't2', matchName: 'Real Madrid vs Bayern', date: '2023-10-24', status: 'invalid' }
-  ];
+  tasks: Task[] = [];
 
   selectedCompetitionId = signal(-1);
-  selectedTask: Task | null = null;
-  selectedTaskMatch: Match | null = null;
   currentUserId: number | null = null;
 
   leaguesDisplayedColumns: string[] = ['name', 'participants', 'rank'];
-  tasksDisplayedColumns: string[] = ['matchName', 'date', 'status'];
+  tasksDisplayedColumns: string[] = ['goTo', 'competitionName', 'matchday', 'startTime', 'predictionsMissingCount'];
 
-  readonly dialog = inject(MatDialog);
   private userService = inject(UserService);
   private competitionService = inject(CompetitionService);
   private leagueService = inject(PredictionLeagueService);
@@ -71,8 +67,6 @@ export class HomePage implements OnInit {
   private document = inject(DOCUMENT);
   private platformId = inject(PLATFORM_ID);
   private cdr = inject(ChangeDetectorRef);
-
-  @ViewChild('taskDialog') taskDialog!: TemplateRef<any>;
 
   ngOnInit(): void {
     let userId: string | null = null;
@@ -136,6 +130,7 @@ export class HomePage implements OnInit {
             this.selectedCompetitionId.set(this.competitions[0].id);
             this.loadLeaguesForCompetition(this.competitions[0].id);
           }
+          this.loadTasks(userId);
           this.cdr.detectChanges();
         });
       }
@@ -201,20 +196,145 @@ export class HomePage implements OnInit {
     });
   }
 
-  openTaskModal(task: Task): void {
-    this.selectedTask = task;
-    // this.matchService.getMatch(task.matchId).subscribe({
-    //   next: (match) => {
-    //     this.selectedTaskMatch = match;
-    //     this.dialog.open(this.taskDialog);
-    //   },
-    //   error: (err) => console.error('Error fetching match details for task', err)
-    // });
+  formatMatchdayHeader(val: number | string): string {
+    if (typeof val === 'number') {
+      return `Matchday ${val}`;
+    }
+    const num = Number(val);
+    if (!isNaN(num)) {
+      return `Matchday ${num}`;
+    }
+    return val
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+      .replace('Of', 'of');
   }
 
-  closeModal(): void {
-    this.dialog.closeAll();
-    this.selectedTask = null;
-    this.selectedTaskMatch = null;
+  loadTasks(userId: string) {
+    if (this.competitions.length === 0) {
+      this.tasks = [];
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const tasksRequests = this.competitions.map(comp => {
+      return this.matchService.getMatchSchedule(comp.code).pipe(
+        catchError(() => of([] as Match[])),
+        switchMap(matches => {
+          if (matches.length === 0) {
+            return of({ comp, matches, predictions: [] });
+          }
+          const matchIds = matches.map(m => m.id);
+          return this.competitionService.getPredictions(userId, comp.id.toString(), matchIds).pipe(
+            catchError(() => of([] as any[])),
+            map(predictions => ({ comp, matches, predictions }))
+          );
+        })
+      );
+    });
+
+    forkJoin(tasksRequests).subscribe(results => {
+      const allTasks: Task[] = [];
+      const now = new Date();
+      const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+      const oneDayFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+      results.forEach(({ comp, matches, predictions }) => {
+        // Group matches by matchday or stage
+        const matchdayGroups: { [key: string]: Match[] } = {};
+        matches.forEach(m => {
+          if (m.homeTeamId === 0 || m.awayTeamId === 0) {
+            return;
+          }
+          const key = m.matchday > 0 ? m.matchday.toString() : m.stage;
+          if (!key) return;
+          if (!matchdayGroups[key]) {
+            matchdayGroups[key] = [];
+          }
+          matchdayGroups[key].push(m);
+        });
+
+        // Map predictions by matchId
+        const predictionsMap: { [key: number]: any } = {};
+        predictions.forEach(p => {
+          predictionsMap[p.matchId] = p;
+        });
+
+        // For each matchday group
+        Object.keys(matchdayGroups).forEach(groupKey => {
+          const groupMatches = matchdayGroups[groupKey];
+          if (groupMatches.length === 0) return;
+
+          const parsedNum = parseInt(groupKey, 10);
+          const matchday = isNaN(parsedNum) ? groupKey : parsedNum;
+
+          // Find first match by start time
+          let firstMatch = groupMatches[0];
+          for (let i = 1; i < groupMatches.length; i++) {
+            if (new Date(groupMatches[i].startTime) < new Date(firstMatch.startTime)) {
+              firstMatch = groupMatches[i];
+            }
+          }
+
+          const firstMatchTime = new Date(firstMatch.startTime);
+
+          // Check if first match of matchday is at most in 2 weeks time
+          if (firstMatchTime <= twoWeeksFromNow) {
+            // Count missing predictions
+            let missingCount = 0;
+            groupMatches.forEach(m => {
+              if (m.status === 'FINISHED') {
+                return;
+              }
+              const p = predictionsMap[m.id];
+              let isComplete = false;
+              if (p) {
+                const homeScore = p.homeScore;
+                const awayScore = p.awayScore;
+                const areScoresSet = homeScore !== null && homeScore !== undefined &&
+                                     awayScore !== null && awayScore !== undefined &&
+                                     homeScore !== '' && awayScore !== '';
+                if (areScoresSet) {
+                  const isDrawZero = (Number(homeScore) + Number(awayScore) === 0);
+                  const isScorerSelected = !!p.scorerId && p.scorerId !== 0;
+                  if (isDrawZero || isScorerSelected) {
+                    isComplete = true;
+                  }
+                }
+              }
+              if (!isComplete) {
+                missingCount++;
+              }
+            });
+
+            // If predictions missing count > 0, add to tasks
+            if (missingCount > 0) {
+              allTasks.push({
+                competitionId: comp.id,
+                competitionName: comp.name,
+                competitionCode: comp.code,
+                matchday: matchday,
+                startTime: firstMatchTime,
+                isPast: firstMatchTime <= oneDayFromNow,
+                predictionsMissingCount: missingCount
+              });
+            }
+          }
+        });
+      });
+
+      // Grouped by competition (sort by competition name first, then chronologically by matchday start time)
+      allTasks.sort((a, b) => {
+        const compCompare = a.competitionName.localeCompare(b.competitionName);
+        if (compCompare !== 0) return compCompare;
+        return a.startTime.getTime() - b.startTime.getTime();
+      });
+
+      this.tasks = allTasks;
+      this.cdr.detectChanges();
+    });
   }
 }

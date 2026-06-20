@@ -13,11 +13,11 @@
         <mat-tab label="Predictions">
           <div style="padding-top: 1.5rem; padding-bottom: 1rem;">
             <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem; gap: 1rem;">
-              <button mat-button (click)="prevMatchday()" [disabled]="selectedMatchday <= 1">
+              <button mat-button (click)="prevMatchday()" [disabled]="matchdaySteps.indexOf(selectedMatchday) <= 0">
                 <mat-icon>chevron_left</mat-icon>
               </button>
-              <h2 style="margin: 0; min-width: 150px; text-align: center;">Matchday {{ selectedMatchday }}</h2>
-              <button mat-button (click)="nextMatchday()">
+              <h2 style="margin: 0; min-width: 150px; text-align: center;">{{ formatMatchdayHeader(selectedMatchday) }}</h2>
+              <button mat-button (click)="nextMatchday()" [disabled]="matchdaySteps.indexOf(selectedMatchday) === -1 || matchdaySteps.indexOf(selectedMatchday) === matchdaySteps.length - 1">
                 <mat-icon>chevron_right</mat-icon>
               </button>
             </div>
