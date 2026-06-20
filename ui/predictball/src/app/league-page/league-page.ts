@@ -3,6 +3,8 @@ import { CommonModule, DOCUMENT } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatTableModule } from '@angular/material/table';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { PredictionLeagueService } from '../services/prediction-league.service';
 import { UserService } from '../services/user.service';
 import { forkJoin, of } from 'rxjs';
@@ -21,7 +23,9 @@ interface Player {
     CommonModule,
     MatCardModule,
     MatTableModule,
-    RouterModule
+    RouterModule,
+    MatIconModule,
+    MatTooltipModule
   ],
   templateUrl: './league-page.html',
   styleUrl: './league-page.css',
