@@ -77,8 +77,8 @@ export class CompetitionsPage implements OnInit {
           name: c.name,
           playersCount: 0,
           currentStage: c.currentSeason?.currentMatchday != null ? `Matchday ${c.currentSeason.currentMatchday}` : 'Unknown',
-          score: 0,
-          globalRank: 0
+          score: undefined,
+          globalRank: undefined
         }));
 
         this.myCompetitionsData = mappedComps.filter(c => myCompIds.has(c.id.toString()));
@@ -90,8 +90,11 @@ export class CompetitionsPage implements OnInit {
           this.leagueService.getPredictionLeague(comp.id, 0).subscribe({
             next: (league: GlobalLeague) => {
               comp.playersCount = league.users.length;
-              comp.score = league.users.find(u => u.userId === Number(this.userId))?.points || 0;
-              comp.globalRank = league.users.findIndex(u => u.userId === Number(this.userId)) + 1;
+              const sortedUsers = [...league.users].sort((a, b) => (b.points || 0) - (a.points || 0));
+              const userInLeague = sortedUsers.find(u => u.userId === Number(this.userId));
+              comp.score = userInLeague ? userInLeague.points : undefined;
+              const userIndex = sortedUsers.findIndex(u => u.userId === Number(this.userId));
+              comp.globalRank = userIndex !== -1 ? userIndex + 1 : undefined;
               this.updateTables();
             },
             error: () => { }
