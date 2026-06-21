@@ -236,7 +236,8 @@ func (h *APIHandler) HandleJoinGlobalLeague(w http.ResponseWriter, r *http.Reque
 	id := r.PathValue("id")
 	userID := r.URL.Query().Get("user")
 	if !h.authorizeUser(r, userID) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		authID, _ := r.Context().Value(userIDKey).(string)
+		http.Error(w, fmt.Sprintf("Forbidden: authID='%s', userID='%s'", authID, userID), http.StatusForbidden)
 		return
 	}
 	league, err := h.Service.JoinGlobalLeague(r.Context(), id, userID)
@@ -260,7 +261,8 @@ func (h *APIHandler) HandleGetUser(w http.ResponseWriter, r *http.Request) {
 func (h *APIHandler) HandleGetUserLeagues(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if !h.authorizeUser(r, id) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		authID, _ := r.Context().Value(userIDKey).(string)
+		http.Error(w, fmt.Sprintf("Forbidden: authID='%s', id='%s'", authID, id), http.StatusForbidden)
 		return
 	}
 	leagues, err := h.Service.GetUserLeagues(r.Context(), id)
@@ -308,7 +310,8 @@ func (h *APIHandler) HandlePutUser(w http.ResponseWriter, r *http.Request) {
 func (h *APIHandler) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if !h.authorizeUser(r, id) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		authID, _ := r.Context().Value(userIDKey).(string)
+		http.Error(w, fmt.Sprintf("Forbidden: authID='%s', id='%s'", authID, id), http.StatusForbidden)
 		return
 	}
 	var req struct {
@@ -330,7 +333,8 @@ func (h *APIHandler) HandleChangePassword(w http.ResponseWriter, r *http.Request
 func (h *APIHandler) HandleUpdateDisplayName(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if !h.authorizeUser(r, id) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		authID, _ := r.Context().Value(userIDKey).(string)
+		http.Error(w, fmt.Sprintf("Forbidden: authID='%s', id='%s'", authID, id), http.StatusForbidden)
 		return
 	}
 	var req struct {
@@ -351,7 +355,8 @@ func (h *APIHandler) HandleUpdateDisplayName(w http.ResponseWriter, r *http.Requ
 func (h *APIHandler) HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if !h.authorizeUser(r, id) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		authID, _ := r.Context().Value(userIDKey).(string)
+		http.Error(w, fmt.Sprintf("Forbidden: authID='%s', id='%s'", authID, id), http.StatusForbidden)
 		return
 	}
 	var req struct {
@@ -409,7 +414,8 @@ func (h *APIHandler) HandleGetCompetitionLeagues(w http.ResponseWriter, r *http.
 	id := r.PathValue("id")
 	userID := r.URL.Query().Get("user")
 	if !h.authorizeUser(r, userID) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		authID, _ := r.Context().Value(userIDKey).(string)
+		http.Error(w, fmt.Sprintf("Forbidden: authID='%s', userID='%s'", authID, userID), http.StatusForbidden)
 		return
 	}
 	leagues, err := h.Service.GetCompetitionLeagues(r.Context(), id, userID)
@@ -424,7 +430,8 @@ func (h *APIHandler) HandleJoinLeagueByCode(w http.ResponseWriter, r *http.Reque
 	id := r.PathValue("id")
 	userID := r.URL.Query().Get("user")
 	if !h.authorizeUser(r, userID) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		authID, _ := r.Context().Value(userIDKey).(string)
+		http.Error(w, fmt.Sprintf("Forbidden: authID='%s', userID='%s'", authID, userID), http.StatusForbidden)
 		return
 	}
 	var req struct {
@@ -503,7 +510,8 @@ func (h *APIHandler) HandlePutPredictionLeague(w http.ResponseWriter, r *http.Re
 	compId := r.PathValue("compId")
 	userID := r.URL.Query().Get("user")
 	if !h.authorizeUser(r, userID) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		authID, _ := r.Context().Value(userIDKey).(string)
+		http.Error(w, fmt.Sprintf("Forbidden: authID='%s', userID='%s'", authID, userID), http.StatusForbidden)
 		return
 	}
 	var league models.PredictionLeague
@@ -573,7 +581,8 @@ func (h *APIHandler) HandleGetPredictions(w http.ResponseWriter, r *http.Request
 func (h *APIHandler) HandlePutPrediction(w http.ResponseWriter, r *http.Request) {
 	userId := r.PathValue("id")
 	if !h.authorizeUser(r, userId) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		authID, _ := r.Context().Value(userIDKey).(string)
+		http.Error(w, fmt.Sprintf("Forbidden: authID='%s', userId='%s'", authID, userId), http.StatusForbidden)
 		return
 	}
 	compId := r.PathValue("compId")
@@ -659,7 +668,8 @@ func (h *APIHandler) HandleGetPowerups(w http.ResponseWriter, r *http.Request) {
 func (h *APIHandler) HandlePutPowerups(w http.ResponseWriter, r *http.Request) {
 	userId := r.PathValue("id")
 	if !h.authorizeUser(r, userId) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		authID, _ := r.Context().Value(userIDKey).(string)
+		http.Error(w, fmt.Sprintf("Forbidden: authID='%s', userId='%s'", authID, userId), http.StatusForbidden)
 		return
 	}
 	compId := r.PathValue("compId")
