@@ -79,7 +79,7 @@
         matTooltip="Double Scorer"
         matTooltipShowDelay="0">sports_soccer</mat-icon>
       }
-      @if (activePowerup === 'tripleScore' || (!activePowerup && (!availablePowerups?.tripleScoreMatchId || availablePowerups?.tripleScoreMatchId === match.id))) {
+      @if (!isTripleScoreDisabled && (activePowerup === 'tripleScore' || (!activePowerup && (!availablePowerups?.tripleScoreMatchId || availablePowerups?.tripleScoreMatchId === match.id)))) {
       <mat-icon 
         (click)="togglePowerup('tripleScore', $event)"
         [style.color]="activePowerup === 'tripleScore' ? '#1976d2' : '#555'"
@@ -87,7 +87,7 @@
         matTooltip="Triple Score"
         matTooltipShowDelay="0">star_border</mat-icon>
       }
-      @if (activePowerup === 'reversal' || (!activePowerup && (!availablePowerups?.reversalMatchId || availablePowerups?.reversalMatchId === match.id))) {
+      @if (!isReversalDisabled && (activePowerup === 'reversal' || (!activePowerup && (!availablePowerups?.reversalMatchId || availablePowerups?.reversalMatchId === match.id)))) {
       <mat-icon 
         (click)="togglePowerup('reversal', $event)"
         [style.color]="activePowerup === 'reversal' ? '#1976d2' : (isDrawPrediction ? 'darkred' : '#555')"

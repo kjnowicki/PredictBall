@@ -224,9 +224,21 @@ func (s *PredictballAPIService) updateGlobalLeaguePoints(ctx context.Context) {
 				if match, ok := matches[pred.MatchID]; ok {
 					activePowerup := powerupForMatch[match.ID]
 					doubleScorerID := doubleScorerForMatch[match.ID]
-					pts := calculatePointsForPrediction(match, pred, activePowerup, doubleScorerID, scoring)
 
 					key := getMatchdayKey(match)
+					if key != "" {
+						numMatches := matchdayCounts[key]
+						mult := getMatchdayMultiplier(numMatches, N)
+						if activePowerup == "tripleScore" && mult > 1 {
+							activePowerup = ""
+						}
+						if activePowerup == "reversal" && numMatches <= 2 {
+							activePowerup = ""
+						}
+					}
+
+					pts := calculatePointsForPrediction(match, pred, activePowerup, doubleScorerID, scoring)
+
 					if key != "" {
 						matchdayRawPoints[key] += pts
 					} else {

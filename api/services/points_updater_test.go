@@ -42,3 +42,99 @@ func TestGetMatchdayMultiplier(t *testing.T) {
 		}
 	}
 }
+
+func TestPowerupRestrictions(t *testing.T) {
+	// Scoring system
+	scoring := &models.ScoringSystem{
+		ScoreExact: 5,
+		Result:     3,
+	}
+
+	// Match and prediction
+	match := models.Match{
+		ID:       1,
+		Matchday: 1,
+		Status:   "FINISHED",
+		MatchDetails: models.MatchDetails{
+			HomeScore: 2,
+			AwayScore: 1,
+		},
+	}
+	pred := models.Prediction{
+		MatchID:   1,
+		HomeScore: 2,
+		AwayScore: 1,
+	}
+
+	// Case 1: tripleScore with global multiplier (mult > 1) -> should be ignored (mult = 4 since numMatches = 1, N = 24)
+	{
+		activePowerup := "tripleScore"
+		numMatches := 1
+		N := 24
+		mult := getMatchdayMultiplier(numMatches, N)
+		if mult > 1 && activePowerup == "tripleScore" {
+			activePowerup = ""
+		}
+		pts := calculatePointsForPrediction(match, pred, activePowerup, 0, scoring)
+		// Since activePowerup was cleared to "", pts should be 8 (Exact 5 + Result 3).
+		// (if it wasn't cleared, pts would be 24).
+		if pts != 8 {
+			t.Errorf("expected 8 pts, got %d", pts)
+		}
+	}
+
+	// Case 2: tripleScore with no global multiplier (mult == 1, e.g. numMatches = 24, N = 24)
+	{
+		activePowerup := "tripleScore"
+		numMatches := 24
+		N := 24
+		mult := getMatchdayMultiplier(numMatches, N)
+		if mult > 1 && activePowerup == "tripleScore" {
+			activePowerup = ""
+		}
+		pts := calculatePointsForPrediction(match, pred, activePowerup, 0, scoring)
+		// Active powerup should not be cleared, pts should be 24 (8 * 3).
+		if pts != 24 {
+			t.Errorf("expected 24 pts, got %d", pts)
+		}
+	}
+
+	// Case 3: reversal with numMatches <= 2 (e.g. numMatches = 2) -> should be ignored
+	{
+		activePowerup := "reversal"
+		numMatches := 2
+		// Actual: 2 - 1, Prediction: 1 - 2. With reversal, prediction is swapped to 2 - 1, so exact matches.
+		reversalPred := models.Prediction{
+			MatchID:   1,
+			HomeScore: 1,
+			AwayScore: 2,
+		}
+		if numMatches <= 2 && activePowerup == "reversal" {
+			activePowerup = ""
+		}
+		pts := calculatePointsForPrediction(match, reversalPred, activePowerup, 0, scoring)
+		// Since activePowerup was cleared to "", pts should be 0 because 1-2 does not match actual 2-1 and has wrong result.
+		if pts != 0 {
+			t.Errorf("expected 0 pts, got %d", pts)
+		}
+	}
+
+	// Case 4: reversal with numMatches > 2 (e.g. numMatches = 5) -> should be applied
+	{
+		activePowerup := "reversal"
+		numMatches := 5
+		reversalPred := models.Prediction{
+			MatchID:   1,
+			HomeScore: 1,
+			AwayScore: 2,
+		}
+		if numMatches <= 2 && activePowerup == "reversal" {
+			activePowerup = ""
+		}
+		pts := calculatePointsForPrediction(match, reversalPred, activePowerup, 0, scoring)
+		// Active powerup is not cleared, so prediction is swapped to 2-1, yielding 8 pts.
+		if pts != 8 {
+			t.Errorf("expected 8 pts, got %d", pts)
+		}
+	}
+}

@@ -62,10 +62,14 @@
               <div style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; padding: 0 1rem;">
                 <span><mat-icon style="vertical-align: middle;">sports_soccer</mat-icon> <strong>Double Scorer:</strong>
                   Pick a second potential scorer for a single match.</span>
+                @if (currentMatchdayMultiplier === 1) {
                 <span><mat-icon style="vertical-align: middle;">star_border</mat-icon> <strong>Triple Score:</strong>
                   Triples your point yield for the match.</span>
+                }
+                @if (filteredMatches.length > 2) {
                 <span><mat-icon style="vertical-align: middle;">swap_horiz</mat-icon> <strong>Reversal:</strong> Swap
                   the predicted scoreline if the opposite team wins (cannot be used on draws).</span>
+                }
               </div>
             </div>
             <div class="predictions-grid"
@@ -74,7 +78,9 @@
               <app-prediction-tile style="display: block;" [match]="match" [prediction]="predictions[match.id]"
                 [availablePowerups]="currentMatchdayPowerups" [scoringSystem]="scoringSystem"
                 [competition]="competition" [readOnly]="viewedUserId !== null" (isModifying)="onTileModifying($event)"
-                (predictionChanged)="onPredictionChanged(match.id, $event)"></app-prediction-tile>
+                (predictionChanged)="onPredictionChanged(match.id, $event)"
+                [isTripleScoreDisabled]="currentMatchdayMultiplier > 1"
+                [isReversalDisabled]="filteredMatches.length <= 2"></app-prediction-tile>
               }
               @if (filteredMatches.length === 0) {
               <p style="text-align: center; color: gray; grid-column: 1 / -1;">No matches found for this matchday.</p>

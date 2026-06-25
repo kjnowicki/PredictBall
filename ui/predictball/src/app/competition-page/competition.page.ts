@@ -53,7 +53,16 @@ export class CompetitionPage implements OnInit, OnDestroy {
   competition: Competition | null = null;
   matches: Match[] = [];
   predictions: Record<number, any> = {};
-  selectedMatchday: any = 1;
+  private _selectedMatchday: any = 1;
+  get selectedMatchday(): any {
+    return this._selectedMatchday;
+  }
+  set selectedMatchday(val: any) {
+    if (this._selectedMatchday !== val) {
+      this._selectedMatchday = val;
+      this.modifyingCount = 0;
+    }
+  }
   matchdaySteps: (number | string)[] = [];
   powerupsData: any = null;
   currentMatchdayPowerups: any = { matchdayNumber: 1, doubleScorerMatchId: 0, doubleScorerId: 0, tripleScoreMatchId: 0, reversalMatchId: 0 };
@@ -388,22 +397,31 @@ export class CompetitionPage implements OnInit, OnDestroy {
   onPredictionChanged(matchId: number, predictionData: any) {
     if (!this.userId || !this.competition || !this.competition.id) return;
     
+    const match = this.matches.find(m => m.id === matchId);
+    const matchdayKey = match ? (match.matchday > 0 ? match.matchday : match.stage) : this.selectedMatchday;
+
+    let targetMatchdayPowerups = this.powerupsData?.matchdays?.find((m: any) => m.matchdayNumber === matchdayKey);
+    if (!targetMatchdayPowerups && this.powerupsData) {
+      targetMatchdayPowerups = { matchdayNumber: matchdayKey, doubleScorerMatchId: 0, doubleScorerId: 0, tripleScoreMatchId: 0, reversalMatchId: 0 };
+      this.powerupsData.matchdays.push(targetMatchdayPowerups);
+    }
+
     const oldPrediction = this.predictions[matchId];
     let oldPowerup = null;
-    if (this.currentMatchdayPowerups) {
-      if (this.currentMatchdayPowerups.doubleScorerMatchId === matchId) oldPowerup = 'doubleScorer';
-      else if (this.currentMatchdayPowerups.tripleScoreMatchId === matchId) oldPowerup = 'tripleScore';
-      else if (this.currentMatchdayPowerups.reversalMatchId === matchId) oldPowerup = 'reversal';
+    if (targetMatchdayPowerups) {
+      if (targetMatchdayPowerups.doubleScorerMatchId === matchId) oldPowerup = 'doubleScorer';
+      else if (targetMatchdayPowerups.tripleScoreMatchId === matchId) oldPowerup = 'tripleScore';
+      else if (targetMatchdayPowerups.reversalMatchId === matchId) oldPowerup = 'reversal';
     }
     const newPowerup = predictionData.powerup;
     const newDoubleScorerId = predictionData.doubleScorerId || 0;
 
     const powerupChanged = oldPowerup !== newPowerup;
-    const doubleScorerChanged = newPowerup === 'doubleScorer' && this.currentMatchdayPowerups.doubleScorerId !== newDoubleScorerId;
+    const doubleScorerChanged = newPowerup === 'doubleScorer' && targetMatchdayPowerups && targetMatchdayPowerups.doubleScorerId !== newDoubleScorerId;
 
     if (powerupChanged || doubleScorerChanged) {
       // Create a new object reference to ensure Angular change detection pushes the update to all child tiles
-      const updatedPowerups = { ...this.currentMatchdayPowerups };
+      const updatedPowerups = { ...targetMatchdayPowerups };
 
       if (powerupChanged) {
         if (oldPowerup === 'doubleScorer') { updatedPowerups.doubleScorerMatchId = 0; updatedPowerups.doubleScorerId = 0; }
@@ -417,10 +435,12 @@ export class CompetitionPage implements OnInit, OnDestroy {
         updatedPowerups.doubleScorerId = newDoubleScorerId;
       }
 
-      this.currentMatchdayPowerups = updatedPowerups;
+      if (matchdayKey === this.selectedMatchday) {
+        this.currentMatchdayPowerups = updatedPowerups;
+      }
       
       if (this.powerupsData && this.powerupsData.matchdays) {
-        const mdIndex = this.powerupsData.matchdays.findIndex((m: any) => m.matchdayNumber === this.selectedMatchday);
+        const mdIndex = this.powerupsData.matchdays.findIndex((m: any) => m.matchdayNumber === matchdayKey);
         if (mdIndex > -1) {
           this.powerupsData.matchdays[mdIndex] = updatedPowerups;
         }
@@ -587,6 +607,13 @@ export class CompetitionPage implements OnInit, OnDestroy {
           } else if (this.currentMatchdayPowerups.reversalMatchId === match.id) {
             powerup = 'reversal';
           }
+        }
+
+        if (powerup === 'tripleScore' && this.currentMatchdayMultiplier > 1) {
+          powerup = null;
+        }
+        if (powerup === 'reversal' && this.filteredMatches.length <= 2) {
+          powerup = null;
         }
 
         const enrichedPrediction = {

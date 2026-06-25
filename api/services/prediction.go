@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"predictball_api/models"
+	"strconv"
 	"time"
 )
 
@@ -159,6 +160,80 @@ func (s *PredictballAPIService) PutPowerups(ctx context.Context, userID string, 
 	resolvedCompID, err := s.ResolveCompetitionID(ctx, compID)
 	if err != nil {
 		return nil, err
+	}
+
+	schedule, err := s.GetMatchSchedule(ctx, resolvedCompID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch schedule to validate powerups: %v", err)
+	}
+
+	// Group schedule matches by matchday/stage key to get match counts and N
+	matchdayCounts := make(map[string]int)
+	for _, m := range schedule {
+		key := getMatchdayKey(m)
+		if key != "" {
+			matchdayCounts[key]++
+		}
+	}
+
+	N := 0
+	for _, count := range matchdayCounts {
+		if count > N {
+			N = count
+		}
+	}
+
+	// Create a map of match ID to matchday key
+	matchToKey := make(map[int]string)
+	for _, m := range schedule {
+		matchToKey[m.ID] = getMatchdayKey(m)
+	}
+
+	for i, md := range data.Matchdays {
+		key := ""
+		if strKey, ok := md.MatchdayNumber.(string); ok {
+			key = strKey
+		} else if floatKey, ok := md.MatchdayNumber.(float64); ok {
+			key = strconv.Itoa(int(floatKey))
+		} else if intKey, ok := md.MatchdayNumber.(int); ok {
+			key = strconv.Itoa(intKey)
+		}
+
+		numMatches := matchdayCounts[key]
+		mult := getMatchdayMultiplier(numMatches, N)
+
+		// 1) Triple Score power up only allowed when there's no global multiplier (mult == 1)
+		if mult > 1 && md.TripleScoreMatchId != 0 {
+			md.TripleScoreMatchId = 0
+		}
+
+		// 2) Reversal powerup not allowed when there are only two matches or less
+		if numMatches <= 2 && md.ReversalMatchId != 0 {
+			md.ReversalMatchId = 0
+		}
+
+		// 3) Match stage/matchday mismatch check (self-healing)
+		if md.DoubleScorerMatchId != 0 {
+			matchKey, exists := matchToKey[md.DoubleScorerMatchId]
+			if !exists || matchKey != key {
+				md.DoubleScorerMatchId = 0
+				md.DoubleScorerId = 0
+			}
+		}
+		if md.TripleScoreMatchId != 0 {
+			matchKey, exists := matchToKey[md.TripleScoreMatchId]
+			if !exists || matchKey != key {
+				md.TripleScoreMatchId = 0
+			}
+		}
+		if md.ReversalMatchId != 0 {
+			matchKey, exists := matchToKey[md.ReversalMatchId]
+			if !exists || matchKey != key {
+				md.ReversalMatchId = 0
+			}
+		}
+
+		data.Matchdays[i] = md
 	}
 
 	s.mu.Lock()

@@ -50,6 +50,8 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
   @Input() scoringSystem?: any;
   @Input() competition?: any;
   @Input() readOnly: boolean = false;
+  @Input() isTripleScoreDisabled: boolean = false;
+  @Input() isReversalDisabled: boolean = false;
   @Output() predictionChanged = new EventEmitter<any>();
   @Output() isModifying = new EventEmitter<boolean>();
 
@@ -76,6 +78,7 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
   private liveUpdateInterval: any;
   private statusCheckInterval: any;
   private saveTimeout: any;
+  private hasUnsavedChanges = false;
   private _isCurrentlyModifying = false;
 
   get isPredictionDisabled(): boolean {
@@ -109,6 +112,12 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
       clearInterval(this.liveUpdateInterval);
     }
     this.stopStatusTimer();
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+      if (this.hasUnsavedChanges) {
+        this.emitPrediction();
+      }
+    }
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -132,9 +141,9 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
         if (!prev || prev.doubleScorerMatchId !== this.match.id || prev.doubleScorerId !== this.availablePowerups.doubleScorerId) {
           this.secondScorer = this.availablePowerups.doubleScorerId === 0 ? null : this.availablePowerups.doubleScorerId;
         }
-      } else if (this.availablePowerups.tripleScoreMatchId === this.match.id) {
+      } else if (this.availablePowerups.tripleScoreMatchId === this.match.id && !this.isTripleScoreDisabled) {
         this.activePowerup = 'tripleScore';
-      } else if (this.availablePowerups.reversalMatchId === this.match.id) {
+      } else if (this.availablePowerups.reversalMatchId === this.match.id && !this.isReversalDisabled) {
         this.activePowerup = 'reversal';
       } else {
         this.activePowerup = null;
@@ -301,8 +310,12 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
 
     if (this.activePowerup !== powerup) {
       if (powerup === 'doubleScorer' && this.availablePowerups?.doubleScorerMatchId && this.availablePowerups.doubleScorerMatchId !== this.match.id) return;
-      if (powerup === 'tripleScore' && this.availablePowerups?.tripleScoreMatchId && this.availablePowerups.tripleScoreMatchId !== this.match.id) return;
+      if (powerup === 'tripleScore') {
+        if (this.isTripleScoreDisabled) return;
+        if (this.availablePowerups?.tripleScoreMatchId && this.availablePowerups.tripleScoreMatchId !== this.match.id) return;
+      }
       if (powerup === 'reversal') {
+        if (this.isReversalDisabled) return;
         if (this.availablePowerups?.reversalMatchId && this.availablePowerups.reversalMatchId !== this.match.id) return;
         if (this.isDrawPrediction) return;
       }
@@ -344,6 +357,7 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     this.setModifyingState(true);
+    this.hasUnsavedChanges = true;
 
     this.saveTimeout = setTimeout(() => {
       this.saveTimeout = null;
@@ -354,6 +368,7 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
 
   emitPrediction() {
     if (this.homeGoalsPrediction !== null && this.awayGoalsPrediction !== null) {
+      this.hasUnsavedChanges = false;
       this.predictionChanged.emit({
         homeScore: this.homeGoalsPrediction,
         awayScore: this.awayGoalsPrediction,
