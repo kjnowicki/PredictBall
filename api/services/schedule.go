@@ -42,25 +42,26 @@ func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode s
 			existingMatch.StartTime = startTime
 			existingMatch.Status = models.MatchStatus(m.Status)
 			existingMatch.Stage = m.Stage
-			updatedSchedule = append(updatedSchedule, existingMatch)
-		} else {
-			var homeScore, awayScore int
-			if m.Score.FullTime.Home != nil {
-				homeScore = *m.Score.FullTime.Home
-			}
-			if m.Score.FullTime.Away != nil {
-				awayScore = *m.Score.FullTime.Away
+			existingMatch.HomeTeamID = m.HomeTeam.ID
+			existingMatch.AwayTeamID = m.AwayTeam.ID
+
+			homeScore, awayScore := resolveRegularTimeScore(m.Score)
+			liveHomeScore, liveAwayScore := resolveFullTimeScore(m.Score)
+			existingMatch.HomeScore = homeScore
+			existingMatch.AwayScore = awayScore
+			existingMatch.LiveHomeScore = liveHomeScore
+			existingMatch.LiveAwayScore = liveAwayScore
+			existingMatch.Duration = m.Score.Duration
+
+			if len(m.Goals) > 0 {
+				existingMatch.Scorers = filterRegularTimeScorers(m.Goals)
 			}
 
-			scorers := make([]models.Player, 0)
-			for _, g := range m.Goals {
-				if g.Scorer.ID != 0 {
-					scorers = append(scorers, models.Player{
-						ID:   g.Scorer.ID,
-						Name: g.Scorer.Name,
-					})
-				}
-			}
+			updatedSchedule = append(updatedSchedule, existingMatch)
+		} else {
+			homeScore, awayScore := resolveRegularTimeScore(m.Score)
+			liveHomeScore, liveAwayScore := resolveFullTimeScore(m.Score)
+			scorers := filterRegularTimeScorers(m.Goals)
 
 			updatedSchedule = append(updatedSchedule, models.Match{
 				ID:         m.ID,
@@ -71,9 +72,12 @@ func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode s
 				StartTime:  startTime,
 				Status:     models.MatchStatus(m.Status),
 				MatchDetails: models.MatchDetails{
-					HomeScore: homeScore,
-					AwayScore: awayScore,
-					Scorers:   scorers,
+					HomeScore:     homeScore,
+					AwayScore:     awayScore,
+					LiveHomeScore: liveHomeScore,
+					LiveAwayScore: liveAwayScore,
+					Duration:      m.Score.Duration,
+					Scorers:       scorers,
 				},
 			})
 		}

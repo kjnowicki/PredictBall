@@ -111,7 +111,13 @@ export class CompetitionPage implements OnInit, OnDestroy {
 
   enrichMatches() {
     if (!this.competitionCode) return;
-    const matchesToEnrich = this.filteredMatches.filter(m => m.status === 'FINISHED' || m.status === 'IN_PLAY' || m.status === 'PAUSED');
+    const matchesToEnrich = this.filteredMatches.filter(m => 
+      m.status === 'FINISHED' || 
+      m.status === 'IN_PLAY' || 
+      m.status === 'PAUSED' || 
+      m.status === 'LIVE' ||
+      new Date(m.startTime).getTime() < Date.now()
+    );
     
     if (matchesToEnrich.length > 0) {
       const requests = matchesToEnrich.map(m => 
@@ -234,7 +240,19 @@ export class CompetitionPage implements OnInit, OnDestroy {
             if (!matchdayParam || !this.matchdaySteps.includes(this.selectedMatchday)) {
               const currentMd = comp.currentSeason?.currentMatchday;
               if (currentMd && this.matchdaySteps.includes(currentMd)) {
-                this.selectedMatchday = currentMd;
+                const currentMdMatches = this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === currentMd);
+                const isCurrentMdFinished = currentMdMatches.length > 0 && currentMdMatches.every(m => m.status === 'FINISHED');
+                
+                if (isCurrentMdFinished) {
+                  const startIndex = this.matchdaySteps.indexOf(currentMd);
+                  const nextUnfinished = this.matchdaySteps.slice(startIndex).find(step => {
+                    const groupMatches = this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === step);
+                    return groupMatches.some(m => m.status !== 'FINISHED');
+                  });
+                  this.selectedMatchday = nextUnfinished || currentMd;
+                } else {
+                  this.selectedMatchday = currentMd;
+                }
               } else {
                 const unfinishedGroup = this.matchdaySteps.find(step => {
                   const groupMatches = this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === step);

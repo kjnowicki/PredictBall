@@ -28,6 +28,9 @@ export interface MatchDetails {
 	awayBench?: TeamSquad;
 	scorers: Player[];
 	substitutions?: Substitution[];
+	liveHomeScore: number;
+	liveAwayScore: number;
+	duration?: string;
 }
 
 export interface Match {

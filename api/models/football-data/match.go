@@ -59,10 +59,11 @@ type TeamScore struct {
 }
 
 type MatchScore struct {
-	Winner   string    `json:"winner"`
-	Duration string    `json:"duration"`
-	FullTime TeamScore `json:"fullTime"`
-	HalfTime TeamScore `json:"halfTime"`
+	Winner      string    `json:"winner"`
+	Duration    string    `json:"duration"`
+	FullTime    TeamScore `json:"fullTime"`
+	HalfTime    TeamScore `json:"halfTime"`
+	RegularTime TeamScore `json:"regularTime"`
 }
 
 type TeamRef struct {

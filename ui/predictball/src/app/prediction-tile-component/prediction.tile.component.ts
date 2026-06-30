@@ -163,7 +163,7 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
 
   checkStatus() {
     const start = new Date(this.match.startTime);
-    this.isLive = this.match.status === 'IN_PLAY' || this.match.status === 'PAUSED';
+    this.isLive = this.match.status === 'IN_PLAY' || this.match.status === 'PAUSED' || this.match.status === 'LIVE';
     this.isPast = start.getTime() < Date.now() || (this.match.status !== 'SCHEDULED' && this.match.status !== 'TIMED' && this.match.status !== 'LINEUPS-READY');
 
     if (this.isPast) {

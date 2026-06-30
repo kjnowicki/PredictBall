@@ -2,6 +2,7 @@ package services
 
 import (
 	"predictball_api/models"
+	footballdata "predictball_api/models/football-data"
 	"testing"
 )
 
@@ -137,4 +138,88 @@ func TestPowerupRestrictions(t *testing.T) {
 			t.Errorf("expected 8 pts, got %d", pts)
 		}
 	}
+}
+
+func TestRegularTimeHelpers(t *testing.T) {
+	// 1. Test resolveRegularTimeScore
+	t.Run("resolveRegularTimeScore", func(t *testing.T) {
+		h1 := 1
+		a1 := 1
+		h2 := 2
+		a2 := 1
+
+		// Case A: Regular duration, regularTime nil
+		scoreA := footballdata.MatchScore{
+			Winner:   "DRAW",
+			Duration: "REGULAR",
+			FullTime: footballdata.TeamScore{Home: &h1, Away: &a1},
+		}
+		home, away := resolveRegularTimeScore(scoreA)
+		if home != 1 || away != 1 {
+			t.Errorf("expected 1-1, got %d-%d", home, away)
+		}
+
+		// Case B: Extra time duration, regularTime set
+		scoreB := footballdata.MatchScore{
+			Winner:      "HOME_TEAM",
+			Duration:    "EXTRA_TIME",
+			FullTime:    footballdata.TeamScore{Home: &h2, Away: &a2},
+			RegularTime: footballdata.TeamScore{Home: &h1, Away: &a1},
+		}
+		home, away = resolveRegularTimeScore(scoreB)
+		if home != 1 || away != 1 {
+			t.Errorf("expected 1-1, got %d-%d", home, away)
+		}
+
+		// Case C: Penalty shootout duration, regularTime set
+		scoreC := footballdata.MatchScore{
+			Winner:      "HOME_TEAM",
+			Duration:    "PENALTY_SHOOTOUT",
+			FullTime:    footballdata.TeamScore{Home: &h2, Away: &a2},
+			RegularTime: footballdata.TeamScore{Home: &h1, Away: &a1},
+		}
+		home, away = resolveRegularTimeScore(scoreC)
+		if home != 1 || away != 1 {
+			t.Errorf("expected 1-1, got %d-%d", home, away)
+		}
+	})
+
+	// 2. Test filterRegularTimeScorers
+	t.Run("filterRegularTimeScorers", func(t *testing.T) {
+		goals := []footballdata.Goal{
+			{
+				Minute: 30,
+				Type:   "REGULAR",
+				Scorer: footballdata.Scorer{ID: 101, Name: "Player One"},
+			},
+			{
+				Minute: 45,
+				Type:   "PENALTY",
+				Scorer: footballdata.Scorer{ID: 102, Name: "Player Two"},
+			},
+			{
+				Minute: 60,
+				Type:   "OWN",
+				Scorer: footballdata.Scorer{ID: 103, Name: "Player Three"}, // Own goal scorer
+			},
+			{
+				Minute: 95, // Extra time goal
+				Type:   "REGULAR",
+				Scorer: footballdata.Scorer{ID: 104, Name: "Player Four"},
+			},
+		}
+
+		scorers := filterRegularTimeScorers(goals)
+		if len(scorers) != 2 {
+			t.Fatalf("expected 2 scorers, got %d", len(scorers))
+		}
+
+		if scorers[0].ID != 101 || scorers[0].Name != "Player One" {
+			t.Errorf("expected scorer 101 Player One, got %d %s", scorers[0].ID, scorers[0].Name)
+		}
+
+		if scorers[1].ID != 102 || scorers[1].Name != "Player Two" {
+			t.Errorf("expected scorer 102 Player Two, got %d %s", scorers[1].ID, scorers[1].Name)
+		}
+	})
 }

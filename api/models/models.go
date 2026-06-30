@@ -47,6 +47,9 @@ type MatchDetails struct {
 	AwayBench     TeamSquad      `json:"awayBench,omitempty"`
 	Scorers       []Player       `json:"scorers"`
 	Substitutions []Substitution `json:"substitutions,omitempty"`
+	LiveHomeScore int            `json:"liveHomeScore"`
+	LiveAwayScore int            `json:"liveAwayScore"`
+	Duration      string         `json:"duration,omitempty"`
 }
 
 type PredictionLeague struct {

@@ -22,7 +22,19 @@ func (s *PredictballAPIService) fetchMatchCachedDynamic(ctx context.Context, mat
 
 	// Consider if fetchCached already returned something valid
 	if readCache(s, cacheBaseName, &apiMatch) {
-		return &apiMatch, nil
+		isStale := apiMatch.Status == "FINISHED" &&
+			(apiMatch.Score.Duration == "EXTRA_TIME" || apiMatch.Score.Duration == "PENALTY_SHOOTOUT") &&
+			(apiMatch.Score.RegularTime.Home == nil || apiMatch.Score.RegularTime.Away == nil)
+		if !isStale && (apiMatch.Status == "SCHEDULED" || apiMatch.Status == "TIMED" || apiMatch.Status == "LINEUPS-READY") {
+			if matchTime, err := time.Parse(time.RFC3339, apiMatch.UtcDate); err == nil {
+				if time.Now().UTC().After(matchTime) {
+					isStale = true
+				}
+			}
+		}
+		if !isStale {
+			return &apiMatch, nil
+		}
 	}
 
 	if err := s.fetchAPI(ctx, endpoint, nil, &apiMatch); err != nil {
@@ -40,7 +52,7 @@ func (s *PredictballAPIService) fetchMatchCachedDynamic(ctx context.Context, mat
 		} else {
 			ttl = 10 * time.Minute
 		}
-	case "IN_PLAY", "PAUSED":
+	case "IN_PLAY", "PAUSED", "LIVE":
 		ttl = 1 * time.Minute
 	case "FINISHED":
 		ttl = 24 * time.Hour * 365 * 20
@@ -60,23 +72,8 @@ func (s *PredictballAPIService) GetMatchDetails(ctx context.Context, matchID str
 		return nil, err
 	}
 
-	var homeScore, awayScore int
-	if apiMatch.Score.FullTime.Home != nil {
-		homeScore = *apiMatch.Score.FullTime.Home
-	}
-	if apiMatch.Score.FullTime.Away != nil {
-		awayScore = *apiMatch.Score.FullTime.Away
-	}
-
-	scorers := make([]models.Player, 0)
-	for _, g := range apiMatch.Goals {
-		if g.Scorer.ID != 0 {
-			scorers = append(scorers, models.Player{
-				ID:   g.Scorer.ID,
-				Name: g.Scorer.Name,
-			})
-		}
-	}
+	homeScore, awayScore := resolveRegularTimeScore(apiMatch.Score)
+	scorers := filterRegularTimeScorers(apiMatch.Goals)
 
 	var homeLineup, homeBench, awayLineup, awayBench []models.Player
 	for _, p := range apiMatch.HomeTeam.Lineup {
@@ -103,9 +100,13 @@ func (s *PredictballAPIService) GetMatchDetails(ctx context.Context, matchID str
 		})
 	}
 
+	liveHomeScore, liveAwayScore := resolveFullTimeScore(apiMatch.Score)
 	details := &models.MatchDetails{
 		HomeScore:     homeScore,
 		AwayScore:     awayScore,
+		LiveHomeScore: liveHomeScore,
+		LiveAwayScore: liveAwayScore,
+		Duration:      apiMatch.Score.Duration,
 		Scorers:       scorers,
 		HomeLineup:    models.TeamSquad{TeamID: apiMatch.HomeTeam.ID, Players: homeLineup},
 		HomeBench:     models.TeamSquad{TeamID: apiMatch.HomeTeam.ID, Players: homeBench},
@@ -128,23 +129,9 @@ func (s *PredictballAPIService) GetMatch(ctx context.Context, compCode string, m
 		return nil, err
 	}
 
-	var homeScore, awayScore int
-	if apiMatch.Score.FullTime.Home != nil {
-		homeScore = *apiMatch.Score.FullTime.Home
-	}
-	if apiMatch.Score.FullTime.Away != nil {
-		awayScore = *apiMatch.Score.FullTime.Away
-	}
-
-	scorers := make([]models.Player, 0)
-	for _, g := range apiMatch.Goals {
-		if g.Scorer.ID != 0 {
-			scorers = append(scorers, models.Player{
-				ID:   g.Scorer.ID,
-				Name: g.Scorer.Name,
-			})
-		}
-	}
+	homeScore, awayScore := resolveRegularTimeScore(apiMatch.Score)
+	liveHomeScore, liveAwayScore := resolveFullTimeScore(apiMatch.Score)
+	scorers := filterRegularTimeScorers(apiMatch.Goals)
 
 	var startTime time.Time
 	if t, err := time.Parse(time.RFC3339, apiMatch.UtcDate); err == nil {
@@ -187,6 +174,9 @@ func (s *PredictballAPIService) GetMatch(ctx context.Context, compCode string, m
 		MatchDetails: models.MatchDetails{
 			HomeScore:     homeScore,
 			AwayScore:     awayScore,
+			LiveHomeScore: liveHomeScore,
+			LiveAwayScore: liveAwayScore,
+			Duration:      apiMatch.Score.Duration,
 			Scorers:       scorers,
 			HomeLineup:    models.TeamSquad{TeamID: apiMatch.HomeTeam.ID, Players: homeLineup},
 			HomeBench:     models.TeamSquad{TeamID: apiMatch.HomeTeam.ID, Players: homeBench},
