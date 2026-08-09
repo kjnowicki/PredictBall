@@ -38,6 +38,9 @@ func (s *PredictballAPIService) fetchMatchCachedDynamic(ctx context.Context, mat
 	}
 
 	if err := s.fetchAPI(ctx, endpoint, nil, &apiMatch); err != nil {
+		if readCacheAny(s, cacheBaseName, &apiMatch) {
+			return &apiMatch, nil
+		}
 		return nil, err
 	}
 
@@ -188,7 +191,7 @@ func (s *PredictballAPIService) GetMatch(ctx context.Context, compCode string, m
 
 	cacheBaseName := filepath.Join("cache", "schedules", compID)
 	var schedule []models.Match
-	if readCache(s, cacheBaseName, &schedule) {
+	if readCacheAny(s, cacheBaseName, &schedule) {
 		for i, m := range schedule {
 			if m.ID == match.ID {
 				schedule[i] = *match

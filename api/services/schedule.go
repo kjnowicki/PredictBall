@@ -16,7 +16,7 @@ func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode s
 
 	cacheBaseName := filepath.Join("cache", "schedules", fmt.Sprintf("%s_%s", compCode, seasonStr))
 	var existingSchedule []models.Match
-	cacheExists := readCache(s, cacheBaseName, &existingSchedule)
+	cacheExists := readCacheAny(s, cacheBaseName, &existingSchedule)
 
 	comp, err := s.GetCompetition(ctx, compCode)
 	compCodeStr := compCode

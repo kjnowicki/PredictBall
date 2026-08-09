@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -41,6 +42,11 @@ func (s *FootballDataService) fetchCached(ctx context.Context, endpoint string, 
 	}
 
 	if err := s.apiClient.fetchAPI(ctx, endpoint, queryParams, target); err != nil {
+		if readCacheAny(s.apiClient, cacheBaseName, target) {
+			log.Printf("fetchAPI for %s failed (%v); using fallback cached data", endpoint, err)
+			writeCache(s.apiClient, cacheBaseName, target, cacheDuration)
+			return nil
+		}
 		return err
 	}
 
@@ -80,7 +86,12 @@ func (s *FootballDataService) GetCompetitions(ctx context.Context, params map[st
 func (s *FootballDataService) GetTeamDetails(ctx context.Context, teamID int, params map[string]string) (*footballdata.Team, error) {
 	var apiData footballdata.Team
 	if err := s.fetchCached(ctx, fmt.Sprintf("teams/%d", teamID), params, &apiData, 7*24*time.Hour); err != nil {
-		return nil, err
+		return &footballdata.Team{
+			ID:          teamID,
+			Name:        fmt.Sprintf("Team %d", teamID),
+			ShortName:   fmt.Sprintf("Team %d", teamID),
+			LastUpdated: time.Now().Format(time.RFC3339),
+		}, nil
 	}
 	return &apiData, nil
 }

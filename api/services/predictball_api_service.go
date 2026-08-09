@@ -37,6 +37,14 @@ func NewFootballAPIService(apiKey string) *PredictballAPIService {
 }
 
 func readCache(s *PredictballAPIService, baseName string, target any) bool {
+	return readCacheInternal(s, baseName, target, false)
+}
+
+func readCacheAny(s *PredictballAPIService, baseName string, target any) bool {
+	return readCacheInternal(s, baseName, target, true)
+}
+
+func readCacheInternal(s *PredictballAPIService, baseName string, target any, allowExpired bool) bool {
 	s.mu.RLock()
 	files, err := filepath.Glob(baseName + "_*.json")
 	if err != nil || len(files) == 0 {
@@ -59,7 +67,7 @@ func readCache(s *PredictballAPIService, baseName string, target any) bool {
 
 	var data []byte
 	var readErr error
-	if time.Now().Before(bestExp) {
+	if allowExpired || time.Now().Before(bestExp) {
 		data, readErr = os.ReadFile(bestFile)
 	}
 	s.mu.RUnlock()
