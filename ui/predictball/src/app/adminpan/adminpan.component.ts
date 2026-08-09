@@ -2,12 +2,38 @@ import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { MatCardModule } from '@angular/material/card';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDividerModule } from '@angular/material/divider';
 import { AdminService, AdminCompetition, StatsSummary, AdminUserDetail, EndpointStat } from '../services/admin.service';
 
 @Component({
   selector: 'app-adminpan',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    MatCardModule,
+    MatButtonModule,
+    MatIconModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatTabsModule,
+    MatProgressSpinnerModule,
+    MatChipsModule,
+    MatTooltipModule,
+    MatDividerModule
+  ],
   templateUrl: './adminpan.component.html',
   styleUrls: ['./adminpan.component.css']
 })
@@ -134,6 +160,20 @@ export class AdminpanComponent implements OnInit {
   setTab(tab: 'competitions' | 'stats' | 'users'): void {
     this.activeTab = tab;
     this.cdr.markForCheck();
+  }
+
+  get selectedTabIndex(): number {
+    switch (this.activeTab) {
+      case 'competitions': return 0;
+      case 'stats': return 1;
+      case 'users': return 2;
+      default: return 0;
+    }
+  }
+
+  onTabSelected(index: number): void {
+    const tabs: ('competitions' | 'stats' | 'users')[] = ['competitions', 'stats', 'users'];
+    this.setTab(tabs[index] || 'competitions');
   }
 
   // Competitions Methods
