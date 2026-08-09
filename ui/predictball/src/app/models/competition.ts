@@ -15,4 +15,5 @@ export interface Competition {
     type: string;
     emblem: string;
     currentSeason?: Season;
+    seasons?: Season[];
 }

@@ -160,11 +160,11 @@ func (s *TemplateService) JoinGlobalLeague(ctx context.Context, competitionID st
 	return &models.GlobalLeague{}, nil
 }
 
-func (s *TemplateService) GetPredictionLeague(ctx context.Context, competitionID string, leagueID string) (any, error) {
+func (s *TemplateService) GetPredictionLeague(ctx context.Context, competitionID string, leagueID string, season ...string) (any, error) {
 	return &models.PredictionLeague{ID: 1, Name: "Premier League Predictors", JoinCode: "PL2026"}, nil
 }
 
-func (s *TemplateService) GetCompetitionLeagues(ctx context.Context, competitionID string, userID string) (any, error) {
+func (s *TemplateService) GetCompetitionLeagues(ctx context.Context, competitionID string, userID string, season ...string) (any, error) {
 	return map[string]any{
 		"publicLeagues": []map[string]any{
 			{"id": 1, "name": "Global League", "public": true, "participants": 100},

@@ -10,11 +10,12 @@ import (
 	"path/filepath"
 	"predictball_api/models"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 )
 
-func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, competitionID string, leagueID string) (any, error) {
+func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, competitionID string, leagueID string, season ...string) (any, error) {
 	compID, err := s.ResolveCompetitionID(ctx, competitionID)
 	if err != nil {
 		return nil, err
@@ -26,8 +27,16 @@ func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, competi
 	}
 
 	var filename string
-	if idInt < 0 {
+	if idInt <= 0 {
 		filename = "0.json"
+		if len(season) > 0 && season[0] != "" {
+			comp, _ := s.GetCompetition(ctx, competitionID)
+			resolvedSeason := resolveSeasonString(comp, season[0])
+			archivedPath := filepath.Join("data", "competitions", compID, "leagues", "archive", fmt.Sprintf("0_%s.json", resolvedSeason))
+			if _, err := os.Stat(archivedPath); err == nil {
+				filename = filepath.Join("archive", fmt.Sprintf("0_%s.json", resolvedSeason))
+			}
+		}
 	} else {
 		filename = fmt.Sprintf("%s.json", leagueID)
 	}
@@ -259,6 +268,7 @@ type LeagueDTO struct {
 	Name         string `json:"name"`
 	Public       bool   `json:"public"`
 	Participants int    `json:"participants"`
+	UserPlace    *int   `json:"userPlace,omitempty"`
 }
 
 type LeaguesResponse struct {
@@ -266,7 +276,7 @@ type LeaguesResponse struct {
 	YourLeagues   []LeagueDTO `json:"yourLeagues"`
 }
 
-func (s *PredictballAPIService) GetCompetitionLeagues(ctx context.Context, competitionID string, userID string) (any, error) {
+func (s *PredictballAPIService) GetCompetitionLeagues(ctx context.Context, competitionID string, userID string, season ...string) (any, error) {
 	compID, err := s.ResolveCompetitionID(ctx, competitionID)
 	if err != nil {
 		return nil, err
@@ -292,6 +302,32 @@ func (s *PredictballAPIService) GetCompetitionLeagues(ctx context.Context, compe
 
 	uid, _ := strconv.Atoi(userID)
 
+	// Determine global league file to read user points for requested season
+	globalPath := filepath.Join(dir, "0.json")
+	if len(season) > 0 && season[0] != "" {
+		comp, _ := s.GetCompetition(ctx, competitionID)
+		resolvedSeason := resolveSeasonString(comp, season[0])
+		archivedPath := filepath.Join(dir, "archive", fmt.Sprintf("0_%s.json", resolvedSeason))
+		if _, err := os.Stat(archivedPath); err == nil {
+			globalPath = archivedPath
+		}
+	}
+
+	globalPointsMap := make(map[int]int)
+	if globalData, err := os.ReadFile(globalPath); err == nil {
+		var globalLeague struct {
+			Users []struct {
+				UserID int `json:"userId"`
+				Points int `json:"points"`
+			} `json:"users"`
+		}
+		if err := json.Unmarshal(globalData, &globalLeague); err == nil {
+			for _, u := range globalLeague.Users {
+				globalPointsMap[u.UserID] = u.Points
+			}
+		}
+	}
+
 	for _, file := range files {
 		if filepath.Ext(file.Name()) == ".json" {
 			data, err := os.ReadFile(filepath.Join(dir, file.Name()))
@@ -304,23 +340,54 @@ func (s *PredictballAPIService) GetCompetitionLeagues(ctx context.Context, compe
 				Public bool   `json:"public"`
 				Users  []struct {
 					UserID int `json:"userId"`
+					Points int `json:"points"`
 				} `json:"users"`
 				UserIDs []int `json:"userIds"`
 			}
 			if err := json.Unmarshal(data, &league); err == nil {
 				isMember := false
-				participants := len(league.UserIDs) + len(league.Users)
+				memberIDs := make(map[int]bool)
 
 				for _, u := range league.Users {
+					memberIDs[u.UserID] = true
 					if u.UserID == uid {
 						isMember = true
-						break
 					}
 				}
 				for _, uID := range league.UserIDs {
+					memberIDs[uID] = true
 					if uID == uid {
 						isMember = true
-						break
+					}
+				}
+
+				participants := len(memberIDs)
+
+				type memberScore struct {
+					userID int
+					points int
+				}
+				var members []memberScore
+				for mID := range memberIDs {
+					pts := globalPointsMap[mID]
+					members = append(members, memberScore{userID: mID, points: pts})
+				}
+
+				sort.Slice(members, func(i, j int) bool {
+					if members[i].points == members[j].points {
+						return members[i].userID < members[j].userID
+					}
+					return members[i].points > members[j].points
+				})
+
+				var userPlace *int
+				if isMember {
+					for idx, m := range members {
+						if m.userID == uid {
+							rank := idx + 1
+							userPlace = &rank
+							break
+						}
 					}
 				}
 
@@ -329,6 +396,7 @@ func (s *PredictballAPIService) GetCompetitionLeagues(ctx context.Context, compe
 					Name:         league.Name,
 					Public:       league.Public,
 					Participants: participants,
+					UserPlace:    userPlace,
 				}
 
 				if league.Public {

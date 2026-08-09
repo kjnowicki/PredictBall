@@ -23,10 +23,10 @@ type APIService interface {
 	GetCompetitions(ctx context.Context) ([]footballdata.Competition, error)
 	GetCompetition(ctx context.Context, code string) (*footballdata.Competition, error)
 
-	GetPredictionLeague(ctx context.Context, competitionID string, leagueID string) (any, error)
+	GetPredictionLeague(ctx context.Context, competitionID string, leagueID string, season ...string) (any, error)
 	PutPredictionLeague(ctx context.Context, competitionID string, userID string, league models.PredictionLeague) (*models.PredictionLeague, error)
 	JoinGlobalLeague(ctx context.Context, competitionID string, userID string) (*models.GlobalLeague, error)
-	GetCompetitionLeagues(ctx context.Context, competitionID string, userID string) (any, error)
+	GetCompetitionLeagues(ctx context.Context, competitionID string, userID string, season ...string) (any, error)
 	JoinLeagueByCode(ctx context.Context, competitionID string, userID string, joinCode string) (any, error)
 
 	GetPredictions(ctx context.Context, userID string, compID string, matchIDs []int) ([]models.Prediction, error)

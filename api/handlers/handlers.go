@@ -506,12 +506,13 @@ func (h *APIHandler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 func (h *APIHandler) HandleGetCompetitionLeagues(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	userID := r.URL.Query().Get("user")
+	season := r.URL.Query().Get("season")
 	if !h.authorizeUser(r, userID) {
 		authID, _ := r.Context().Value(userIDKey).(string)
 		http.Error(w, fmt.Sprintf("Forbidden: authID='%s', userID='%s'", authID, userID), http.StatusForbidden)
 		return
 	}
-	leagues, err := h.Service.GetCompetitionLeagues(r.Context(), id, userID)
+	leagues, err := h.Service.GetCompetitionLeagues(r.Context(), id, userID, season)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -542,6 +543,7 @@ func (h *APIHandler) HandleJoinLeagueByCode(w http.ResponseWriter, r *http.Reque
 func (h *APIHandler) HandleGetPredictionLeague(w http.ResponseWriter, r *http.Request) {
 	compId := r.PathValue("compId")
 	leagueId := r.PathValue("leagueId")
+	season := r.URL.Query().Get("season")
 
 	authID, ok := r.Context().Value(userIDKey).(string)
 	if !ok || authID == "" {
@@ -549,7 +551,7 @@ func (h *APIHandler) HandleGetPredictionLeague(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	league, err := h.Service.GetPredictionLeague(r.Context(), compId, leagueId)
+	league, err := h.Service.GetPredictionLeague(r.Context(), compId, leagueId, season)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

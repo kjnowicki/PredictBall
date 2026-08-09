@@ -107,7 +107,8 @@ export class HomePage implements OnInit {
           this.competitions = comps.filter(c => c !== null).map(c => ({ ...c, points: 0 }));
           
           this.competitions.forEach(comp => {
-            this.leagueService.getPredictionLeague(comp.id, 0).subscribe({
+            const season = this.getCompSeason(comp);
+            this.leagueService.getPredictionLeague(comp.id, 0, season).subscribe({
               next: (league: any) => {
                 if (league && league.users) {
                   this.globalLeagues[comp.id] = league;
@@ -137,6 +138,21 @@ export class HomePage implements OnInit {
     });
   }
 
+  getCompSeason(comp?: Competition): string {
+    if (!comp) return '';
+    if (comp.currentSeason?.startDate && comp.currentSeason.startDate.length >= 4) {
+      return comp.currentSeason.startDate.substring(0, 4);
+    }
+    if (comp.seasons && comp.seasons.length > 0) {
+      const s = comp.seasons[0];
+      if (s.startDate && s.startDate.length >= 4) {
+        return s.startDate.substring(0, 4);
+      }
+      if (s.id) return s.id.toString();
+    }
+    return comp.currentSeason?.id ? comp.currentSeason.id.toString() : '';
+  }
+
   get currentCompetition(): (Competition & { points?: number }) | undefined {
     return this.competitions.find(c => c.id === this.selectedCompetitionId());
   }
@@ -154,8 +170,11 @@ export class HomePage implements OnInit {
       return;
     }
 
+    const comp = this.competitions.find(c => c.id === compId);
+    const season = this.getCompSeason(comp);
+
     const leagueReqs = leagueIds.map(id =>
-      this.leagueService.getPredictionLeague(compId, id.toString()).pipe(
+      this.leagueService.getPredictionLeague(compId, id.toString(), season).pipe(
         catchError(() => of(null))
       )
     );

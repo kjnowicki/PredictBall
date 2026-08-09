@@ -10,6 +10,7 @@ import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { PredictionTileComponent } from '../prediction-tile-component/prediction.tile.component';
 import { CompetitionService } from '../services/competition.service';
 import { PredictionLeagueService } from '../services/prediction-league.service';
@@ -19,13 +20,14 @@ import { ScoringSystemService } from '../services/scoring-system.service';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { Match, ScoringSystem } from '../models';
-import { Competition } from '../models/competition';
+import { Competition, Season } from '../models/competition';
 import { calculatePredictionPoints } from '../utils/scoring.utils';
 
 interface PublicLeague {
   id: string;
   name: string;
   participants: number;
+  userPlace?: number | null;
 }
 
 @Component({
@@ -42,6 +44,7 @@ interface PublicLeague {
     MatFormFieldModule,
     MatTooltipModule,
     MatInputModule,
+    MatSelectModule,
     PredictionTileComponent
   ],
   templateUrl: './competition.page.html',
@@ -91,8 +94,13 @@ export class CompetitionPage implements OnInit, OnDestroy {
   viewedUserName: string | null = null;
   private lastLoadedUserId: string | null = null;
   
+  selectedSeason: string = '';
+  availableSeasons: Season[] = [];
+  isRetiredSeason: boolean = false;
+  selectedTabIndex: number = 0;
+
   loadError: string = '';
-  leaguesDisplayedColumns: string[] = ['name', 'participants'];
+  leaguesDisplayedColumns: string[] = ['name', 'participants', 'userPlace'];
   teams: any[] = [];
   teamsDisplayedColumns: string[] = ['crest', 'name'];
 
@@ -109,6 +117,49 @@ export class CompetitionPage implements OnInit, OnDestroy {
     private matchService: MatchService,
     private cdr: ChangeDetectorRef
   ) {}
+
+  getSeasonValue(season: Season): string {
+    if (season.startDate && season.startDate.length >= 4) {
+      return season.startDate.substring(0, 4);
+    }
+    return season.id ? season.id.toString() : '';
+  }
+
+  formatSeasonLabel(season: Season): string {
+    let label = '';
+    if (season.startDate && season.startDate.length >= 4) {
+      label = season.startDate.substring(0, 4);
+      if (season.endDate && season.endDate.length >= 4 && season.endDate.substring(0, 4) !== label) {
+        label += `/${season.endDate.substring(0, 4)}`;
+      }
+    } else if (season.id) {
+      label = `Season ${season.id}`;
+    }
+    if (season.isRetired) {
+      label += ' (Retired)';
+    }
+    return label;
+  }
+
+  onSeasonChange(seasonVal: string) {
+    if (this.selectedSeason === seasonVal) return;
+    this.selectedSeason = seasonVal;
+    
+    const sel = this.availableSeasons.find(s => this.getSeasonValue(s) === seasonVal);
+    this.isRetiredSeason = !!sel?.isRetired;
+
+    if (this.isRetiredSeason && this.selectedTabIndex === 0) {
+      this.selectedTabIndex = 1;
+    }
+
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { season: this.selectedSeason },
+      queryParamsHandling: 'merge'
+    });
+
+    this.loadScheduleAndDetails();
+  }
 
   enrichMatches() {
     if (!this.competitionCode) return;
@@ -197,22 +248,30 @@ export class CompetitionPage implements OnInit, OnDestroy {
         this.updateCurrentMatchdayPowerups();
       }
 
+      const seasonParam = queryParams.get('season');
+      if (seasonParam && seasonParam !== this.selectedSeason && this.availableSeasons.length > 0) {
+        if (this.availableSeasons.some(s => this.getSeasonValue(s) === seasonParam)) {
+          this.onSeasonChange(seasonParam);
+        }
+      }
+
       const targetUserId = this.viewedUserId || this.userId;
       if (targetUserId && targetUserId !== this.lastLoadedUserId) {
         this.lastLoadedUserId = targetUserId;
-        this.loadPowerups();
-        this.loadPredictions();
+        if (!this.isRetiredSeason) {
+          this.loadPowerups();
+          this.loadPredictions();
+        }
       }
     });
 
     this.route.paramMap.subscribe(params => {
       this.competitionCode = params.get('id');
       if (this.competitionCode) {
-        forkJoin({
-          comp: this.competitionService.getCompetition(this.competitionCode).pipe(catchError(() => of(null))),
-          matches: this.matchService.getMatchSchedule(this.competitionCode).pipe(catchError(() => of([] as Match[])))
-        }).subscribe({
-          next: ({ comp, matches }) => {
+        const seasonQuery = this.route.snapshot.queryParamMap.get('season');
+
+        this.competitionService.getCompetition(this.competitionCode).subscribe({
+          next: (comp) => {
             if (!comp) {
               this.loadError = `Unable to load competition details for '${this.competitionCode}'. It may have been retired or is currently unavailable.`;
               this.cdr.detectChanges();
@@ -221,66 +280,94 @@ export class CompetitionPage implements OnInit, OnDestroy {
             this.loadError = '';
             this.competitionName = comp.name;
             this.competition = comp;
-            this.matches = Array.isArray(matches) ? matches : [];
 
-            // Extract unique matchdays and stages sorted chronologically by earliest match start time
-            const groups: { [key: string]: { key: number | string, earliestTime: number } } = {};
-            this.matches.forEach(m => {
-              const key = m.matchday > 0 ? m.matchday : m.stage;
-              if (!key) return;
-              const time = new Date(m.startTime).getTime();
-              if (!groups[key]) {
-                groups[key] = { key, earliestTime: time };
-              } else if (time < groups[key].earliestTime) {
-                groups[key].earliestTime = time;
-              }
-            });
-            const sortedGroups = Object.values(groups).sort((a, b) => a.earliestTime - b.earliestTime);
-            this.matchdaySteps = sortedGroups.map(g => g.key);
+            this.availableSeasons = comp.seasons || (comp.currentSeason ? [comp.currentSeason] : []);
 
-            const matchdayParam = this.route.snapshot.queryParamMap.get('matchday');
-            if (matchdayParam) {
-              const mdNum = parseInt(matchdayParam, 10);
-              this.selectedMatchday = isNaN(mdNum) ? matchdayParam : mdNum;
+            let initialSeason = seasonQuery;
+            if (!initialSeason || !this.availableSeasons.some(s => this.getSeasonValue(s) === initialSeason)) {
+              initialSeason = comp.currentSeason ? this.getSeasonValue(comp.currentSeason) : (this.availableSeasons[0] ? this.getSeasonValue(this.availableSeasons[0]) : '');
+            }
+            this.selectedSeason = initialSeason;
+            const selSeason = this.availableSeasons.find(s => this.getSeasonValue(s) === this.selectedSeason);
+            this.isRetiredSeason = !!selSeason?.isRetired;
+            if (this.isRetiredSeason && this.selectedTabIndex === 0) {
+              this.selectedTabIndex = 1;
             }
 
-            if (!matchdayParam || !this.matchdaySteps.includes(this.selectedMatchday)) {
-              const currentMd = comp.currentSeason?.currentMatchday;
-              if (currentMd && this.matchdaySteps.includes(currentMd)) {
-                const currentMdMatches = this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === currentMd);
-                const isCurrentMdFinished = currentMdMatches.length > 0 && currentMdMatches.every(m => m.status === 'FINISHED');
-                
-                if (isCurrentMdFinished) {
-                  const startIndex = this.matchdaySteps.indexOf(currentMd);
-                  const nextUnfinished = this.matchdaySteps.slice(startIndex).find(step => {
-                    const groupMatches = this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === step);
-                    return groupMatches.some(m => m.status !== 'FINISHED');
-                  });
-                  this.selectedMatchday = nextUnfinished || currentMd;
-                } else {
-                  this.selectedMatchday = currentMd;
-                }
-              } else {
-                const unfinishedGroup = this.matchdaySteps.find(step => {
-                  const groupMatches = this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === step);
-                  return groupMatches.some(m => m.status !== 'FINISHED');
-                });
-                this.selectedMatchday = unfinishedGroup || this.matchdaySteps[0] || 1;
-              }
-            }
-
-            this.extractTeams();
-            this.enrichMatches();
-
-            this.loadPowerups();
-            this.loadPredictions();
-            this.loadLeagues();
-
-            this.cdr.detectChanges();
+            this.loadScheduleAndDetails();
           },
           error: err => console.error('Error fetching competition data:', err)
         });
       }
+    });
+  }
+
+  loadScheduleAndDetails() {
+    if (!this.competitionCode) return;
+    this.matchService.getMatchSchedule(this.competitionCode, this.selectedSeason).subscribe({
+      next: (matches) => {
+        this.matches = Array.isArray(matches) ? matches : [];
+
+        // Extract unique matchdays and stages sorted chronologically by earliest match start time
+        const groups: { [key: string]: { key: number | string, earliestTime: number } } = {};
+        this.matches.forEach(m => {
+          const key = m.matchday > 0 ? m.matchday : m.stage;
+          if (!key) return;
+          const time = new Date(m.startTime).getTime();
+          if (!groups[key]) {
+            groups[key] = { key, earliestTime: time };
+          } else if (time < groups[key].earliestTime) {
+            groups[key].earliestTime = time;
+          }
+        });
+        const sortedGroups = Object.values(groups).sort((a, b) => a.earliestTime - b.earliestTime);
+        this.matchdaySteps = sortedGroups.map(g => g.key);
+
+        const matchdayParam = this.route.snapshot.queryParamMap.get('matchday');
+        if (matchdayParam) {
+          const mdNum = parseInt(matchdayParam, 10);
+          this.selectedMatchday = isNaN(mdNum) ? matchdayParam : mdNum;
+        }
+
+        if (!matchdayParam || !this.matchdaySteps.includes(this.selectedMatchday)) {
+          const currentMd = this.competition?.currentSeason?.currentMatchday;
+          if (currentMd && this.matchdaySteps.includes(currentMd)) {
+            const currentMdMatches = this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === currentMd);
+            const isCurrentMdFinished = currentMdMatches.length > 0 && currentMdMatches.every(m => m.status === 'FINISHED');
+            
+            if (isCurrentMdFinished) {
+              const startIndex = this.matchdaySteps.indexOf(currentMd);
+              const nextUnfinished = this.matchdaySteps.slice(startIndex).find(step => {
+                const groupMatches = this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === step);
+                return groupMatches.some(m => m.status !== 'FINISHED');
+              });
+              this.selectedMatchday = nextUnfinished || currentMd;
+            } else {
+              this.selectedMatchday = currentMd;
+            }
+          } else {
+            const unfinishedGroup = this.matchdaySteps.find(step => {
+              const groupMatches = this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === step);
+              return groupMatches.some(m => m.status !== 'FINISHED');
+            });
+            this.selectedMatchday = unfinishedGroup || this.matchdaySteps[0] || 1;
+          }
+        }
+
+        this.extractTeams();
+        this.enrichMatches();
+
+        if (!this.isRetiredSeason) {
+          this.loadPowerups();
+          this.loadPredictions();
+        } else {
+          this.predictions = {};
+        }
+        this.loadLeagues();
+
+        this.cdr.detectChanges();
+      },
+      error: err => console.error('Error fetching match schedule:', err)
     });
   }
 
@@ -341,7 +428,7 @@ export class CompetitionPage implements OnInit, OnDestroy {
 
   loadLeagues() {
     if (this.competition && this.competition.id && this.userId) {
-      this.predictionLeagueService.getCompetitionLeagues(this.competition.id.toString(), this.userId).subscribe({
+      this.predictionLeagueService.getCompetitionLeagues(this.competition.id.toString(), this.userId, this.selectedSeason).subscribe({
         next: res => {
           this.publicLeagues = res.publicLeagues;
           this.yourLeagues = res.yourLeagues;
