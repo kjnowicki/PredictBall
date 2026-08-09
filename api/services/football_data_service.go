@@ -37,9 +37,17 @@ func (s *FootballDataService) fetchCached(ctx context.Context, endpoint string, 
 	h.Write([]byte(queryParams.Encode()))
 	cacheBaseName := filepath.Join("cache", endpoint, fmt.Sprintf("%x", h.Sum32()))
 
+	displayEndpoint := "v4/" + endpoint
+	if len(params) > 0 {
+		displayEndpoint += " (" + queryParams.Encode() + ")"
+	}
+
 	if readCache(s.apiClient, cacheBaseName, target) {
+		GlobalStatsTracker.RecordAPICacheHit(displayEndpoint)
 		return nil
 	}
+
+	GlobalStatsTracker.RecordAPICacheMiss(displayEndpoint)
 
 	if err := s.apiClient.fetchAPI(ctx, endpoint, queryParams, target); err != nil {
 		if readCacheAny(s.apiClient, cacheBaseName, target) {
@@ -80,6 +88,24 @@ func (s *FootballDataService) GetCompetitions(ctx context.Context, params map[st
 	apiData.Competitions = filtered
 	apiData.Count = len(filtered)
 
+	return &apiData, nil
+}
+
+func (s *FootballDataService) GetAllAvailableCompetitions(ctx context.Context) (*CompetitionsResponse, error) {
+	var apiData CompetitionsResponse
+	// Cache available competition options from v4/competitions with 1 month (30 days) expiration date
+	if err := s.fetchCached(ctx, "competitions", nil, &apiData, 30*24*time.Hour); err != nil {
+		return nil, err
+	}
+	return &apiData, nil
+}
+
+func (s *FootballDataService) GetCompetitionDetail(ctx context.Context, compCode string) (*footballdata.Competition, error) {
+	var apiData footballdata.Competition
+	endpoint := fmt.Sprintf("competitions/%s", compCode)
+	if err := s.fetchCached(ctx, endpoint, nil, &apiData, 24*time.Hour); err != nil {
+		return nil, err
+	}
 	return &apiData, nil
 }
 

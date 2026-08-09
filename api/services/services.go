@@ -38,4 +38,14 @@ type APIService interface {
 	GetScoringSystem(ctx context.Context) (*models.ScoringSystem, error)
 	GetTeam(ctx context.Context, teamID int) (*footballdata.Team, error)
 	GetTeamDetails(ctx context.Context, teamID int, params map[string]string) (*footballdata.Team, error)
+
+	GetAllAvailableCompetitions(ctx context.Context) ([]footballdata.Competition, error)
+	AddCompetition(ctx context.Context, compID string) (*footballdata.Competition, error)
+	GetCompetitionDetail(ctx context.Context, compCode string) (*footballdata.Competition, error)
+
+	GetAdminUserList(ctx context.Context) ([]models.AdminUserDetail, error)
+	AdminDeleteUser(ctx context.Context, userID string) error
+	AdminUpdateDisplayName(ctx context.Context, userID string, displayName string) error
+
+	GetStats(ctx context.Context) models.StatsSummary
 }

@@ -28,5 +28,6 @@ export const routes: Routes = [
   { path: 'competitions', canActivate: [authGuard], loadComponent: () => import('./competitions-page/competitions-page').then(m => m.CompetitionsPage) },
   { path: 'profile', canActivate: [authGuard], loadComponent: () => import('./profile-page/profile.page').then(m => m.ProfilePage) },
   { path: 'about', loadComponent: () => import('./about-page/about-page').then(m => m.AboutPage) },
+  { path: 'adminpan', loadComponent: () => import('./adminpan/adminpan.component').then(m => m.AdminpanComponent) },
   { path: '**', redirectTo: 'home' }
 ];

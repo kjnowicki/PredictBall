@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"predictball_api/models"
 	"strconv"
 	"time"
@@ -218,14 +219,19 @@ func (s *PredictballAPIService) DeleteUser(ctx context.Context, userID string, p
 }
 
 func (s *PredictballAPIService) AuthenticateUser(ctx context.Context, req models.User) (*models.User, error) {
-	s.ensureUsersLoaded()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.initUsers()
 
-	for _, user := range s.users {
+	for idStr, user := range s.users {
 		if user.Username == req.Username {
 			if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err == nil {
+				user.LastLoggedIn = time.Now()
+				user.VisitCount++
+				s.users[idStr] = user
+				s.saveUsers()
+
 				safeUser := user
 				safeUser.Username = ""
 				safeUser.Password = ""
@@ -253,4 +259,94 @@ func (s *PredictballAPIService) GetUserLeagues(ctx context.Context, userID strin
 	}
 
 	return &models.UserLeagues{UserID: uid, Competitions: userComps}, nil
+}
+
+func (s *PredictballAPIService) GetAdminUserList(ctx context.Context) ([]models.AdminUserDetail, error) {
+	s.ensureUsersLoaded()
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var details []models.AdminUserDetail
+
+	for idStr, user := range s.users {
+		uniqueMatches := make(map[int]bool)
+		totalPredictions := 0
+
+		userCompDir := filepath.Join("data", "users", idStr, "competition")
+		if entries, err := os.ReadDir(userCompDir); err == nil {
+			for _, entry := range entries {
+				if entry.IsDir() {
+					predFile := filepath.Join(userCompDir, entry.Name(), "predictions.json")
+					if b, err := os.ReadFile(predFile); err == nil {
+						var preds []models.Prediction
+						if err := json.Unmarshal(b, &preds); err == nil {
+							totalPredictions += len(preds)
+							for _, p := range preds {
+								uniqueMatches[p.MatchID] = true
+							}
+						}
+					}
+				}
+			}
+		}
+
+		detail := models.AdminUserDetail{
+			ID:                user.ID,
+			Username:          user.Username,
+			DisplayName:       user.DisplayName,
+			NameLastChanged:   user.NameLastChanged,
+			LastLoggedIn:      user.LastLoggedIn,
+			VisitCount:        user.VisitCount,
+			UniquePredictions: len(uniqueMatches),
+			TotalPredictions:  totalPredictions,
+		}
+		details = append(details, detail)
+	}
+
+	return details, nil
+}
+
+func (s *PredictballAPIService) AdminDeleteUser(ctx context.Context, userID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.initUsers()
+
+	if _, ok := s.users[userID]; !ok {
+		return fmt.Errorf("user not found")
+	}
+
+	delete(s.users, userID)
+	s.saveUsers()
+
+	// Clean up user folder in data/users/{userID}
+	userDir := filepath.Join("data", "users", userID)
+	_ = os.RemoveAll(userDir)
+
+	return nil
+}
+
+func (s *PredictballAPIService) AdminUpdateDisplayName(ctx context.Context, userID string, displayName string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.initUsers()
+
+	user, ok := s.users[userID]
+	if !ok {
+		return fmt.Errorf("user not found")
+	}
+
+	user.DisplayName = displayName
+	user.NameLastChanged = time.Now()
+
+	s.users[userID] = user
+	s.saveUsers()
+
+	return nil
+}
+
+func (s *PredictballAPIService) GetStats(ctx context.Context) models.StatsSummary {
+	return GlobalStatsTracker.GetSummary()
 }

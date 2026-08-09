@@ -125,17 +125,44 @@ func (h *APIHandler) authorizeUser(r *http.Request, userID string) bool {
 	return ok && authID == userID
 }
 
+type statusResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (w *statusResponseWriter) WriteHeader(code int) {
+	w.statusCode = code
+	w.ResponseWriter.WriteHeader(code)
+}
+
 func (h *APIHandler) authorizeAdmin(r *http.Request) bool {
-	adminToken := os.Getenv("ADMIN_TOKEN")
-	if adminToken == "" {
-		adminToken = "admin_secret"
-	}
 	reqToken := r.Header.Get("X-Admin-Token")
 	if reqToken == "" {
 		reqToken = r.Header.Get("Authorization")
 		reqToken = strings.TrimPrefix(reqToken, "Bearer ")
 	}
-	return reqToken != "" && reqToken == adminToken
+	if reqToken == "" {
+		return false
+	}
+
+	adminToken := os.Getenv("ADMIN_TOKEN")
+	if adminToken != "" && reqToken == adminToken {
+		return true
+	}
+
+	decrypted, err := h.SessionEncryptor.Decrypt(reqToken)
+	if err != nil {
+		return false
+	}
+	parts := strings.Split(decrypted, ":")
+	if len(parts) != 2 || parts[0] != "admin" {
+		return false
+	}
+	expiresUnix, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return false
+	}
+	return time.Now().Unix() <= expiresUnix
 }
 
 func (h *APIHandler) AuthMiddleware(next http.Handler) http.Handler {
@@ -146,25 +173,48 @@ func (h *APIHandler) AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		path := r.URL.Path
-		if (path == "/user/authenticate" && r.Method == http.MethodPost) || (path == "/user" && r.Method == http.MethodPut) || strings.HasPrefix(path, "/admin/") {
-			next.ServeHTTP(w, r)
+		services.GlobalStatsTracker.RecordRequest(path)
+
+		sw := &statusResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+
+		if strings.HasPrefix(path, "/admin/") {
+			if path == "/admin/login" && r.Method == http.MethodPost {
+				next.ServeHTTP(sw, r)
+				return
+			}
+			if !h.authorizeAdmin(r) {
+				sw.WriteHeader(http.StatusUnauthorized)
+				http.Error(sw, "Unauthorized: invalid or missing admin token", http.StatusUnauthorized)
+				services.GlobalStatsTracker.RecordError(path, r.Method, "", "Unauthorized admin access", http.StatusUnauthorized)
+				return
+			}
+			next.ServeHTTP(sw, r)
+			return
+		}
+
+		if (path == "/user/authenticate" && r.Method == http.MethodPost) || (path == "/user" && r.Method == http.MethodPut) {
+			next.ServeHTTP(sw, r)
 			return
 		}
 
 		cookie, err := r.Cookie("session")
 		if err != nil {
-			http.Error(w, "Unauthorized: missing session cookie", http.StatusUnauthorized)
+			sw.WriteHeader(http.StatusUnauthorized)
+			http.Error(sw, "Unauthorized: missing session cookie", http.StatusUnauthorized)
+			services.GlobalStatsTracker.RecordError(path, r.Method, "", "Missing session cookie", http.StatusUnauthorized)
 			return
 		}
 
 		userID, err := h.decryptSession(cookie.Value)
 		if err != nil {
-			http.Error(w, "Unauthorized: invalid session", http.StatusUnauthorized)
+			sw.WriteHeader(http.StatusUnauthorized)
+			http.Error(sw, "Unauthorized: invalid session", http.StatusUnauthorized)
+			services.GlobalStatsTracker.RecordError(path, r.Method, "", "Invalid session", http.StatusUnauthorized)
 			return
 		}
 
 		ctx := context.WithValue(r.Context(), userIDKey, userID)
-		next.ServeHTTP(w, r.WithContext(ctx))
+		next.ServeHTTP(sw, r.WithContext(ctx))
 	})
 }
 
@@ -754,6 +804,146 @@ func (h *APIHandler) HandleGetTeamDetails(w http.ResponseWriter, r *http.Request
 	WriteJSON(w, http.StatusOK, team)
 }
 
+func (h *APIHandler) HandleAdminLogin(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	adminUser := os.Getenv("ADMIN_USERNAME")
+	if adminUser == "" {
+		adminUser = "admin"
+	}
+	adminPass := os.Getenv("ADMIN_PASSWORD")
+	if adminPass == "" {
+		adminPass = "admin123"
+	}
+
+	if req.Username != adminUser || req.Password != adminPass {
+		http.Error(w, "invalid admin credentials", http.StatusUnauthorized)
+		return
+	}
+
+	expiration := time.Now().Add(24 * time.Hour)
+	tokenPayload := fmt.Sprintf("admin:%d", expiration.Unix())
+	encryptedToken, err := h.SessionEncryptor.Encrypt(tokenPayload)
+	if err != nil {
+		http.Error(w, "failed to generate admin token", http.StatusInternalServerError)
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, map[string]string{
+		"token":    encryptedToken,
+		"username": req.Username,
+	})
+}
+
+func (h *APIHandler) HandleGetAvailableCompetitions(w http.ResponseWriter, r *http.Request) {
+	if !h.authorizeAdmin(r) {
+		http.Error(w, "Forbidden: invalid admin token", http.StatusForbidden)
+		return
+	}
+	comps, err := h.Service.GetAllAvailableCompetitions(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, http.StatusOK, comps)
+}
+
+func (h *APIHandler) HandleAddCompetition(w http.ResponseWriter, r *http.Request) {
+	if !h.authorizeAdmin(r) {
+		http.Error(w, "Forbidden: invalid admin token", http.StatusForbidden)
+		return
+	}
+	var req struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ID == "" {
+		http.Error(w, "bad request: id is required", http.StatusBadRequest)
+		return
+	}
+	comp, err := h.Service.AddCompetition(r.Context(), req.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, http.StatusOK, comp)
+}
+
+func (h *APIHandler) HandleGetAdminCompetitionDetail(w http.ResponseWriter, r *http.Request) {
+	if !h.authorizeAdmin(r) {
+		http.Error(w, "Forbidden: invalid admin token", http.StatusForbidden)
+		return
+	}
+	compId := r.PathValue("compId")
+	comp, err := h.Service.GetCompetitionDetail(r.Context(), compId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, http.StatusOK, comp)
+}
+
+func (h *APIHandler) HandleGetStats(w http.ResponseWriter, r *http.Request) {
+	if !h.authorizeAdmin(r) {
+		http.Error(w, "Forbidden: invalid admin token", http.StatusForbidden)
+		return
+	}
+	stats := h.Service.GetStats(r.Context())
+	WriteJSON(w, http.StatusOK, stats)
+}
+
+func (h *APIHandler) HandleGetAdminUsers(w http.ResponseWriter, r *http.Request) {
+	if !h.authorizeAdmin(r) {
+		http.Error(w, "Forbidden: invalid admin token", http.StatusForbidden)
+		return
+	}
+	users, err := h.Service.GetAdminUserList(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, http.StatusOK, users)
+}
+
+func (h *APIHandler) HandleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
+	if !h.authorizeAdmin(r) {
+		http.Error(w, "Forbidden: invalid admin token", http.StatusForbidden)
+		return
+	}
+	id := r.PathValue("id")
+	if err := h.Service.AdminDeleteUser(r.Context(), id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]string{"message": "user deleted successfully"})
+}
+
+func (h *APIHandler) HandleAdminUpdateDisplayName(w http.ResponseWriter, r *http.Request) {
+	if !h.authorizeAdmin(r) {
+		http.Error(w, "Forbidden: invalid admin token", http.StatusForbidden)
+		return
+	}
+	id := r.PathValue("id")
+	var req struct {
+		DisplayName string `json:"displayName"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.DisplayName == "" {
+		http.Error(w, "bad request: displayName is required", http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.AdminUpdateDisplayName(r.Context(), id, req.DisplayName); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]string{"message": "display name updated successfully"})
+}
+
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
@@ -765,7 +955,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 		}
 
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, Origin, X-Requested-With, Accept-Encoding, X-CSRF-Token")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, Origin, X-Requested-With, Accept-Encoding, X-CSRF-Token, X-Admin-Token")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		// Handle preflight requests, which are sent by the browser before the actual request.
@@ -810,8 +1000,18 @@ func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 	mux.HandleFunc("GET /scoring-system", h.HandleGetScoringSystem)
 	mux.HandleFunc("GET /team-details/{id}", h.HandleGetTeamDetails)
 
+	mux.HandleFunc("POST /admin/login", h.HandleAdminLogin)
+	mux.HandleFunc("GET /admin/available-competitions", h.HandleGetAvailableCompetitions)
+	mux.HandleFunc("POST /admin/competition/add", h.HandleAddCompetition)
+	mux.HandleFunc("GET /admin/competition/{compId}", h.HandleGetAdminCompetitionDetail)
 	mux.HandleFunc("POST /admin/competition/{compId}/season/{season}/retire", h.HandleRetireSeason)
 	mux.HandleFunc("POST /admin/competition/{compId}/retire-season", h.HandleRetireSeason)
+
+	mux.HandleFunc("GET /admin/stats", h.HandleGetStats)
+	mux.HandleFunc("GET /admin/users", h.HandleGetAdminUsers)
+	mux.HandleFunc("DELETE /admin/user/{id}", h.HandleAdminDeleteUser)
+	mux.HandleFunc("POST /admin/user/{id}/delete", h.HandleAdminDeleteUser)
+	mux.HandleFunc("PUT /admin/user/{id}/display-name", h.HandleAdminUpdateDisplayName)
 
 	return corsMiddleware(h.AuthMiddleware(mux))
 }

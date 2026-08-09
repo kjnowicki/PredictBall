@@ -235,3 +235,31 @@ func (s *TemplateService) GetTeamDetails(ctx context.Context, teamID int, params
 func (s *TemplateService) RetireSeason(ctx context.Context, compID string, season string) error {
 	return nil
 }
+
+func (s *TemplateService) GetAllAvailableCompetitions(ctx context.Context) ([]footballdata.Competition, error) {
+	return []footballdata.Competition{}, nil
+}
+
+func (s *TemplateService) AddCompetition(ctx context.Context, compID string) (*footballdata.Competition, error) {
+	return &footballdata.Competition{ID: 2021, Name: "Premier League", Code: "PL"}, nil
+}
+
+func (s *TemplateService) GetCompetitionDetail(ctx context.Context, compCode string) (*footballdata.Competition, error) {
+	return &footballdata.Competition{ID: 2021, Name: "Premier League", Code: "PL"}, nil
+}
+
+func (s *TemplateService) GetAdminUserList(ctx context.Context) ([]models.AdminUserDetail, error) {
+	return []models.AdminUserDetail{}, nil
+}
+
+func (s *TemplateService) AdminDeleteUser(ctx context.Context, userID string) error {
+	return nil
+}
+
+func (s *TemplateService) AdminUpdateDisplayName(ctx context.Context, userID string, displayName string) error {
+	return nil
+}
+
+func (s *TemplateService) GetStats(ctx context.Context) models.StatsSummary {
+	return GlobalStatsTracker.GetSummary()
+}
