@@ -15,6 +15,8 @@ export interface AdminCompetition {
     currentMatchday: number;
     winner?: any;
     stages?: string[];
+    isRetired?: boolean;
+    isFinished?: boolean;
   };
   seasons?: Array<{
     id: number;
@@ -23,6 +25,8 @@ export interface AdminCompetition {
     currentMatchday: number;
     winner?: any;
     stages?: string[];
+    isRetired?: boolean;
+    isFinished?: boolean;
   }>;
   area?: {
     id: number;
@@ -122,8 +126,8 @@ export class AdminService {
     return this.api.get<AdminCompetition[]>('competitions');
   }
 
-  getAvailableCompetitions(): Observable<{ competitions: AdminCompetition[]; count: number }> {
-    return this.api.get<{ competitions: AdminCompetition[]; count: number }>('admin/available-competitions');
+  getAvailableCompetitions(): Observable<AdminCompetition[]> {
+    return this.api.get<AdminCompetition[]>('admin/available-competitions');
   }
 
   addCompetition(id: string | number): Observable<AdminCompetition> {
@@ -136,6 +140,10 @@ export class AdminService {
 
   retireSeason(compId: string | number, season: string): Observable<{ message: string }> {
     return this.api.post<{ message: string }>(`admin/competition/${compId}/season/${season}/retire`, {});
+  }
+
+  deleteCompetition(compId: string | number): Observable<{ message: string }> {
+    return this.api.post<{ message: string }>(`admin/competition/${compId}/delete`, {});
   }
 
   // Stats View API

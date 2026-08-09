@@ -5,32 +5,44 @@ import (
 	"fmt"
 	"path/filepath"
 	"predictball_api/models"
+	footballdata "predictball_api/models/football-data"
+	"strings"
 	"time"
 )
 
 func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode string, season ...string) ([]models.Match, error) {
-	seasonStr := "2026"
+	seasonStr := ""
 	if len(season) > 0 && season[0] != "" {
 		seasonStr = season[0]
 	}
 
-	cacheBaseName := filepath.Join("cache", "schedules", fmt.Sprintf("%s_%s", compCode, seasonStr))
-	var existingSchedule []models.Match
-	cacheExists := readCacheAny(s, cacheBaseName, &existingSchedule)
-
 	comp, err := s.GetCompetition(ctx, compCode)
 	compCodeStr := compCode
+	compIDStr := compCode
 	if err == nil && comp != nil {
 		compCodeStr = comp.Code
-		cacheBaseName = filepath.Join("cache", "schedules", fmt.Sprintf("%d_%s", comp.ID, seasonStr))
+		compIDStr = fmt.Sprint(comp.ID)
+		seasonStr = resolveSeasonString(comp, seasonStr)
+	}
+
+	if seasonStr == "" {
+		seasonStr = "2026"
+	}
+
+	cacheBaseName := filepath.Join("cache", "schedules", fmt.Sprintf("%s_%s", compIDStr, seasonStr))
+	var existingSchedule []models.Match
+	cacheExists := readCacheAny(s, cacheBaseName, &existingSchedule)
+	if !cacheExists && compCodeStr != compIDStr {
+		cacheBaseNameAlt := filepath.Join("cache", "schedules", fmt.Sprintf("%s_%s", compCodeStr, seasonStr))
+		cacheExists = readCacheAny(s, cacheBaseNameAlt, &existingSchedule)
 	}
 
 	apiData, err := s.FootballDataService.GetMatches(ctx, compCodeStr, map[string]string{"season": seasonStr})
 	if err != nil {
-		if cacheExists && len(existingSchedule) > 0 {
+		if cacheExists {
 			return existingSchedule, nil
 		}
-		return nil, err
+		return []models.Match{}, nil
 	}
 
 	existingMap := make(map[int]models.Match)
@@ -98,4 +110,34 @@ func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode s
 	writeCache(s, cacheBaseName, updatedSchedule, 24*time.Hour*365)
 
 	return updatedSchedule, nil
+}
+
+func resolveSeasonString(comp *footballdata.Competition, seasonInput string) string {
+	seasonInput = strings.TrimSpace(seasonInput)
+	if comp == nil {
+		return seasonInput
+	}
+
+	if seasonInput == "" {
+		if len(comp.CurrentSeason.StartDate) >= 4 {
+			return comp.CurrentSeason.StartDate[:4]
+		}
+		return seasonInput
+	}
+
+	if comp.CurrentSeason.ID != 0 && fmt.Sprint(comp.CurrentSeason.ID) == seasonInput {
+		if len(comp.CurrentSeason.StartDate) >= 4 {
+			return comp.CurrentSeason.StartDate[:4]
+		}
+	}
+
+	for _, s := range comp.Seasons {
+		if s.ID != 0 && fmt.Sprint(s.ID) == seasonInput {
+			if len(s.StartDate) >= 4 {
+				return s.StartDate[:4]
+			}
+		}
+	}
+
+	return seasonInput
 }

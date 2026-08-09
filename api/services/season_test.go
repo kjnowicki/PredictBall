@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"predictball_api/models"
+	footballdata "predictball_api/models/football-data"
 	"testing"
 	"time"
 )
@@ -220,6 +221,40 @@ func verifyUserFilesPurged(t *testing.T, compID string, userIDs []string) {
 		}
 		if _, err := os.Stat(filepath.Join(uDir, "powerups.json")); !os.IsNotExist(err) {
 			t.Errorf("powerups.json for user %s should have been deleted", uid)
+		}
+	}
+}
+
+func TestResolveSeasonString(t *testing.T) {
+	comp := &footballdata.Competition{
+		ID: 2000,
+		CurrentSeason: footballdata.Season{
+			ID:        2398,
+			StartDate: "2026-06-11",
+		},
+		Seasons: []footballdata.Season{
+			{
+				ID:        1800,
+				StartDate: "2022-11-20",
+			},
+		},
+	}
+
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"2398", "2026"},
+		{"2026", "2026"},
+		{"1800", "2022"},
+		{"2022", "2022"},
+		{"", "2026"},
+	}
+
+	for _, tt := range tests {
+		got := resolveSeasonString(comp, tt.input)
+		if got != tt.expected {
+			t.Errorf("resolveSeasonString(%q) = %q, expected %q", tt.input, got, tt.expected)
 		}
 	}
 }

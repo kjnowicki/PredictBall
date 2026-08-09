@@ -44,6 +44,14 @@ export class AdminpanComponent implements OnInit {
   retireSuccess = '';
   isRetiring = false;
 
+  // Delete Competition Modal
+  showDeleteCompModal = false;
+  deleteCompId = '';
+  deleteCompName = '';
+  deleteCompError = '';
+  deleteCompSuccess = '';
+  isDeletingComp = false;
+
   // Stats State
   stats: StatsSummary | null = null;
   isLoadingStats = false;
@@ -145,10 +153,16 @@ export class AdminpanComponent implements OnInit {
     });
   }
 
+  // Temporary Staging Queue for New Competitions
+  stagedCompetitions: AdminCompetition[] = [];
+  selectedCompToAdd: AdminCompetition | null = null;
+  isSubmittingStaged = false;
+  submitStagedError = '';
+
   loadAvailableCompetitions(): void {
     this.adminService.getAvailableCompetitions().subscribe({
-      next: (res) => {
-        this.availableCompetitions = res.competitions || [];
+      next: (res: any) => {
+        this.availableCompetitions = Array.isArray(res) ? res : (res.competitions || []);
         this.cdr.markForCheck();
       },
       error: (err) => {
@@ -160,6 +174,9 @@ export class AdminpanComponent implements OnInit {
 
   openAddCompetitionModal(): void {
     this.showAddModal = true;
+    this.stagedCompetitions = [];
+    this.selectedCompToAdd = null;
+    this.submitStagedError = '';
     if (this.availableCompetitions.length === 0) {
       this.loadAvailableCompetitions();
     }
@@ -168,6 +185,9 @@ export class AdminpanComponent implements OnInit {
 
   closeAddCompetitionModal(): void {
     this.showAddModal = false;
+    this.stagedCompetitions = [];
+    this.selectedCompToAdd = null;
+    this.submitStagedError = '';
     this.cdr.markForCheck();
   }
 
@@ -175,17 +195,69 @@ export class AdminpanComponent implements OnInit {
     return this.supportedCompetitions.some(c => c.id === comp.id || c.code === comp.code);
   }
 
-  addCompetition(comp: AdminCompetition): void {
-    this.adminService.addCompetition(comp.id).subscribe({
-      next: () => {
-        this.loadSupportedCompetitions();
-        this.closeAddCompetitionModal();
-        this.cdr.markForCheck();
-      },
-      error: (err) => {
-        alert('Failed to add competition: ' + (err.error || err.message));
-        this.cdr.markForCheck();
-      }
+  unsupportedAvailableCompetitions(): AdminCompetition[] {
+    return this.availableCompetitions.filter(c => 
+      !this.isCompSupported(c) && 
+      !this.stagedCompetitions.some(staged => staged.id === c.id)
+    );
+  }
+
+  stageSelectedCompetition(): void {
+    if (!this.selectedCompToAdd) return;
+    const alreadyStaged = this.stagedCompetitions.some(c => c.id === this.selectedCompToAdd!.id);
+    if (!alreadyStaged) {
+      this.stagedCompetitions.push(this.selectedCompToAdd);
+    }
+    this.selectedCompToAdd = null;
+    this.cdr.markForCheck();
+  }
+
+  stageCompetition(comp: AdminCompetition): void {
+    const alreadyStaged = this.stagedCompetitions.some(c => c.id === comp.id);
+    if (!alreadyStaged) {
+      this.stagedCompetitions.push(comp);
+    }
+    this.cdr.markForCheck();
+  }
+
+  removeFromStaging(comp: AdminCompetition): void {
+    this.stagedCompetitions = this.stagedCompetitions.filter(c => c.id !== comp.id);
+    this.cdr.markForCheck();
+  }
+
+  submitStagedCompetitions(): void {
+    if (this.stagedCompetitions.length === 0) return;
+    this.isSubmittingStaged = true;
+    this.submitStagedError = '';
+    this.cdr.markForCheck();
+
+    let completedCount = 0;
+    const total = this.stagedCompetitions.length;
+    let hasError = false;
+
+    this.stagedCompetitions.forEach(comp => {
+      this.adminService.addCompetition(comp.id).subscribe({
+        next: () => {
+          completedCount++;
+          if (completedCount === total && !hasError) {
+            this.isSubmittingStaged = false;
+            this.stagedCompetitions = [];
+            this.closeAddCompetitionModal();
+            this.loadSupportedCompetitions();
+            this.cdr.markForCheck();
+          }
+        },
+        error: (err) => {
+          completedCount++;
+          hasError = true;
+          this.submitStagedError = `Failed to add ${comp.name}: ` + (err.error || err.message);
+          if (completedCount === total) {
+            this.isSubmittingStaged = false;
+            this.loadSupportedCompetitions();
+            this.cdr.markForCheck();
+          }
+        }
+      });
     });
   }
 
@@ -212,10 +284,25 @@ export class AdminpanComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
-  openRetireModal(comp: AdminCompetition, seasonId?: string | number): void {
+  openRetireModal(comp: AdminCompetition, season?: any): void {
     this.retireCompId = String(comp.id);
     this.retireCompName = comp.name;
-    this.retireSeasonId = seasonId ? String(seasonId) : (comp.currentSeason ? String(comp.currentSeason.id) : '');
+    let year = '';
+    if (season) {
+      if (typeof season === 'object' && season.startDate) {
+        year = season.startDate.substring(0, 4);
+      } else if (typeof season === 'string' || typeof season === 'number') {
+        year = String(season);
+      }
+    }
+    if (!year) {
+      if (comp.currentSeason?.startDate) {
+        year = comp.currentSeason.startDate.substring(0, 4);
+      } else if (comp.currentSeason?.id) {
+        year = String(comp.currentSeason.id);
+      }
+    }
+    this.retireSeasonId = year;
     this.retireError = '';
     this.retireSuccess = '';
     this.showRetireModal = true;
@@ -251,6 +338,49 @@ export class AdminpanComponent implements OnInit {
       error: (err) => {
         this.isRetiring = false;
         this.retireError = err.error || err.message || 'Failed to retire season.';
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  openDeleteCompModal(comp: AdminCompetition): void {
+    this.deleteCompId = String(comp.id);
+    this.deleteCompName = comp.name;
+    this.deleteCompError = '';
+    this.deleteCompSuccess = '';
+    this.showDeleteCompModal = true;
+    this.cdr.markForCheck();
+  }
+
+  closeDeleteCompModal(): void {
+    this.showDeleteCompModal = false;
+    this.cdr.markForCheck();
+  }
+
+  confirmDeleteCompetition(): void {
+    if (!this.deleteCompId) return;
+    this.isDeletingComp = true;
+    this.deleteCompError = '';
+    this.deleteCompSuccess = '';
+    this.cdr.markForCheck();
+
+    this.adminService.deleteCompetition(this.deleteCompId).subscribe({
+      next: (res) => {
+        this.isDeletingComp = false;
+        this.deleteCompSuccess = res.message || 'Competition removed successfully!';
+        this.cdr.markForCheck();
+        setTimeout(() => {
+          this.closeDeleteCompModal();
+          if (this.selectedCompForDetail && String(this.selectedCompForDetail.id) === this.deleteCompId) {
+            this.closeCompDetail();
+          }
+          this.loadSupportedCompetitions();
+          this.loadAvailableCompetitions();
+        }, 1200);
+      },
+      error: (err) => {
+        this.isDeletingComp = false;
+        this.deleteCompError = err.error || err.message || 'Failed to remove competition.';
         this.cdr.markForCheck();
       }
     });
@@ -395,12 +525,13 @@ export class AdminpanComponent implements OnInit {
   }
 
   filteredAvailableCompetitions(): AdminCompetition[] {
+    if (!this.availableCompetitions) return [];
     if (!this.competitionSearch) return this.availableCompetitions;
-    const term = this.competitionSearch.toLowerCase();
+    const term = this.competitionSearch.toLowerCase().trim();
     return this.availableCompetitions.filter(c =>
-      c.name.toLowerCase().includes(term) ||
-      c.code.toLowerCase().includes(term) ||
-      (c.area && c.area.name.toLowerCase().includes(term))
+      (c.name && c.name.toLowerCase().includes(term)) ||
+      (c.code && c.code.toLowerCase().includes(term)) ||
+      (c.area && c.area.name && c.area.name.toLowerCase().includes(term))
     );
   }
 }

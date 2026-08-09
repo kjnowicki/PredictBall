@@ -889,6 +889,22 @@ func (h *APIHandler) HandleGetAdminCompetitionDetail(w http.ResponseWriter, r *h
 	WriteJSON(w, http.StatusOK, comp)
 }
 
+func (h *APIHandler) HandleAdminDeleteCompetition(w http.ResponseWriter, r *http.Request) {
+	if !h.authorizeAdmin(r) {
+		http.Error(w, "Forbidden: invalid admin token", http.StatusForbidden)
+		return
+	}
+	compId := r.PathValue("compId")
+	if err := h.Service.DeleteCompetition(r.Context(), compId); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]string{
+		"message":       "competition deleted successfully",
+		"competitionId": compId,
+	})
+}
+
 func (h *APIHandler) HandleGetStats(w http.ResponseWriter, r *http.Request) {
 	if !h.authorizeAdmin(r) {
 		http.Error(w, "Forbidden: invalid admin token", http.StatusForbidden)
@@ -1006,6 +1022,8 @@ func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 	mux.HandleFunc("GET /admin/competition/{compId}", h.HandleGetAdminCompetitionDetail)
 	mux.HandleFunc("POST /admin/competition/{compId}/season/{season}/retire", h.HandleRetireSeason)
 	mux.HandleFunc("POST /admin/competition/{compId}/retire-season", h.HandleRetireSeason)
+	mux.HandleFunc("POST /admin/competition/{compId}/delete", h.HandleAdminDeleteCompetition)
+	mux.HandleFunc("DELETE /admin/competition/{compId}", h.HandleAdminDeleteCompetition)
 
 	mux.HandleFunc("GET /admin/stats", h.HandleGetStats)
 	mux.HandleFunc("GET /admin/users", h.HandleGetAdminUsers)

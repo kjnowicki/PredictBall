@@ -41,6 +41,7 @@ type APIService interface {
 
 	GetAllAvailableCompetitions(ctx context.Context) ([]footballdata.Competition, error)
 	AddCompetition(ctx context.Context, compID string) (*footballdata.Competition, error)
+	DeleteCompetition(ctx context.Context, compID string) error
 	GetCompetitionDetail(ctx context.Context, compCode string) (*footballdata.Competition, error)
 
 	GetAdminUserList(ctx context.Context) ([]models.AdminUserDetail, error)

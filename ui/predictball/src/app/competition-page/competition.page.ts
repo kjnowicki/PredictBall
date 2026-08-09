@@ -91,6 +91,7 @@ export class CompetitionPage implements OnInit, OnDestroy {
   viewedUserName: string | null = null;
   private lastLoadedUserId: string | null = null;
   
+  loadError: string = '';
   leaguesDisplayedColumns: string[] = ['name', 'participants'];
   teams: any[] = [];
   teamsDisplayedColumns: string[] = ['crest', 'name'];
@@ -208,17 +209,23 @@ export class CompetitionPage implements OnInit, OnDestroy {
       this.competitionCode = params.get('id');
       if (this.competitionCode) {
         forkJoin({
-          comp: this.competitionService.getCompetition(this.competitionCode),
-          matches: this.matchService.getMatchSchedule(this.competitionCode)
+          comp: this.competitionService.getCompetition(this.competitionCode).pipe(catchError(() => of(null))),
+          matches: this.matchService.getMatchSchedule(this.competitionCode).pipe(catchError(() => of([] as Match[])))
         }).subscribe({
           next: ({ comp, matches }) => {
+            if (!comp) {
+              this.loadError = `Unable to load competition details for '${this.competitionCode}'. It may have been retired or is currently unavailable.`;
+              this.cdr.detectChanges();
+              return;
+            }
+            this.loadError = '';
             this.competitionName = comp.name;
             this.competition = comp;
-            this.matches = matches;
+            this.matches = Array.isArray(matches) ? matches : [];
 
             // Extract unique matchdays and stages sorted chronologically by earliest match start time
             const groups: { [key: string]: { key: number | string, earliestTime: number } } = {};
-            matches.forEach(m => {
+            this.matches.forEach(m => {
               const key = m.matchday > 0 ? m.matchday : m.stage;
               if (!key) return;
               const time = new Date(m.startTime).getTime();

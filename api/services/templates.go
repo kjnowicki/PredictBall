@@ -244,6 +244,10 @@ func (s *TemplateService) AddCompetition(ctx context.Context, compID string) (*f
 	return &footballdata.Competition{ID: 2021, Name: "Premier League", Code: "PL"}, nil
 }
 
+func (s *TemplateService) DeleteCompetition(ctx context.Context, compID string) error {
+	return nil
+}
+
 func (s *TemplateService) GetCompetitionDetail(ctx context.Context, compCode string) (*footballdata.Competition, error) {
 	return &footballdata.Competition{ID: 2021, Name: "Premier League", Code: "PL"}, nil
 }

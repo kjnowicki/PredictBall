@@ -7,6 +7,8 @@ type Season struct {
 	CurrentMatchday int      `json:"currentMatchday"`
 	Winner          any      `json:"winner,omitempty"`
 	Stages          []string `json:"stages"`
+	IsRetired       bool     `json:"isRetired"`
+	IsFinished      bool     `json:"isFinished"`
 }
 
 type Coach struct {

@@ -133,10 +133,17 @@
 
           <div class="comp-card-body">
             <div class="season-section">
-              <span class="section-label">Current Active Season:</span>
-              <div *ngIf="comp.currentSeason" class="season-box highlight">
-                <div class="season-row">
-                  <strong>Season ID:</strong> #{{ comp.currentSeason.id }}
+              <span class="section-label">
+                {{ (comp.currentSeason?.isFinished || comp.currentSeason?.isRetired) ? 'Last Season:' : 'Current Active Season:' }}
+              </span>
+              <div *ngIf="comp.currentSeason" class="season-box highlight" [class.retired-box]="comp.currentSeason.isRetired">
+                <div class="season-row flex-between">
+                  <div><strong>Season ID:</strong> #{{ comp.currentSeason.id }}</div>
+                  <div>
+                    <span *ngIf="comp.currentSeason.isRetired" class="badge badge-retired">🛑 Retired</span>
+                    <span *ngIf="!comp.currentSeason.isRetired && comp.currentSeason.isFinished" class="badge badge-finished">🏁 Finished</span>
+                    <span *ngIf="!comp.currentSeason.isRetired && !comp.currentSeason.isFinished" class="badge badge-active">🟢 Active</span>
+                  </div>
                 </div>
                 <div class="season-row">
                   <strong>Duration:</strong> {{ comp.currentSeason.startDate }} to {{ comp.currentSeason.endDate }}
@@ -146,7 +153,7 @@
                 </div>
               </div>
               <div *ngIf="!comp.currentSeason" class="season-box">
-                <em>No active season details cached.</em>
+                <em>No season details cached.</em>
               </div>
             </div>
           </div>
@@ -155,8 +162,17 @@
             <button (click)="viewCompetitionDetail(comp)" class="btn-secondary btn-sm">
               ℹ️ View Seasons List
             </button>
-            <button (click)="openRetireModal(comp)" class="btn-warning btn-sm">
+            <button *ngIf="comp.currentSeason?.isRetired" class="btn-secondary btn-sm" disabled title="Season has already been retired">
+              🔒 Season Retired
+            </button>
+            <button *ngIf="!comp.currentSeason?.isRetired && !comp.currentSeason?.isFinished" class="btn-secondary btn-sm" disabled title="Season has not finished yet">
               🛑 Retire Season
+            </button>
+            <button *ngIf="!comp.currentSeason?.isRetired && comp.currentSeason?.isFinished" (click)="openRetireModal(comp)" class="btn-warning btn-sm">
+              🛑 Retire Season
+            </button>
+            <button (click)="openDeleteCompModal(comp)" class="btn-danger btn-sm">
+              🗑️ Remove Competition
             </button>
           </div>
         </div>
@@ -184,14 +200,25 @@
 
               <div *ngFor="let s of selectedCompForDetail.seasons" class="season-history-item">
                 <div class="season-info-col">
-                  <strong>Season #{{ s.id }}</strong>
-                  <span class="dates-sub">{{ s.startDate }} to {{ s.endDate }}</span>
+                  <div class="season-title-row">
+                    <strong>Season #{{ s.id }}</strong>
+                    <span class="dates-sub">({{ s.startDate }} to {{ s.endDate }})</span>
+                    <span *ngIf="s.isRetired" class="badge badge-retired">🛑 Retired</span>
+                    <span *ngIf="!s.isRetired && s.isFinished" class="badge badge-finished">🏁 Finished</span>
+                    <span *ngIf="!s.isRetired && !s.isFinished" class="badge badge-active">🟢 Active</span>
+                  </div>
+                  <div class="season-meta-row">
+                    <span>Matchday: {{ s.currentMatchday }}</span>
+                    <span *ngIf="s.winner" class="winner-tag">🏆 Winner: {{ s.winner.name || s.winner.shortName }}</span>
+                  </div>
                 </div>
-                <div class="season-info-col">
-                  Matchday: {{ s.currentMatchday }}
-                  <span *ngIf="s.winner" class="winner-tag">🏆 Winner: {{ s.winner.name || s.winner.shortName }}</span>
-                </div>
-                <button (click)="openRetireModal(selectedCompForDetail, s.id)" class="btn-warning btn-xs">
+                <button *ngIf="s.isRetired" class="btn-secondary btn-xs" disabled title="Season is already retired">
+                  Retired
+                </button>
+                <button *ngIf="!s.isRetired && !s.isFinished" class="btn-secondary btn-xs" disabled title="Season has not finished yet">
+                  Not Ended
+                </button>
+                <button *ngIf="!s.isRetired && s.isFinished" (click)="openRetireModal(selectedCompForDetail, s)" class="btn-warning btn-xs">
                   Retire
                 </button>
               </div>
@@ -204,42 +231,100 @@
       <div *ngIf="showAddModal" class="modal-backdrop" (click)="closeAddCompetitionModal()">
         <div class="modal-card modal-lg" (click)="$event.stopPropagation()">
           <div class="modal-header">
-            <h3>Add New Competition</h3>
+            <h3>Add New Competitions</h3>
             <button (click)="closeAddCompetitionModal()" class="close-btn">&times;</button>
           </div>
 
           <div class="modal-body">
-            <p class="help-text">Available competitions fetched from Football-Data API <code>/v4/competitions</code> (cached for 1 month):</p>
+            <p class="help-text">Select available competitions fetched from Football-Data API <code>/v4/competitions</code>, add them to the queue, and submit to initialize:</p>
             
-            <input 
-              type="text" 
-              [(ngModel)]="competitionSearch" 
-              placeholder="Search by name, code or country..." 
-              class="search-input"
-            />
+            <!-- Step 1: Selection Control -->
+            <div class="staging-select-box">
+              <label for="compPicker"><strong>Step 1: Select Competition</strong></label>
+              <div class="select-picker-row">
+                <select id="compPicker" [(ngModel)]="selectedCompToAdd" class="search-input select-input">
+                  <option [ngValue]="null" disabled>-- Choose a competition to add --</option>
+                  <option *ngFor="let comp of unsupportedAvailableCompetitions()" [ngValue]="comp">
+                    {{ comp.name }} ({{ comp.code }}) - {{ comp.area ? comp.area.name : 'International' }}
+                  </option>
+                </select>
+                <button (click)="stageSelectedCompetition()" class="btn-primary" [disabled]="!selectedCompToAdd">
+                  ➕ Add to Queue
+                </button>
+              </div>
+            </div>
 
-            <div class="available-comps-list">
-              <div *ngFor="let comp of filteredAvailableCompetitions()" class="available-comp-row">
-                <div class="comp-row-left">
-                  <img [src]="comp.emblem || 'assets/default-emblem.png'" class="emblem-sm" />
-                  <div>
-                    <strong>{{ comp.name }}</strong>
-                    <span class="sub-code">({{ comp.code }})</span>
-                  </div>
-                </div>
+            <!-- Step 2 & 3: Temporary Staging List -->
+            <div class="staged-section">
+              <div class="staged-header">
+                <h4>Step 2 & 3: Staged Competitions Queue ({{ stagedCompetitions.length }})</h4>
+                <span *ngIf="stagedCompetitions.length === 0" class="text-muted">No competitions staged yet. Select from dropdown above or pick from list below.</span>
+              </div>
 
-                <div class="comp-row-right">
-                  <span *ngIf="isCompSupported(comp)" class="badge badge-supported">✓ Active</span>
-                  <button 
-                    *ngIf="!isCompSupported(comp)" 
-                    (click)="addCompetition(comp)" 
-                    class="btn-primary btn-sm"
-                  >
-                    ➕ Initialize
-                  </button>
+              <div *ngIf="stagedCompetitions.length > 0" class="staged-items-grid">
+                <div *ngFor="let item of stagedCompetitions" class="staged-item-chip">
+                  <img [src]="item.emblem || 'assets/default-emblem.png'" class="emblem-xs" />
+                  <span><strong>{{ item.name }}</strong> ({{ item.code }})</span>
+                  <button (click)="removeFromStaging(item)" class="btn-remove" title="Remove from queue">&times;</button>
                 </div>
               </div>
             </div>
+
+            <!-- Searchable List for Direct Queue Addition -->
+            <div class="available-list-section">
+              <div class="section-sub-header">
+                <h4>All Available API Options</h4>
+                <input 
+                  type="text" 
+                  [(ngModel)]="competitionSearch" 
+                  placeholder="Filter list by name, code or country..." 
+                  class="search-input input-sm"
+                />
+              </div>
+
+              <div class="available-comps-list">
+                <div *ngFor="let comp of filteredAvailableCompetitions()" class="available-comp-row">
+                  <div class="comp-row-left">
+                    <img [src]="comp.emblem || 'assets/default-emblem.png'" class="emblem-sm" />
+                    <div>
+                      <strong>{{ comp.name }}</strong>
+                      <span class="sub-code">({{ comp.code }})</span>
+                      <span *ngIf="comp.area" class="area-sub"> • {{ comp.area.name }}</span>
+                    </div>
+                  </div>
+
+                  <div class="comp-row-right">
+                    <span *ngIf="isCompSupported(comp)" class="badge badge-supported">✓ Active</span>
+                    <button 
+                      *ngIf="!isCompSupported(comp)" 
+                      (click)="stageCompetition(comp)" 
+                      class="btn-secondary btn-sm"
+                    >
+                      ➕ Add to Queue
+                    </button>
+                  </div>
+                </div>
+
+                <div *ngIf="filteredAvailableCompetitions().length === 0" class="empty-state">
+                  No competitions match "{{ competitionSearch }}".
+                </div>
+              </div>
+            </div>
+
+            <div *ngIf="submitStagedError" class="alert-banner alert-error">⚠️ {{ submitStagedError }}</div>
+          </div>
+
+          <!-- Step 4: Submit Button -->
+          <div class="modal-footer">
+            <button (click)="closeAddCompetitionModal()" class="btn-secondary">Cancel</button>
+            <button 
+              (click)="submitStagedCompetitions()" 
+              class="btn-primary btn-lg" 
+              [disabled]="stagedCompetitions.length === 0 || isSubmittingStaged"
+            >
+              <span *ngIf="!isSubmittingStaged">🚀 Step 4: Submit {{ stagedCompetitions.length }} Competition(s) to Add</span>
+              <span *ngIf="isSubmittingStaged">Initializing Competitions...</span>
+            </button>
           </div>
         </div>
       </div>
@@ -263,7 +348,7 @@
             </ul>
 
             <div class="form-group">
-              <label for="retireSeasonId">Season ID to Retire:</label>
+              <label for="retireSeasonId">Season Year / ID to Retire:</label>
               <input type="text" id="retireSeasonId" [(ngModel)]="retireSeasonId" class="search-input" />
             </div>
 
@@ -275,6 +360,36 @@
             <button (click)="closeRetireModal()" class="btn-secondary">Cancel</button>
             <button (click)="confirmRetireSeason()" class="btn-danger" [disabled]="isRetiring">
               {{ isRetiring ? 'Retiring Season...' : 'Confirm Retire Season' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DELETE COMPETITION MODAL -->
+      <div *ngIf="showDeleteCompModal" class="modal-backdrop" (click)="closeDeleteCompModal()">
+        <div class="modal-card" (click)="$event.stopPropagation()">
+          <div class="modal-header header-warning">
+            <h3>🗑️ Remove Competition</h3>
+            <button (click)="closeDeleteCompModal()" class="close-btn">&times;</button>
+          </div>
+
+          <div class="modal-body">
+            <p>Are you sure you want to completely remove <strong>{{ deleteCompName }}</strong> (ID: {{ deleteCompId }})?</p>
+            <ul class="warning-list text-danger">
+              <li>Delete competition directory structure and global standings</li>
+              <li>Purge all cached schedule and match details data</li>
+              <li>Unassign competition from all user profiles</li>
+              <li>Purge user predictions and powerups for this competition</li>
+            </ul>
+
+            <div *ngIf="deleteCompError" class="alert-banner alert-error">⚠️ {{ deleteCompError }}</div>
+            <div *ngIf="deleteCompSuccess" class="alert-banner alert-success">✅ {{ deleteCompSuccess }}</div>
+          </div>
+
+          <div class="modal-footer">
+            <button (click)="closeDeleteCompModal()" class="btn-secondary">Cancel</button>
+            <button (click)="confirmDeleteCompetition()" class="btn-danger" [disabled]="isDeletingComp">
+              {{ isDeletingComp ? 'Removing Competition...' : 'Permanently Remove Competition' }}
             </button>
           </div>
         </div>

@@ -22,7 +22,18 @@ func (s *PredictballAPIService) RetireSeason(ctx context.Context, compCode strin
 		return fmt.Errorf("failed to resolve competition ID: %w", err)
 	}
 
-	schedule, err := s.validateSeasonRetirement(ctx, compCode, season)
+	comp, err := s.GetCompetitionDetail(ctx, compCode)
+	resolvedSeason := season
+	if err == nil && comp != nil {
+		resolvedSeason = resolveSeasonString(comp, season)
+	}
+
+	archivedSeasons := getArchivedSeasonIDs(compID)
+	if archivedSeasons[resolvedSeason] || archivedSeasons[season] {
+		return fmt.Errorf("season %s for competition %s is already retired", resolvedSeason, compCode)
+	}
+
+	schedule, err := s.validateSeasonRetirement(ctx, compCode, resolvedSeason)
 	if err != nil {
 		return err
 	}
@@ -32,7 +43,7 @@ func (s *PredictballAPIService) RetireSeason(ctx context.Context, compCode strin
 
 	leaguesDir := filepath.Join("data", "competitions", compID, "leagues")
 
-	globalLeague, userPointsMap, err := s.archiveGlobalLeague(leaguesDir, season)
+	globalLeague, userPointsMap, err := s.archiveGlobalLeague(leaguesDir, resolvedSeason)
 	if err != nil {
 		return err
 	}
@@ -59,6 +70,28 @@ func (s *PredictballAPIService) RetireSeason(ctx context.Context, compCode strin
 }
 
 func (s *PredictballAPIService) validateSeasonRetirement(ctx context.Context, compCode string, season string) ([]models.Match, error) {
+	comp, _ := s.GetCompetitionDetail(ctx, compCode)
+	if comp != nil {
+		targetSeason := comp.CurrentSeason
+		for _, sz := range comp.Seasons {
+			if fmt.Sprint(sz.ID) == season || (len(sz.StartDate) >= 4 && sz.StartDate[:4] == season) {
+				targetSeason = sz
+				break
+			}
+		}
+		if targetSeason.IsRetired {
+			return nil, fmt.Errorf("season %s for competition %s is already retired", season, compCode)
+		}
+		if targetSeason.EndDate != "" {
+			if t, err := time.Parse("2006-01-02", targetSeason.EndDate); err == nil {
+				endOfDay := t.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+				if time.Now().Before(endOfDay) {
+					return nil, fmt.Errorf("cannot retire season %s: the season has not finished yet (scheduled end date: %s)", season, targetSeason.EndDate)
+				}
+			}
+		}
+	}
+
 	schedule, err := s.GetMatchSchedule(ctx, compCode, season)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch match schedule for season validation: %w", err)

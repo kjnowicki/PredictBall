@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"predictball_api/models"
 	footballdata "predictball_api/models/football-data"
+	"strconv"
 	"time"
 )
 
@@ -72,7 +73,15 @@ func (s *PredictballAPIService) fetchMatchCachedDynamic(ctx context.Context, mat
 func (s *PredictballAPIService) GetMatchDetails(ctx context.Context, matchID string) (*models.MatchDetails, error) {
 	apiMatch, err := s.fetchMatchCachedDynamic(ctx, matchID)
 	if err != nil {
-		return nil, err
+		return &models.MatchDetails{
+			Duration: "SCHEDULED",
+			Scorers:  []models.Player{},
+			HomeLineup: models.TeamSquad{Players: []models.Player{}},
+			HomeBench:  models.TeamSquad{Players: []models.Player{}},
+			AwayLineup: models.TeamSquad{Players: []models.Player{}},
+			AwayBench:  models.TeamSquad{Players: []models.Player{}},
+			Substitutions: []models.Substitution{},
+		}, nil
 	}
 
 	homeScore, awayScore := resolveRegularTimeScore(apiMatch.Score)
@@ -129,7 +138,11 @@ func (s *PredictballAPIService) GetMatch(ctx context.Context, compCode string, m
 
 	apiMatch, err := s.fetchMatchCachedDynamic(ctx, matchID)
 	if err != nil {
-		return nil, err
+		idNum, _ := strconv.Atoi(matchID)
+		return &models.Match{
+			ID:     idNum,
+			Status: models.StatusScheduled,
+		}, nil
 	}
 
 	homeScore, awayScore := resolveRegularTimeScore(apiMatch.Score)
