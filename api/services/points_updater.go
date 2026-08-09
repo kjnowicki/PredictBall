@@ -98,10 +98,15 @@ func calculatePointsForPrediction(match models.Match, prediction models.Predicti
 		firstScorerCorrect = true
 	}
 
-	if activePowerup == "doubleScorer" && doubleScorerID != 0 && scorerCounts[doubleScorerID] > 0 {
-		scorerPoints += scoring.Scorer
-		scorerCounts[doubleScorerID]--
-		secondScorerCorrect = true
+	if activePowerup == "doubleScorer" {
+		if len(match.MatchDetails.Scorers) == 0 && doubleScorerID == 0 {
+			scorerPoints += scoring.Scorer
+			secondScorerCorrect = true
+		} else if doubleScorerID != 0 && scorerCounts[doubleScorerID] > 0 {
+			scorerPoints += scoring.Scorer
+			scorerCounts[doubleScorerID]--
+			secondScorerCorrect = true
+		}
 	}
 
 	if firstScorerCorrect && secondScorerCorrect {

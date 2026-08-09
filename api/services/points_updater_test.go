@@ -140,6 +140,52 @@ func TestPowerupRestrictions(t *testing.T) {
 	}
 }
 
+func TestDoubleNoneScorerInZeroZeroMatch(t *testing.T) {
+	scoring := &models.ScoringSystem{
+		ScoreExact:     5,
+		Result:         3,
+		ScoreHomeExact: 1,
+		ScoreAwayExact: 1,
+		ScoreDif:       2,
+		Scorer:         2,
+		BothScorers:    3,
+	}
+
+	// 0:0 match with 0 actual scorers
+	match := models.Match{
+		ID:       1,
+		Matchday: 1,
+		Status:   "FINISHED",
+		MatchDetails: models.MatchDetails{
+			HomeScore: 0,
+			AwayScore: 0,
+			Scorers:   []models.Player{},
+		},
+	}
+
+	// User predicts 0:0 and double 'None' (ScorerID=0, doubleScorerID=0 with doubleScorer powerup)
+	pred := models.Prediction{
+		MatchID:   1,
+		HomeScore: 0,
+		AwayScore: 0,
+		ScorerID:  0,
+	}
+
+	pts := calculatePointsForPrediction(match, pred, "doubleScorer", 0, scoring)
+
+	// Base exact score points:
+	// Exact (5) + Result (3) + HomeExact (1) + AwayExact (1) + GoalDif (2) = 12 pts
+	// Scorer points:
+	// 1st 'None' correct (2) + 2nd 'None' correct (2) + BothScorers bonus (3) = 7 pts
+	// Total = 19 pts
+	expectedScorerPts := scoring.Scorer + scoring.Scorer + scoring.BothScorers // 2 + 2 + 3 = 7
+	expectedTotalPts := 12 + expectedScorerPts                                  // 19
+
+	if pts != expectedTotalPts {
+		t.Errorf("expected %d pts for 0:0 match with double None scorer, got %d", expectedTotalPts, pts)
+	}
+}
+
 func TestRegularTimeHelpers(t *testing.T) {
 	// 1. Test resolveRegularTimeScore
 	t.Run("resolveRegularTimeScore", func(t *testing.T) {
