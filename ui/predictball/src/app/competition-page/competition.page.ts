@@ -330,6 +330,7 @@ export class CompetitionPage implements OnInit, OnDestroy {
         }
 
         if (!matchdayParam || !this.matchdaySteps.includes(this.selectedMatchday)) {
+          const lastStep = this.matchdaySteps[this.matchdaySteps.length - 1];
           const currentMd = this.competition?.currentSeason?.currentMatchday;
           if (currentMd && this.matchdaySteps.includes(currentMd)) {
             const currentMdMatches = this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === currentMd);
@@ -341,7 +342,7 @@ export class CompetitionPage implements OnInit, OnDestroy {
                 const groupMatches = this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === step);
                 return groupMatches.some(m => m.status !== 'FINISHED');
               });
-              this.selectedMatchday = nextUnfinished || currentMd;
+              this.selectedMatchday = nextUnfinished || lastStep || currentMd;
             } else {
               this.selectedMatchday = currentMd;
             }
@@ -350,7 +351,7 @@ export class CompetitionPage implements OnInit, OnDestroy {
               const groupMatches = this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === step);
               return groupMatches.some(m => m.status !== 'FINISHED');
             });
-            this.selectedMatchday = unfinishedGroup || this.matchdaySteps[0] || 1;
+            this.selectedMatchday = unfinishedGroup || lastStep || this.matchdaySteps[0] || 1;
           }
         }
 
