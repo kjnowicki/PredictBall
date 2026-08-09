@@ -7,7 +7,8 @@ import (
 )
 
 type APIService interface {
-	GetMatchSchedule(ctx context.Context, compID string) ([]models.Match, error)
+	GetMatchSchedule(ctx context.Context, compID string, season ...string) ([]models.Match, error)
+	RetireSeason(ctx context.Context, compID string, season string) error
 	GetMatch(ctx context.Context, compID string, matchID string) (*models.Match, error)
 	GetMatchDetails(ctx context.Context, matchID string) (*models.MatchDetails, error)
 

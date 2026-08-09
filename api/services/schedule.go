@@ -8,20 +8,30 @@ import (
 	"time"
 )
 
-func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode string) ([]models.Match, error) {
-	comp, err := s.GetCompetition(ctx, compCode)
-	if err != nil {
-		return nil, err
+func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode string, season ...string) ([]models.Match, error) {
+	seasonStr := "2026"
+	if len(season) > 0 && season[0] != "" {
+		seasonStr = season[0]
 	}
 
-	apiData, err := s.FootballDataService.GetMatches(ctx, comp.Code, map[string]string{"season": "2026"})
-	if err != nil {
-		return nil, err
-	}
-
-	cacheBaseName := filepath.Join("cache", "schedules", fmt.Sprint(comp.ID))
+	cacheBaseName := filepath.Join("cache", "schedules", fmt.Sprintf("%s_%s", compCode, seasonStr))
 	var existingSchedule []models.Match
 	cacheExists := readCache(s, cacheBaseName, &existingSchedule)
+
+	comp, err := s.GetCompetition(ctx, compCode)
+	compCodeStr := compCode
+	if err == nil && comp != nil {
+		compCodeStr = comp.Code
+		cacheBaseName = filepath.Join("cache", "schedules", fmt.Sprintf("%d_%s", comp.ID, seasonStr))
+	}
+
+	apiData, err := s.FootballDataService.GetMatches(ctx, compCodeStr, map[string]string{"season": seasonStr})
+	if err != nil {
+		if cacheExists && len(existingSchedule) > 0 {
+			return existingSchedule, nil
+		}
+		return nil, err
+	}
 
 	existingMap := make(map[int]models.Match)
 	if cacheExists {

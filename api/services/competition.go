@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	footballdata "predictball_api/models/football-data"
+	"strconv"
 )
 
 func (s *PredictballAPIService) GetCompetitions(ctx context.Context) ([]footballdata.Competition, error) {
@@ -28,6 +29,9 @@ func (s *PredictballAPIService) GetCompetition(ctx context.Context, code string)
 }
 
 func (s *PredictballAPIService) ResolveCompetitionID(ctx context.Context, code string) (string, error) {
+	if _, err := strconv.Atoi(code); err == nil {
+		return code, nil
+	}
 	comp, err := s.GetCompetition(ctx, code)
 	if err != nil {
 		return "", err

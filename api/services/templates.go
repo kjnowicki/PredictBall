@@ -13,7 +13,7 @@ func NewTemplateService() *TemplateService {
 	return &TemplateService{}
 }
 
-func (s *TemplateService) GetMatchSchedule(ctx context.Context, compID string) ([]models.Match, error) {
+func (s *TemplateService) GetMatchSchedule(ctx context.Context, compID string, season ...string) ([]models.Match, error) {
 	return []models.Match{
 		{
 			ID:         1,
@@ -230,4 +230,8 @@ func (s *TemplateService) GetTeam(ctx context.Context, teamID int) (*footballdat
 
 func (s *TemplateService) GetTeamDetails(ctx context.Context, teamID int, params map[string]string) (*footballdata.Team, error) {
 	return s.GetTeam(ctx, teamID)
+}
+
+func (s *TemplateService) RetireSeason(ctx context.Context, compID string, season string) error {
+	return nil
 }

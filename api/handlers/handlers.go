@@ -125,6 +125,19 @@ func (h *APIHandler) authorizeUser(r *http.Request, userID string) bool {
 	return ok && authID == userID
 }
 
+func (h *APIHandler) authorizeAdmin(r *http.Request) bool {
+	adminToken := os.Getenv("ADMIN_TOKEN")
+	if adminToken == "" {
+		adminToken = "admin_secret"
+	}
+	reqToken := r.Header.Get("X-Admin-Token")
+	if reqToken == "" {
+		reqToken = r.Header.Get("Authorization")
+		reqToken = strings.TrimPrefix(reqToken, "Bearer ")
+	}
+	return reqToken != "" && reqToken == adminToken
+}
+
 func (h *APIHandler) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
@@ -133,7 +146,7 @@ func (h *APIHandler) AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		path := r.URL.Path
-		if (path == "/user/authenticate" && r.Method == http.MethodPost) || (path == "/user" && r.Method == http.MethodPut) {
+		if (path == "/user/authenticate" && r.Method == http.MethodPost) || (path == "/user" && r.Method == http.MethodPut) || strings.HasPrefix(path, "/admin/") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -184,12 +197,42 @@ func WriteJSON(w http.ResponseWriter, status int, data any) {
 
 func (h *APIHandler) HandleGetMatchSchedule(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	schedule, err := h.Service.GetMatchSchedule(r.Context(), id)
+	season := r.URL.Query().Get("season")
+	schedule, err := h.Service.GetMatchSchedule(r.Context(), id, season)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	WriteJSON(w, http.StatusOK, schedule)
+}
+
+func (h *APIHandler) HandleRetireSeason(w http.ResponseWriter, r *http.Request) {
+	if !h.authorizeAdmin(r) {
+		http.Error(w, "Forbidden: invalid or missing admin token", http.StatusForbidden)
+		return
+	}
+
+	compId := r.PathValue("compId")
+	season := r.PathValue("season")
+	if season == "" {
+		season = r.URL.Query().Get("season")
+	}
+	if strings.TrimSpace(season) == "" {
+		http.Error(w, "Bad Request: season query or path parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	err := h.Service.RetireSeason(r.Context(), compId, season)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, map[string]string{
+		"message":       "season retired successfully",
+		"competitionId": compId,
+		"season":        season,
+	})
 }
 
 func (h *APIHandler) HandleGetMatch(w http.ResponseWriter, r *http.Request) {
@@ -766,6 +809,9 @@ func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 
 	mux.HandleFunc("GET /scoring-system", h.HandleGetScoringSystem)
 	mux.HandleFunc("GET /team-details/{id}", h.HandleGetTeamDetails)
+
+	mux.HandleFunc("POST /admin/competition/{compId}/season/{season}/retire", h.HandleRetireSeason)
+	mux.HandleFunc("POST /admin/competition/{compId}/retire-season", h.HandleRetireSeason)
 
 	return corsMiddleware(h.AuthMiddleware(mux))
 }
