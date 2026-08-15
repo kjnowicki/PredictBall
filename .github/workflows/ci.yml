@@ -50,7 +50,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: ui/predictball/package-lock.json
 
@@ -58,10 +58,7 @@ jobs:
         run: npm ci
 
       - name: Create environment files
-        shell: bash
-        run: |
-          cp -n src/environments/environment.ts.example src/environments/environment.ts || true
-          cp -n src/environments/environment.development.ts.example src/environments/environment.development.ts || true
+        run: node -e "const fs = require('fs'); ['environment.ts', 'environment.development.ts'].forEach(f => { const target = 'src/environments/' + f; if (!fs.existsSync(target)) fs.copyFileSync(target + '.example', target); });"
 
       - name: Build UI
         run: npm run build
