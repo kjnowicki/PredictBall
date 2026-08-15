@@ -6,6 +6,10 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+
 jobs:
   deploy-ui:
     name: Deploy UI (FTP)
