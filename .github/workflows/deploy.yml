@@ -10,7 +10,6 @@ on:
 permissions:
   contents: read
 
-
 jobs:
   deploy-ui:
     name: Deploy UI (FTP)
@@ -39,18 +38,25 @@ jobs:
       - name: Build UI (Production)
         run: npx ng build --configuration production
 
-      - name: Sync UI via LFTP
+      - name: Sync UI via FTP
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
           FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR }}
+        shell: powershell
         run: |
-          sudo apt-get update && sudo apt-get install -y lftp
-          lftp -c "
-            open -u $FTP_USERNAME,$FTP_PASSWORD $FTP_SERVER;
-            mirror --reverse --delete --verbose dist/predictball/browser/ $FTP_SERVER_DIR;
-          "
+          $ftpServer = $env:FTP_SERVER
+          $username = $env:FTP_USERNAME
+          $password = $env:FTP_PASSWORD
+          $remoteDir = $env:FTP_SERVER_DIR
+          $localDir = "dist/predictball/browser"
+
+          Get-ChildItem -Path $localDir -Recurse -File | ForEach-Object {
+              $relativePath = $_.FullName.Substring((Get-Item $localDir).FullName.Length + 1).Replace('\', '/')
+              $targetUrl = "ftp://$ftpServer/$remoteDir/$relativePath"
+              curl.exe -u "$($username):$($password)" --ftp-create-dirs -T $_.FullName $targetUrl
+          }
 
   deploy-backend:
     name: Deploy Backend (Hetzner SSH)
@@ -70,18 +76,37 @@ jobs:
           cache-dependency-path: api/go.sum
 
       - name: Build backend for Linux
-        env:
-          GOOS: linux
-          GOARCH: amd64
-          CGO_ENABLED: '0'
-        run: go build -o backend-linux main.go
+        shell: powershell
+        run: |
+          $env:GOOS="linux"
+          $env:GOARCH="amd64"
+          $env:CGO_ENABLED="0"
+          go build -o backend-linux main.go
 
-      - name: Copy & Deploy Backend via SCP/SSH
+      - name: Copy & Deploy Backend to Hetzner
         env:
           HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
           HETZNER_USERNAME: ${{ secrets.HETZNER_USERNAME }}
           HETZNER_PASSWORD: ${{ secrets.HETZNER_PASSWORD }}
+        shell: powershell
         run: |
-          sudo apt-get update && sudo apt-get install -y sshpass
-          sshpass -p "$HETZNER_PASSWORD" scp -o StrictHostKeyChecking=no backend-linux $HETZNER_USERNAME@$HETZNER_HOST:/root/backend-linux
-          sshpass -p "$HETZNER_PASSWORD" ssh -o StrictHostKeyChecking=no $HETZNER_USERNAME@$HETZNER_HOST "chmod +x /root/backend-linux && systemctl restart predictball"
+          curl.exe -u "$($env:HETZNER_USERNAME):$($env:HETZNER_PASSWORD)" -T backend-linux "sftp://$($env:HETZNER_HOST)/root/backend-linux" --insecure
+          npm install ssh2 --no-save
+          node -e "
+          const { Client } = require('ssh2');
+          const conn = new Client();
+          conn.on('ready', () => {
+            conn.exec('chmod +x /root/backend-linux && systemctl restart predictball', (err, stream) => {
+              if (err) throw err;
+              stream.on('close', (code) => {
+                console.log('Service restarted successfully.');
+                conn.end();
+                process.exit(code || 0);
+              }).on('data', data => process.stdout.write(data)).stderr.on('data', data => process.stderr.write(data));
+            });
+          }).connect({
+            host: process.env.HETZNER_HOST,
+            username: process.env.HETZNER_USERNAME,
+            password: process.env.HETZNER_PASSWORD
+          });
+          "
