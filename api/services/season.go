@@ -41,7 +41,8 @@ func (s *PredictballAPIService) RetireSeason(ctx context.Context, compCode strin
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	leaguesDir := filepath.Join("data", "competitions", compID, "leagues")
+	safeCompID := sanitizeSegment(compID)
+	leaguesDir := filepath.Join("data", "competitions", safeCompID, "leagues")
 
 	globalLeague, userPointsMap, err := s.archiveGlobalLeague(leaguesDir, resolvedSeason)
 	if err != nil {

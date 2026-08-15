@@ -20,6 +20,7 @@ func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, competi
 	if err != nil {
 		return nil, err
 	}
+	safeCompID := sanitizeSegment(compID)
 
 	var filename string
 	if strings.EqualFold(leagueID, "C") {
@@ -27,9 +28,10 @@ func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, competi
 		if len(season) > 0 && season[0] != "" {
 			comp, _ := s.GetCompetition(ctx, competitionID)
 			resolvedSeason := resolveSeasonString(comp, season[0])
-			archivedPath := filepath.Join("data", "competitions", compID, "leagues", "archive", fmt.Sprintf("C_%s.json", resolvedSeason))
+			safeSeason := sanitizeSegment(resolvedSeason)
+			archivedPath := filepath.Join("data", "competitions", safeCompID, "leagues", "archive", fmt.Sprintf("C_%s.json", safeSeason))
 			if _, err := os.Stat(archivedPath); err == nil {
-				filename = filepath.Join("archive", fmt.Sprintf("C_%s.json", resolvedSeason))
+				filename = filepath.Join("archive", fmt.Sprintf("C_%s.json", safeSeason))
 			}
 		}
 	} else {
@@ -43,17 +45,18 @@ func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, competi
 			if len(season) > 0 && season[0] != "" {
 				comp, _ := s.GetCompetition(ctx, competitionID)
 				resolvedSeason := resolveSeasonString(comp, season[0])
-				archivedPath := filepath.Join("data", "competitions", compID, "leagues", "archive", fmt.Sprintf("0_%s.json", resolvedSeason))
+				safeSeason := sanitizeSegment(resolvedSeason)
+				archivedPath := filepath.Join("data", "competitions", safeCompID, "leagues", "archive", fmt.Sprintf("0_%s.json", safeSeason))
 				if _, err := os.Stat(archivedPath); err == nil {
-					filename = filepath.Join("archive", fmt.Sprintf("0_%s.json", resolvedSeason))
+					filename = filepath.Join("archive", fmt.Sprintf("0_%s.json", safeSeason))
 				}
 			}
 		} else {
-			filename = fmt.Sprintf("%s.json", leagueID)
+			filename = fmt.Sprintf("%d.json", idInt)
 		}
 	}
 
-	path := filepath.Join("data", "competitions", compID, "leagues", filename)
+	path := filepath.Join("data", "competitions", safeCompID, "leagues", filename)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("prediction league not found: %v", err)
@@ -122,7 +125,8 @@ func (s *PredictballAPIService) PutPredictionLeague(ctx context.Context, competi
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	dir := filepath.Join("data", "competitions", compID, "leagues")
+	safeCompID := sanitizeSegment(compID)
+	dir := filepath.Join("data", "competitions", safeCompID, "leagues")
 	os.MkdirAll(dir, 0755)
 
 	if league.ID == 0 { // This is a new league
@@ -205,7 +209,8 @@ func (s *PredictballAPIService) JoinGlobalLeague(ctx context.Context, competitio
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	dir := fmt.Sprintf("data/competitions/%s/leagues", compID)
+	safeCompID := sanitizeSegment(compID)
+	dir := filepath.Join("data", "competitions", safeCompID, "leagues")
 	os.MkdirAll(dir, 0755)
 	path := filepath.Join(dir, "0.json")
 
@@ -329,7 +334,8 @@ func (s *PredictballAPIService) GetCompetitionLeagues(ctx context.Context, compe
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	dir := filepath.Join("data", "competitions", compID, "leagues")
+	safeCompID := sanitizeSegment(compID)
+	dir := filepath.Join("data", "competitions", safeCompID, "leagues")
 	files, err := os.ReadDir(dir)
 
 	resp := LeaguesResponse{
@@ -351,7 +357,8 @@ func (s *PredictballAPIService) GetCompetitionLeagues(ctx context.Context, compe
 	if len(season) > 0 && season[0] != "" {
 		comp, _ := s.GetCompetition(ctx, competitionID)
 		resolvedSeason := resolveSeasonString(comp, season[0])
-		archivedPath := filepath.Join(dir, "archive", fmt.Sprintf("0_%s.json", resolvedSeason))
+		safeSeason := sanitizeSegment(resolvedSeason)
+		archivedPath := filepath.Join(dir, "archive", fmt.Sprintf("0_%s.json", safeSeason))
 		if _, err := os.Stat(archivedPath); err == nil {
 			globalPath = archivedPath
 		}
@@ -470,7 +477,8 @@ func (s *PredictballAPIService) JoinLeagueByCode(ctx context.Context, competitio
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	dir := filepath.Join("data", "competitions", compID, "leagues")
+	safeCompID := sanitizeSegment(compID)
+	dir := filepath.Join("data", "competitions", safeCompID, "leagues")
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("competition leagues not found")

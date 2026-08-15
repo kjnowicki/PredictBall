@@ -321,7 +321,8 @@ func (s *PredictballAPIService) AdminDeleteUser(ctx context.Context, userID stri
 	s.saveUsers()
 
 	// Clean up user folder in data/users/{userID}
-	userDir := filepath.Join("data", "users", userID)
+	safeUserID := sanitizeSegment(userID)
+	userDir := filepath.Join("data", "users", safeUserID)
 	_ = os.RemoveAll(userDir)
 
 	return nil

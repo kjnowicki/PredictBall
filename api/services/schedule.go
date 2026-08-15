@@ -29,11 +29,15 @@ func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode s
 		seasonStr = "2026"
 	}
 
-	cacheBaseName := filepath.Join("cache", "schedules", fmt.Sprintf("%s_%s", compIDStr, seasonStr))
+	safeCompID := sanitizeSegment(compIDStr)
+	safeCompCode := sanitizeSegment(compCodeStr)
+	safeSeason := sanitizeSegment(seasonStr)
+
+	cacheBaseName := filepath.Join("cache", "schedules", fmt.Sprintf("%s_%s", safeCompID, safeSeason))
 	var existingSchedule []models.Match
 	cacheExists := readCacheAny(s, cacheBaseName, &existingSchedule)
 	if !cacheExists && compCodeStr != compIDStr {
-		cacheBaseNameAlt := filepath.Join("cache", "schedules", fmt.Sprintf("%s_%s", compCodeStr, seasonStr))
+		cacheBaseNameAlt := filepath.Join("cache", "schedules", fmt.Sprintf("%s_%s", safeCompCode, safeSeason))
 		cacheExists = readCacheAny(s, cacheBaseNameAlt, &existingSchedule)
 	}
 

@@ -12,7 +12,9 @@ import (
 )
 
 func getPredictionsPath(userID, compID string) string {
-	return filepath.Join("data", "users", userID, "competition", compID, "predictions.json")
+	safeUserID := sanitizeSegment(userID)
+	safeCompID := sanitizeSegment(compID)
+	return filepath.Join("data", "users", safeUserID, "competition", safeCompID, "predictions.json")
 }
 
 func loadPredictions(userID, compID string) (map[int]models.Prediction, error) {
@@ -129,7 +131,9 @@ func (s *PredictballAPIService) PutPrediction(ctx context.Context, userID string
 }
 
 func getPowerupsPath(userID, compID string) string {
-	return filepath.Join("data", "users", userID, "competition", compID, "powerups.json")
+	safeUserID := sanitizeSegment(userID)
+	safeCompID := sanitizeSegment(compID)
+	return filepath.Join("data", "users", safeUserID, "competition", safeCompID, "powerups.json")
 }
 
 func (s *PredictballAPIService) GetPowerups(ctx context.Context, userID string, compID string) (*models.PowerupsData, error) {

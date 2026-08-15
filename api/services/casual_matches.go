@@ -38,8 +38,11 @@ func (s *PredictballAPIService) GetCasualMatchIDs(ctx context.Context, competiti
 		seasonStr = "2026"
 	}
 
-	path := filepath.Join("data", "competitions", compID, fmt.Sprintf("casual_matches_%s.json", seasonStr))
-	fallbackPath := filepath.Join("data", "competitions", compID, "casual_matches.json")
+	safeCompID := sanitizeSegment(compID)
+	safeSeasonStr := sanitizeSegment(seasonStr)
+
+	path := filepath.Join("data", "competitions", safeCompID, fmt.Sprintf("casual_matches_%s.json", safeSeasonStr))
+	fallbackPath := filepath.Join("data", "competitions", safeCompID, "casual_matches.json")
 
 	s.mu.RLock()
 	data, err := os.ReadFile(path)
@@ -202,9 +205,12 @@ func (s *PredictballAPIService) GenerateCasualMatches(ctx context.Context, compe
 		return nil, nil, fmt.Errorf("failed to encode casual matches data: %w", err)
 	}
 
-	dir := filepath.Join("data", "competitions", compID)
+	safeCompID := sanitizeSegment(compID)
+	safeSeasonStr := sanitizeSegment(seasonStr)
+
+	dir := filepath.Join("data", "competitions", safeCompID)
 	os.MkdirAll(dir, 0755)
-	seasonPath := filepath.Join(dir, fmt.Sprintf("casual_matches_%s.json", seasonStr))
+	seasonPath := filepath.Join(dir, fmt.Sprintf("casual_matches_%s.json", safeSeasonStr))
 	mainPath := filepath.Join(dir, "casual_matches.json")
 
 	s.mu.Lock()
