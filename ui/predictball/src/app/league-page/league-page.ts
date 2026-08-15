@@ -1,14 +1,19 @@
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatTableModule } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
+import { FormsModule } from '@angular/forms';
 import { PredictionLeagueService } from '../services/prediction-league.service';
+import { CompetitionService } from '../services/competition.service';
 import { UserService } from '../services/user.service';
 import { forkJoin, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
+import { Season } from '../models/competition';
 
 interface Player {
   position: number;
@@ -25,7 +30,10 @@ interface Player {
     MatTableModule,
     RouterModule,
     MatIconModule,
-    MatTooltipModule
+    MatTooltipModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    FormsModule
   ],
   templateUrl: './league-page.html',
   styleUrl: './league-page.css',
@@ -38,14 +46,57 @@ export class LeaguePage implements OnInit {
   errorMessage: string | null = null;
   currentUserId: string | null = null;
 
+  season: string | null = null;
+  selectedSeason: string = '';
+  availableSeasons: Season[] = [];
+
   players: Player[] = [];
   displayedColumns: string[] = ['position', 'name', 'points'];
 
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private leagueService = inject(PredictionLeagueService);
+  private competitionService = inject(CompetitionService);
   private userService = inject(UserService);
   private cdr = inject(ChangeDetectorRef);
   private document = inject(DOCUMENT);
+
+  getSeasonValue(season: Season): string {
+    if (season.startDate && season.startDate.length >= 4) {
+      return season.startDate.substring(0, 4);
+    }
+    return season.id ? season.id.toString() : '';
+  }
+
+  formatSeasonLabel(season: Season): string {
+    let label = '';
+    if (season.startDate && season.startDate.length >= 4) {
+      label = season.startDate.substring(0, 4);
+      if (season.endDate && season.endDate.length >= 4 && season.endDate.substring(0, 4) !== label) {
+        label += `/${season.endDate.substring(0, 4)}`;
+      }
+    } else if (season.id) {
+      label = `Season ${season.id}`;
+    }
+    if (season.isRetired) {
+      label += ' (Retired)';
+    }
+    return label;
+  }
+
+  onSeasonChange(seasonVal: string) {
+    if (this.selectedSeason === seasonVal) return;
+    this.selectedSeason = seasonVal;
+    this.season = seasonVal;
+
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { season: this.selectedSeason },
+      queryParamsHandling: 'merge'
+    });
+
+    this.loadLeague();
+  }
 
   ngOnInit(): void {
     const cookies = this.document.cookie.split(';');
@@ -57,12 +108,39 @@ export class LeaguePage implements OnInit {
       }
     }
 
+    this.route.queryParamMap.subscribe(queryParams => {
+      const querySeason = queryParams.get('season');
+      if (querySeason && querySeason !== this.selectedSeason) {
+        this.season = querySeason;
+        this.selectedSeason = querySeason;
+        if (this.competitionId && this.leagueId) {
+          this.loadLeague();
+        }
+      }
+    });
+
     this.route.paramMap.subscribe(params => {
       this.leagueId = params.get('id');
       this.competitionId = params.get('compId') || this.route.parent?.snapshot.paramMap.get('id') || null;
 
-      if (this.competitionId && this.leagueId) {
-        this.loadLeague();
+      if (this.competitionId) {
+        this.competitionService.getCompetition(this.competitionId).pipe(catchError(() => of(null))).subscribe(comp => {
+          if (comp) {
+            this.availableSeasons = comp.seasons || (comp.currentSeason ? [comp.currentSeason] : []);
+            const querySeason = this.route.snapshot.queryParamMap.get('season');
+            if (querySeason && this.availableSeasons.some(s => this.getSeasonValue(s) === querySeason)) {
+              this.selectedSeason = querySeason;
+            } else if (comp.currentSeason) {
+              this.selectedSeason = this.getSeasonValue(comp.currentSeason);
+            } else if (this.availableSeasons.length > 0) {
+              this.selectedSeason = this.getSeasonValue(this.availableSeasons[0]);
+            }
+            this.season = this.selectedSeason;
+          }
+          if (this.competitionId && this.leagueId) {
+            this.loadLeague();
+          }
+        });
       }
     });
   }
@@ -80,8 +158,8 @@ export class LeaguePage implements OnInit {
     if (!this.competitionId || !this.leagueId) return;
 
     forkJoin({
-      league: this.leagueService.getPredictionLeague(this.competitionId, this.leagueId),
-      globalLeague: this.leagueService.getPredictionLeague(this.competitionId, 0).pipe(catchError(() => of(null)))
+      league: this.leagueService.getPredictionLeague(this.competitionId, this.leagueId, this.season || undefined),
+      globalLeague: this.leagueService.getPredictionLeague(this.competitionId, 0, this.season || undefined).pipe(catchError(() => of(null)))
     }).subscribe({
       next: ({ league, globalLeague }: { league: any, globalLeague: any }) => {
         this.errorMessage = null;

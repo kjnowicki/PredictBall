@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -36,11 +37,24 @@ func (s *FootballDataService) fetchCached(ctx context.Context, endpoint string, 
 	h.Write([]byte(queryParams.Encode()))
 	cacheBaseName := filepath.Join("cache", endpoint, fmt.Sprintf("%x", h.Sum32()))
 
+	displayEndpoint := "v4/" + endpoint
+	if len(params) > 0 {
+		displayEndpoint += " (" + queryParams.Encode() + ")"
+	}
+
 	if readCache(s.apiClient, cacheBaseName, target) {
+		GlobalStatsTracker.RecordAPICacheHit(displayEndpoint)
 		return nil
 	}
 
+	GlobalStatsTracker.RecordAPICacheMiss(displayEndpoint)
+
 	if err := s.apiClient.fetchAPI(ctx, endpoint, queryParams, target); err != nil {
+		if readCacheAny(s.apiClient, cacheBaseName, target) {
+			log.Printf("fetchAPI for %s failed (%v); using fallback cached data", endpoint, err)
+			writeCache(s.apiClient, cacheBaseName, target, cacheDuration)
+			return nil
+		}
 		return err
 	}
 
@@ -77,10 +91,33 @@ func (s *FootballDataService) GetCompetitions(ctx context.Context, params map[st
 	return &apiData, nil
 }
 
+func (s *FootballDataService) GetAllAvailableCompetitions(ctx context.Context) (*CompetitionsResponse, error) {
+	var apiData CompetitionsResponse
+	// Cache available competition options from v4/competitions with 1 month (30 days) expiration date
+	if err := s.fetchCached(ctx, "competitions", nil, &apiData, 30*24*time.Hour); err != nil {
+		return nil, err
+	}
+	return &apiData, nil
+}
+
+func (s *FootballDataService) GetCompetitionDetail(ctx context.Context, compCode string) (*footballdata.Competition, error) {
+	var apiData footballdata.Competition
+	endpoint := fmt.Sprintf("competitions/%s", compCode)
+	if err := s.fetchCached(ctx, endpoint, nil, &apiData, 24*time.Hour); err != nil {
+		return nil, err
+	}
+	return &apiData, nil
+}
+
 func (s *FootballDataService) GetTeamDetails(ctx context.Context, teamID int, params map[string]string) (*footballdata.Team, error) {
 	var apiData footballdata.Team
 	if err := s.fetchCached(ctx, fmt.Sprintf("teams/%d", teamID), params, &apiData, 7*24*time.Hour); err != nil {
-		return nil, err
+		return &footballdata.Team{
+			ID:          teamID,
+			Name:        fmt.Sprintf("Team %d", teamID),
+			ShortName:   fmt.Sprintf("Team %d", teamID),
+			LastUpdated: time.Now().Format(time.RFC3339),
+		}, nil
 	}
 	return &apiData, nil
 }

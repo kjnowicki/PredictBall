@@ -11,7 +11,8 @@ import { Match } from '../models';
 import { TeamService } from '../services/team.service';
 import { MatchService } from '../services/match.service';
 import { Team } from '../models/team';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { calculatePredictionPoints } from '../utils/scoring.utils';
 import { TeamSelect } from '../team-select/team-select';
 
@@ -207,9 +208,9 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
 
   fetchMatchUpdate() {
     if (this.competition && this.competition.code) {
-      this.matchService.getMatch(this.competition.code, this.match.id.toString()).subscribe({
+      this.matchService.getMatch(this.competition.code, this.match.id.toString()).pipe(catchError(() => of(null))).subscribe({
         next: updatedMatch => {
-          if (this.match) {
+          if (updatedMatch && this.match) {
             this.match.status = updatedMatch.status;
             if (this.match.matchDetails && updatedMatch.matchDetails) {
               this.match.matchDetails.homeScore = updatedMatch.matchDetails.homeScore ?? 0;

@@ -8,6 +8,47 @@ type User struct {
 	Password        string    `json:"password,omitempty"`
 	DisplayName     string    `json:"displayName"`
 	NameLastChanged time.Time `json:"nameLastChanged"`
+	LastLoggedIn    time.Time `json:"lastLoggedIn,omitempty"`
+	VisitCount      int       `json:"visitCount"`
+}
+
+type AdminUserDetail struct {
+	ID                int       `json:"id"`
+	Username          string    `json:"username"`
+	DisplayName       string    `json:"displayName"`
+	NameLastChanged   time.Time `json:"nameLastChanged"`
+	LastLoggedIn      time.Time `json:"lastLoggedIn"`
+	VisitCount        int       `json:"visitCount"`
+	UniquePredictions int       `json:"uniquePredictions"`
+	TotalPredictions  int       `json:"totalPredictions"`
+}
+
+type EndpointStat struct {
+	Endpoint    string `json:"endpoint"`
+	TotalCount  int64  `json:"totalCount"`
+	CacheHits   int64  `json:"cacheHits"`
+	CacheMisses int64  `json:"cacheMisses"`
+	ErrorCount  int64  `json:"errorCount"`
+}
+
+type ErrorLogEntry struct {
+	Timestamp  time.Time `json:"timestamp"`
+	Endpoint   string    `json:"endpoint"`
+	Method     string    `json:"method"`
+	StatusCode int       `json:"statusCode"`
+	UserID     string    `json:"userId,omitempty"`
+	Error      string    `json:"error"`
+}
+
+type StatsSummary struct {
+	TotalHTTPRequests int64                   `json:"totalHttpRequests"`
+	APITotalRequests  int64                   `json:"apiTotalRequests"`
+	APICacheHits      int64                   `json:"apiCacheHits"`
+	APICacheMisses    int64                   `json:"apiCacheMisses"`
+	APICacheHitRate   float64                 `json:"apiCacheHitRate"`
+	APIEndpointStats  map[string]*EndpointStat `json:"apiEndpointStats"`
+	HTTPEndpointStats map[string]*EndpointStat `json:"httpEndpointStats"`
+	RecentErrors      []ErrorLogEntry         `json:"recentErrors"`
 }
 
 type Match struct {

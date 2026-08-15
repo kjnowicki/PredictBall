@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideRouter, ActivatedRoute } from '@angular/router';
+import { provideRouter, ActivatedRoute, convertToParamMap } from '@angular/router';
 import { of } from 'rxjs';
 
 import { LeaguePage } from './league-page';
@@ -22,8 +22,17 @@ describe('LeaguePage', () => {
         {
           provide: ActivatedRoute,
           useValue: {
-            paramMap: of(new Map([['id', '1'], ['compId', '100']])),
-            parent: { snapshot: { paramMap: new Map([['id', '100']]) } }
+            paramMap: of(convertToParamMap({ id: '1', compId: '100' })),
+            queryParamMap: of(convertToParamMap({})),
+            snapshot: {
+              paramMap: convertToParamMap({ id: '1', compId: '100' }),
+              queryParamMap: convertToParamMap({})
+            },
+            parent: {
+              snapshot: {
+                paramMap: convertToParamMap({ id: '100' })
+              }
+            }
           }
         }
       ]

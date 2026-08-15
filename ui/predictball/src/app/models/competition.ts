@@ -4,6 +4,8 @@ export interface Season {
     endDate: string;
     currentMatchday: number;
     winner: any | null;
+    isRetired?: boolean;
+    isFinished?: boolean;
 }
 
 export interface Competition {
@@ -13,4 +15,5 @@ export interface Competition {
     type: string;
     emblem: string;
     currentSeason?: Season;
+    seasons?: Season[];
 }

@@ -103,10 +103,15 @@ export function calculatePredictionPoints(
     firstScorerCorrect = true;
   }
 
-  if (prediction.powerup === 'doubleScorer' && predictedDoubleScorerId !== 0 && scorerCounts[predictedDoubleScorerId] > 0) {
-    scorerPoints += scorerPts;
-    scorerCounts[predictedDoubleScorerId]--;
-    secondScorerCorrect = true;
+  if (prediction.powerup === 'doubleScorer') {
+    if (actualScorers.length === 0 && predictedDoubleScorerId === 0) {
+      scorerPoints += scorerPts;
+      secondScorerCorrect = true;
+    } else if (predictedDoubleScorerId !== 0 && scorerCounts[predictedDoubleScorerId] > 0) {
+      scorerPoints += scorerPts;
+      scorerCounts[predictedDoubleScorerId]--;
+      secondScorerCorrect = true;
+    }
   }
 
   if (firstScorerCorrect && secondScorerCorrect) {

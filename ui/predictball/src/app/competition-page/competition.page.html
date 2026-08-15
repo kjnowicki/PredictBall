@@ -1,7 +1,21 @@
 <div style="margin: 2rem;">
   <mat-card>
-    <mat-card-header style="margin-bottom: 1rem; display: flex; align-items: center;">
-      <mat-card-title style="margin-bottom: 0;">{{ competitionName }}</mat-card-title>
+    <mat-card-header style="margin-bottom: 1rem; display: flex; align-items: center; flex-wrap: wrap; gap: 1rem;">
+      <mat-card-title style="margin-bottom: 0; display: flex; align-items: center; gap: 1rem;">
+        <span>{{ competitionName }}</span>
+        @if (availableSeasons.length > 0) {
+        <mat-form-field appearance="outline" style="font-size: 0.9rem; min-width: 140px; margin-bottom: -1.25em;">
+          <mat-label>Season</mat-label>
+          <mat-select [value]="selectedSeason" (selectionChange)="onSeasonChange($event.value)">
+            @for (season of availableSeasons; track (season.id || season.startDate)) {
+            <mat-option [value]="getSeasonValue(season)">
+              {{ formatSeasonLabel(season) }}
+            </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        }
+      </mat-card-title>
       <span style="flex: 1 1 auto;"></span>
       <div style="font-size: 1.1rem; color: #555;">
         {{ currentTime | date:'mediumTime' }} ({{ timeZoneString }})
@@ -9,8 +23,16 @@
     </mat-card-header>
 
     <mat-card-content>
-      <mat-tab-group>
-        <mat-tab label="Predictions">
+      @if (loadError) {
+        <div style="text-align: center; padding: 2.5rem; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 8px; margin: 1rem 0;">
+          <mat-icon style="font-size: 3rem; width: 3rem; height: 3rem; margin-bottom: 0.5rem; color: #d9534f;">warning</mat-icon>
+          <h3 style="margin-top: 0.5rem; margin-bottom: 0.5rem;">Competition Unavailable</h3>
+          <p style="margin-bottom: 1rem;">{{ loadError }}</p>
+          <a mat-flat-button color="primary" routerLink="/home">Return to Home</a>
+        </div>
+      } @else {
+      <mat-tab-group [(selectedIndex)]="selectedTabIndex">
+        <mat-tab label="Predictions" [disabled]="isRetiredSeason">
           <div style="padding-top: 1.5rem; padding-bottom: 1rem;">
             @if (viewedUserId) {
             <div class="view-user-banner"
@@ -96,13 +118,24 @@
               <ng-container matColumnDef="name">
                 <th mat-header-cell *matHeaderCellDef>League Name</th>
                 <td mat-cell *matCellDef="let league">
-                  <a [routerLink]="['/competition', competitionCode, 'league', league.id]">{{ league.name }}</a>
+                  <a [routerLink]="['/competition', competitionCode, 'league', league.id]" [queryParams]="{ season: selectedSeason }">{{ league.name }}</a>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="participants">
                 <th mat-header-cell *matHeaderCellDef>Participants</th>
                 <td mat-cell *matCellDef="let league">{{ league.participants }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="userPlace">
+                <th mat-header-cell *matHeaderCellDef> Your Place </th>
+                <td mat-cell *matCellDef="let league">
+                  @if (league.userPlace) {
+                    #{{ league.userPlace }}
+                  } @else {
+                    -
+                  }
+                </td>
               </ng-container>
 
               <tr mat-header-row *matHeaderRowDef="leaguesDisplayedColumns"></tr>
@@ -114,13 +147,24 @@
               <ng-container matColumnDef="name">
                 <th mat-header-cell *matHeaderCellDef>League Name</th>
                 <td mat-cell *matCellDef="let league">
-                  <a [routerLink]="['/competition', competitionCode, 'league', league.id]">{{ league.name }}</a>
+                  <a [routerLink]="['/competition', competitionCode, 'league', league.id]" [queryParams]="{ season: selectedSeason }">{{ league.name }}</a>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="participants">
                 <th mat-header-cell *matHeaderCellDef>Participants</th>
                 <td mat-cell *matCellDef="let league">{{ league.participants }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="userPlace">
+                <th mat-header-cell *matHeaderCellDef> Your Place </th>
+                <td mat-cell *matCellDef="let league">
+                  @if (league.userPlace) {
+                    #{{ league.userPlace }}
+                  } @else {
+                    -
+                  }
+                </td>
               </ng-container>
 
               <tr mat-header-row *matHeaderRowDef="leaguesDisplayedColumns"></tr>
@@ -204,6 +248,7 @@
           </div>
         </mat-tab>
       </mat-tab-group>
+      }
     </mat-card-content>
   </mat-card>
 </div>

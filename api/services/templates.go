@@ -13,7 +13,7 @@ func NewTemplateService() *TemplateService {
 	return &TemplateService{}
 }
 
-func (s *TemplateService) GetMatchSchedule(ctx context.Context, compID string) ([]models.Match, error) {
+func (s *TemplateService) GetMatchSchedule(ctx context.Context, compID string, season ...string) ([]models.Match, error) {
 	return []models.Match{
 		{
 			ID:         1,
@@ -160,11 +160,11 @@ func (s *TemplateService) JoinGlobalLeague(ctx context.Context, competitionID st
 	return &models.GlobalLeague{}, nil
 }
 
-func (s *TemplateService) GetPredictionLeague(ctx context.Context, competitionID string, leagueID string) (any, error) {
+func (s *TemplateService) GetPredictionLeague(ctx context.Context, competitionID string, leagueID string, season ...string) (any, error) {
 	return &models.PredictionLeague{ID: 1, Name: "Premier League Predictors", JoinCode: "PL2026"}, nil
 }
 
-func (s *TemplateService) GetCompetitionLeagues(ctx context.Context, competitionID string, userID string) (any, error) {
+func (s *TemplateService) GetCompetitionLeagues(ctx context.Context, competitionID string, userID string, season ...string) (any, error) {
 	return map[string]any{
 		"publicLeagues": []map[string]any{
 			{"id": 1, "name": "Global League", "public": true, "participants": 100},
@@ -230,4 +230,40 @@ func (s *TemplateService) GetTeam(ctx context.Context, teamID int) (*footballdat
 
 func (s *TemplateService) GetTeamDetails(ctx context.Context, teamID int, params map[string]string) (*footballdata.Team, error) {
 	return s.GetTeam(ctx, teamID)
+}
+
+func (s *TemplateService) RetireSeason(ctx context.Context, compID string, season string) error {
+	return nil
+}
+
+func (s *TemplateService) GetAllAvailableCompetitions(ctx context.Context) ([]footballdata.Competition, error) {
+	return []footballdata.Competition{}, nil
+}
+
+func (s *TemplateService) AddCompetition(ctx context.Context, compID string) (*footballdata.Competition, error) {
+	return &footballdata.Competition{ID: 2021, Name: "Premier League", Code: "PL"}, nil
+}
+
+func (s *TemplateService) DeleteCompetition(ctx context.Context, compID string) error {
+	return nil
+}
+
+func (s *TemplateService) GetCompetitionDetail(ctx context.Context, compCode string) (*footballdata.Competition, error) {
+	return &footballdata.Competition{ID: 2021, Name: "Premier League", Code: "PL"}, nil
+}
+
+func (s *TemplateService) GetAdminUserList(ctx context.Context) ([]models.AdminUserDetail, error) {
+	return []models.AdminUserDetail{}, nil
+}
+
+func (s *TemplateService) AdminDeleteUser(ctx context.Context, userID string) error {
+	return nil
+}
+
+func (s *TemplateService) AdminUpdateDisplayName(ctx context.Context, userID string, displayName string) error {
+	return nil
+}
+
+func (s *TemplateService) GetStats(ctx context.Context) models.StatsSummary {
+	return GlobalStatsTracker.GetSummary()
 }

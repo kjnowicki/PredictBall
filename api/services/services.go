@@ -7,7 +7,8 @@ import (
 )
 
 type APIService interface {
-	GetMatchSchedule(ctx context.Context, compID string) ([]models.Match, error)
+	GetMatchSchedule(ctx context.Context, compID string, season ...string) ([]models.Match, error)
+	RetireSeason(ctx context.Context, compID string, season string) error
 	GetMatch(ctx context.Context, compID string, matchID string) (*models.Match, error)
 	GetMatchDetails(ctx context.Context, matchID string) (*models.MatchDetails, error)
 
@@ -22,10 +23,10 @@ type APIService interface {
 	GetCompetitions(ctx context.Context) ([]footballdata.Competition, error)
 	GetCompetition(ctx context.Context, code string) (*footballdata.Competition, error)
 
-	GetPredictionLeague(ctx context.Context, competitionID string, leagueID string) (any, error)
+	GetPredictionLeague(ctx context.Context, competitionID string, leagueID string, season ...string) (any, error)
 	PutPredictionLeague(ctx context.Context, competitionID string, userID string, league models.PredictionLeague) (*models.PredictionLeague, error)
 	JoinGlobalLeague(ctx context.Context, competitionID string, userID string) (*models.GlobalLeague, error)
-	GetCompetitionLeagues(ctx context.Context, competitionID string, userID string) (any, error)
+	GetCompetitionLeagues(ctx context.Context, competitionID string, userID string, season ...string) (any, error)
 	JoinLeagueByCode(ctx context.Context, competitionID string, userID string, joinCode string) (any, error)
 
 	GetPredictions(ctx context.Context, userID string, compID string, matchIDs []int) ([]models.Prediction, error)
@@ -37,4 +38,15 @@ type APIService interface {
 	GetScoringSystem(ctx context.Context) (*models.ScoringSystem, error)
 	GetTeam(ctx context.Context, teamID int) (*footballdata.Team, error)
 	GetTeamDetails(ctx context.Context, teamID int, params map[string]string) (*footballdata.Team, error)
+
+	GetAllAvailableCompetitions(ctx context.Context) ([]footballdata.Competition, error)
+	AddCompetition(ctx context.Context, compID string) (*footballdata.Competition, error)
+	DeleteCompetition(ctx context.Context, compID string) error
+	GetCompetitionDetail(ctx context.Context, compCode string) (*footballdata.Competition, error)
+
+	GetAdminUserList(ctx context.Context) ([]models.AdminUserDetail, error)
+	AdminDeleteUser(ctx context.Context, userID string) error
+	AdminUpdateDisplayName(ctx context.Context, userID string, displayName string) error
+
+	GetStats(ctx context.Context) models.StatsSummary
 }

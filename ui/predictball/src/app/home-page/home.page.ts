@@ -107,7 +107,8 @@ export class HomePage implements OnInit {
           this.competitions = comps.filter(c => c !== null).map(c => ({ ...c, points: 0 }));
           
           this.competitions.forEach(comp => {
-            this.leagueService.getPredictionLeague(comp.id, 0).subscribe({
+            const season = this.getCompSeason(comp);
+            this.leagueService.getPredictionLeague(comp.id, 0, season).subscribe({
               next: (league: any) => {
                 if (league && league.users) {
                   this.globalLeagues[comp.id] = league;
@@ -137,6 +138,21 @@ export class HomePage implements OnInit {
     });
   }
 
+  getCompSeason(comp?: Competition): string {
+    if (!comp) return '';
+    if (comp.currentSeason?.startDate && comp.currentSeason.startDate.length >= 4) {
+      return comp.currentSeason.startDate.substring(0, 4);
+    }
+    if (comp.seasons && comp.seasons.length > 0) {
+      const s = comp.seasons[0];
+      if (s.startDate && s.startDate.length >= 4) {
+        return s.startDate.substring(0, 4);
+      }
+      if (s.id) return s.id.toString();
+    }
+    return comp.currentSeason?.id ? comp.currentSeason.id.toString() : '';
+  }
+
   get currentCompetition(): (Competition & { points?: number }) | undefined {
     return this.competitions.find(c => c.id === this.selectedCompetitionId());
   }
@@ -154,8 +170,11 @@ export class HomePage implements OnInit {
       return;
     }
 
+    const comp = this.competitions.find(c => c.id === compId);
+    const season = this.getCompSeason(comp);
+
     const leagueReqs = leagueIds.map(id =>
-      this.leagueService.getPredictionLeague(compId, id.toString()).pipe(
+      this.leagueService.getPredictionLeague(compId, id.toString(), season).pipe(
         catchError(() => of(null))
       )
     );
@@ -223,14 +242,15 @@ export class HomePage implements OnInit {
     const tasksRequests = this.competitions.map(comp => {
       return this.matchService.getMatchSchedule(comp.code).pipe(
         catchError(() => of([] as Match[])),
+        map(matches => (Array.isArray(matches) ? matches : [])),
         switchMap(matches => {
           if (matches.length === 0) {
-            return of({ comp, matches, predictions: [] });
+            return of({ comp, matches: [] as Match[], predictions: [] as any[] });
           }
           const matchIds = matches.map(m => m.id);
           return this.competitionService.getPredictions(userId, comp.id.toString(), matchIds).pipe(
             catchError(() => of([] as any[])),
-            map(predictions => ({ comp, matches, predictions }))
+            map(predictions => ({ comp, matches, predictions: Array.isArray(predictions) ? predictions : [] }))
           );
         })
       );
@@ -243,9 +263,14 @@ export class HomePage implements OnInit {
       const oneDayFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
       results.forEach(({ comp, matches, predictions }) => {
+        const safeMatches = Array.isArray(matches) ? matches : [];
+        const safePredictions = Array.isArray(predictions) ? predictions : [];
+
+        if (safeMatches.length === 0) return;
+
         // Group matches by matchday or stage
         const matchdayGroups: { [key: string]: Match[] } = {};
-        matches.forEach(m => {
+        safeMatches.forEach(m => {
           if (m.homeTeamId === 0 || m.awayTeamId === 0) {
             return;
           }
@@ -259,11 +284,18 @@ export class HomePage implements OnInit {
 
         // Map predictions by matchId
         const predictionsMap: { [key: number]: any } = {};
-        predictions.forEach(p => {
+        safePredictions.forEach(p => {
           predictionsMap[p.matchId] = p;
         });
 
-        // For each matchday group
+        // Collect matchday summaries
+        const groupSummaries: {
+          matchday: number | string;
+          firstMatchTime: Date;
+          groupMatches: Match[];
+          hasUnfinished: boolean;
+        }[] = [];
+
         Object.keys(matchdayGroups).forEach(groupKey => {
           const groupMatches = matchdayGroups[groupKey];
           if (groupMatches.length === 0) return;
@@ -271,7 +303,6 @@ export class HomePage implements OnInit {
           const parsedNum = parseInt(groupKey, 10);
           const matchday = isNaN(parsedNum) ? groupKey : parsedNum;
 
-          // Find first match by start time
           let firstMatch = groupMatches[0];
           for (let i = 1; i < groupMatches.length; i++) {
             if (new Date(groupMatches[i].startTime) < new Date(firstMatch.startTime)) {
@@ -280,48 +311,63 @@ export class HomePage implements OnInit {
           }
 
           const firstMatchTime = new Date(firstMatch.startTime);
+          const hasUnfinished = groupMatches.some(m => m.status !== 'FINISHED');
 
-          // Check if first match of matchday is at most in 2 weeks time
-          if (firstMatchTime <= twoWeeksFromNow) {
-            // Count missing predictions
-            let missingCount = 0;
-            groupMatches.forEach(m => {
-              if (m.status === 'FINISHED') {
-                return;
-              }
-              const p = predictionsMap[m.id];
-              let isComplete = false;
-              if (p) {
-                const homeScore = p.homeScore;
-                const awayScore = p.awayScore;
-                const areScoresSet = homeScore !== null && homeScore !== undefined &&
-                                     awayScore !== null && awayScore !== undefined &&
-                                     homeScore !== '' && awayScore !== '';
-                if (areScoresSet) {
-                  const isDrawZero = (Number(homeScore) + Number(awayScore) === 0);
-                  const isScorerSelected = !!p.scorerId && p.scorerId !== 0;
-                  if (isDrawZero || isScorerSelected) {
-                    isComplete = true;
-                  }
+          groupSummaries.push({
+            matchday,
+            firstMatchTime,
+            groupMatches,
+            hasUnfinished
+          });
+        });
+
+        // Filter for upcoming/active matchdays that have unfinished matches and haven't expired long ago
+        const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+        const unfinishedGroups = groupSummaries
+          .filter(g => g.hasUnfinished && g.firstMatchTime >= fourteenDaysAgo)
+          .sort((a, b) => a.firstMatchTime.getTime() - b.firstMatchTime.getTime());
+
+        // Focus on the immediate next upcoming matchdays (e.g. earliest 2 unfinished matchdays)
+        const targetGroups = unfinishedGroups.slice(0, 2);
+
+        targetGroups.forEach(g => {
+          // Count missing predictions
+          let missingCount = 0;
+          g.groupMatches.forEach(m => {
+            if (m.status === 'FINISHED') {
+              return;
+            }
+            const p = predictionsMap[m.id];
+            let isComplete = false;
+            if (p) {
+              const homeScore = p.homeScore;
+              const awayScore = p.awayScore;
+              const areScoresSet = homeScore !== null && homeScore !== undefined &&
+                                   awayScore !== null && awayScore !== undefined &&
+                                   homeScore !== '' && awayScore !== '';
+              if (areScoresSet) {
+                const isDrawZero = (Number(homeScore) + Number(awayScore) === 0);
+                const isScorerSelected = !!p.scorerId && p.scorerId !== 0;
+                if (isDrawZero || isScorerSelected) {
+                  isComplete = true;
                 }
               }
-              if (!isComplete) {
-                missingCount++;
-              }
-            });
-
-            // If predictions missing count > 0, add to tasks
-            if (missingCount > 0) {
-              allTasks.push({
-                competitionId: comp.id,
-                competitionName: comp.name,
-                competitionCode: comp.code,
-                matchday: matchday,
-                startTime: firstMatchTime,
-                isPast: firstMatchTime <= oneDayFromNow,
-                predictionsMissingCount: missingCount
-              });
             }
+            if (!isComplete) {
+              missingCount++;
+            }
+          });
+
+          if (missingCount > 0) {
+            allTasks.push({
+              competitionId: comp.id,
+              competitionName: comp.name,
+              competitionCode: comp.code,
+              matchday: g.matchday,
+              startTime: g.firstMatchTime,
+              isPast: g.firstMatchTime <= oneDayFromNow,
+              predictionsMissingCount: missingCount
+            });
           }
         });
       });

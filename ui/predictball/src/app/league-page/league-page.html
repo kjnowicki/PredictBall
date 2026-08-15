@@ -13,8 +13,22 @@
   <div style="display: flex; gap: 2rem; padding: 2rem; align-items: flex-start; flex-wrap: wrap;">
     <!-- Main column for ranking -->
     <mat-card style="flex: 3; min-width: 300px;">
-      <mat-card-header>
-        <mat-card-title>{{ leagueName }} Standings</mat-card-title>
+      <mat-card-header style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <mat-card-title style="margin-bottom: 0; display: flex; align-items: center; gap: 1rem;">
+          <span>{{ leagueName }} Standings</span>
+          @if (availableSeasons.length > 0) {
+            <mat-form-field appearance="outline" style="font-size: 0.9rem; min-width: 140px; margin-bottom: -1.25em;">
+              <mat-label>Season</mat-label>
+              <mat-select [value]="selectedSeason" (selectionChange)="onSeasonChange($event.value)">
+                @for (seasonObj of availableSeasons; track (seasonObj.id || seasonObj.startDate)) {
+                  <mat-option [value]="getSeasonValue(seasonObj)">
+                    {{ formatSeasonLabel(seasonObj) }}
+                  </mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          }
+        </mat-card-title>
       </mat-card-header>
       <mat-card-content style="padding-top: 1rem;">
         <table mat-table [dataSource]="players" style="width: 100%;">
@@ -28,7 +42,7 @@
               <div style="display: flex; align-items: center; gap: 0.5rem; height: 48px;">
                 <span>{{ player.name }}</span>
                 @if (player.userId && player.userId.toString() !== currentUserId) {
-                  <a [routerLink]="['/competition', competitionId]" [queryParams]="{ viewUser: player.userId, viewUserName: player.name }" 
+                  <a [routerLink]="['/competition', competitionId]" [queryParams]="{ viewUser: player.userId, viewUserName: player.name, season: season }" 
                      style="cursor: pointer; display: inline-flex; align-items: center; color: #1a73e8; text-decoration: none;" 
                      matTooltip="view player's predictions" matTooltipShowDelay="0">
                     <mat-icon style="font-size: 1.2rem; width: 1.2rem; height: 1.2rem; line-height: 1.2rem;">visibility</mat-icon>

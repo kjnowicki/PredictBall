@@ -1,0 +1,727 @@
+<div class="admin-container">
+  <!-- LOGIN VIEW -->
+  <div *ngIf="!isLoggedIn" class="login-wrapper">
+    <mat-card class="login-card mat-elevation-z8">
+      <mat-card-header class="login-header">
+        <div class="admin-badge-avatar">
+          <mat-icon color="primary">admin_panel_settings</mat-icon>
+        </div>
+        <mat-card-title>Admin Console</mat-card-title>
+        <mat-card-subtitle>Authenticate with system administrator credentials</mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <form (ngSubmit)="onLogin()" class="login-form">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Username</mat-label>
+            <input 
+              matInput 
+              type="text" 
+              [(ngModel)]="loginUsername" 
+              name="username" 
+              placeholder="Admin username" 
+              required 
+            />
+            <mat-icon matPrefix>person</mat-icon>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Password</mat-label>
+            <input 
+              matInput 
+              type="password" 
+              [(ngModel)]="loginPassword" 
+              name="password" 
+              placeholder="Admin password" 
+              required 
+            />
+            <mat-icon matPrefix>lock</mat-icon>
+          </mat-form-field>
+
+          <div *ngIf="loginError" class="alert-banner alert-error">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ loginError }}</span>
+          </div>
+
+          <button mat-flat-button color="primary" type="submit" class="full-width btn-lg" [disabled]="isLoggingIn">
+            <mat-icon *ngIf="!isLoggingIn">login</mat-icon>
+            <span *ngIf="!isLoggingIn">Sign In to Console</span>
+            <span *ngIf="isLoggingIn">Authenticating...</span>
+          </button>
+        </form>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- MAIN ADMIN DASHBOARD (When Authenticated) -->
+  <div *ngIf="isLoggedIn" class="dashboard-wrapper">
+    <!-- Top Navigation Header -->
+    <header class="admin-header mat-elevation-z4">
+      <div class="header-brand">
+        <mat-icon color="primary" class="brand-icon">shield</mat-icon>
+        <div class="brand-titles">
+          <h1>PredictBall Admin Console</h1>
+          <span class="admin-session-tag">Logged in as <strong>{{ adminUsername }}</strong></span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <a mat-stroked-button routerLink="/home">
+          <mat-icon>home</mat-icon> Back to App
+        </a>
+        <button mat-flat-button color="warn" (click)="onLogout()">
+          <mat-icon>logout</mat-icon> Logout
+        </button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <mat-tab-group 
+      [selectedIndex]="selectedTabIndex" 
+      (selectedIndexChange)="onTabSelected($event)" 
+      class="admin-tabs"
+      animationDuration="200ms"
+    >
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="tab-icon">emoji_events</mat-icon>
+          Competitions
+        </ng-template>
+
+        <!-- TAB 1: COMPETITIONS VIEW -->
+        <section class="tab-content">
+          <div class="section-toolbar">
+            <div>
+              <h2>Supported Competitions</h2>
+              <p>Manage active leagues, view seasons history, and initialize new competitions.</p>
+            </div>
+            <div class="toolbar-actions">
+              <button mat-stroked-button (click)="loadSupportedCompetitions()" title="Refresh competitions list">
+                <mat-icon>refresh</mat-icon> Refresh
+              </button>
+              <button mat-flat-button color="primary" (click)="openAddCompetitionModal()">
+                <mat-icon>add</mat-icon> Add New Competition
+              </button>
+            </div>
+          </div>
+
+          <div *ngIf="isLoadingCompetitions" class="loading-spinner-box">
+            <mat-spinner diameter="40"></mat-spinner>
+            <p>Loading competitions data...</p>
+          </div>
+
+          <div *ngIf="!isLoadingCompetitions && supportedCompetitions.length === 0" class="empty-state">
+            <p>No supported competitions found.</p>
+            <button mat-flat-button color="primary" (click)="openAddCompetitionModal()">Add your first competition</button>
+          </div>
+
+          <div *ngIf="!isLoadingCompetitions && supportedCompetitions.length > 0" class="competitions-grid">
+            <div *ngFor="let comp of supportedCompetitions" class="comp-card mat-elevation-z2">
+              <div class="comp-card-header">
+                <img [src]="comp.emblem || 'assets/default-emblem.png'" [alt]="comp.name" class="comp-emblem" />
+                <div class="comp-info">
+                  <h3>{{ comp.name }}</h3>
+                  <div class="comp-tags">
+                    <span class="status-chip chip-code">{{ comp.code }}</span>
+                    <span *ngIf="comp.area" class="status-chip chip-area">
+                      <img *ngIf="comp.area.flag" [src]="comp.area.flag" class="flag-icon" />
+                      {{ comp.area.name }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="comp-card-body">
+                <div class="season-section">
+                  <span class="section-label">
+                    {{ (comp.currentSeason?.isFinished || comp.currentSeason?.isRetired) ? 'Last Season:' : 'Current Active Season:' }}
+                  </span>
+                  <div *ngIf="comp.currentSeason" class="season-box highlight" [class.retired-box]="comp.currentSeason.isRetired">
+                    <div class="season-row">
+                      <div><strong>Season ID:</strong> #{{ comp.currentSeason.id }}</div>
+                      <div>
+                        <span *ngIf="comp.currentSeason.isRetired" class="status-chip chip-retired">🛑 Retired</span>
+                        <span *ngIf="!comp.currentSeason.isRetired && comp.currentSeason.isFinished" class="status-chip chip-finished">🏁 Finished</span>
+                        <span *ngIf="!comp.currentSeason.isRetired && !comp.currentSeason.isFinished" class="status-chip chip-active">🟢 Active</span>
+                      </div>
+                    </div>
+                    <div class="season-row">
+                      <strong>Duration:</strong> {{ comp.currentSeason.startDate }} to {{ comp.currentSeason.endDate }}
+                    </div>
+                    <div class="season-row">
+                      <strong>Current Matchday:</strong> {{ comp.currentSeason.currentMatchday }}
+                    </div>
+                  </div>
+                  <div *ngIf="!comp.currentSeason" class="season-box">
+                    <em>No season details cached.</em>
+                  </div>
+                </div>
+              </div>
+
+              <div class="comp-card-actions">
+                <button mat-stroked-button class="btn-seasons" (click)="viewCompetitionDetail(comp)">
+                  <mat-icon>info</mat-icon> Seasons
+                </button>
+                <button *ngIf="!comp.currentSeason?.isRetired && comp.currentSeason?.isFinished" mat-flat-button color="accent" (click)="openRetireModal(comp)">
+                  <mat-icon>stop_circle</mat-icon> Retire
+                </button>
+                <button mat-flat-button color="warn" (click)="openDeleteCompModal(comp)">
+                  <mat-icon>delete</mat-icon> Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </mat-tab>
+
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="tab-icon">bar_chart</mat-icon>
+          Usage Stats
+        </ng-template>
+
+        <!-- TAB 2: USAGE STATS VIEW -->
+        <section class="tab-content">
+          <div class="section-toolbar">
+            <div>
+              <h2>API Usage & Cache Statistics</h2>
+              <p>Real-time metrics for requests, cache efficiency, and backend API errors.</p>
+            </div>
+            <button mat-stroked-button (click)="loadStats()">
+              <mat-icon>refresh</mat-icon> Refresh Metrics
+            </button>
+          </div>
+
+          <div *ngIf="isLoadingStats" class="loading-spinner-box">
+            <mat-spinner diameter="40"></mat-spinner>
+            <p>Calculating usage statistics...</p>
+          </div>
+
+          <div *ngIf="!isLoadingStats && stats" class="stats-overview">
+            <!-- Summary KPI Cards -->
+            <div class="kpi-grid">
+              <div class="kpi-card mat-elevation-z2">
+                <mat-icon class="kpi-icon text-success">bolt</mat-icon>
+                <div class="kpi-val text-success">{{ stats.apiCacheHits | number }}</div>
+                <div class="kpi-lbl">API Cache Hits</div>
+              </div>
+
+              <div class="kpi-card mat-elevation-z2">
+                <mat-icon class="kpi-icon text-warning">autorenew</mat-icon>
+                <div class="kpi-val text-warning">{{ stats.apiCacheMisses | number }}</div>
+                <div class="kpi-lbl">API Cache Misses (Fetches)</div>
+              </div>
+
+              <div class="kpi-card mat-elevation-z2">
+                <mat-icon class="kpi-icon text-accent">trending_up</mat-icon>
+                <div class="kpi-val text-accent">{{ stats.apiCacheHitRate | number:'1.1-1' }}%</div>
+                <div class="kpi-lbl">API Cache Efficiency</div>
+              </div>
+
+              <div class="kpi-card mat-elevation-z2">
+                <mat-icon class="kpi-icon">language</mat-icon>
+                <div class="kpi-val">{{ stats.apiTotalRequests | number }}</div>
+                <div class="kpi-lbl">Football-Data API Calls</div>
+              </div>
+
+              <div class="kpi-card mat-elevation-z2">
+                <mat-icon class="kpi-icon text-info">computer</mat-icon>
+                <div class="kpi-val text-info">{{ stats.totalHttpRequests | number }}</div>
+                <div class="kpi-lbl">Local Server Requests</div>
+              </div>
+            </div>
+
+            <!-- Football-Data API Cache Table -->
+            <mat-card class="panel-card mat-elevation-z2">
+              <h3>⚡ Football-Data API Cache Efficiency</h3>
+              <p class="panel-subtitle">Statistics for external Football-Data.org API endpoints cached locally to prevent rate limit quota usage.</p>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>API Endpoint Resource</th>
+                      <th>Total API Queries</th>
+                      <th>Cache Hits</th>
+                      <th>Cache Misses</th>
+                      <th>Hit Rate %</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let st of getAPIEndpointList()">
+                      <td><code>{{ st.endpoint }}</code></td>
+                      <td><strong>{{ st.totalCount }}</strong></td>
+                      <td class="text-success">{{ st.cacheHits }}</td>
+                      <td class="text-warning">{{ st.cacheMisses }}</td>
+                      <td>
+                        <span class="text-accent">{{ (st.totalCount > 0 ? (st.cacheHits / st.totalCount * 100) : 0) | number:'1.0-0' }}%</span>
+                      </td>
+                    </tr>
+                    <tr *ngIf="getAPIEndpointList().length === 0">
+                      <td colspan="5" class="text-center">No Football-Data API requests logged yet.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </mat-card>
+
+            <!-- Server HTTP Requests Breakdown Table -->
+            <mat-card class="panel-card mat-elevation-z2">
+              <h3>🖥️ Server HTTP Route Traffic</h3>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Route Path</th>
+                      <th>Total HTTP Requests</th>
+                      <th>Errors Logged</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let st of getHTTPEndpointList()">
+                      <td><code>{{ st.endpoint }}</code></td>
+                      <td><strong>{{ st.totalCount }}</strong></td>
+                      <td [class.text-danger]="st.errorCount > 0">{{ st.errorCount }}</td>
+                    </tr>
+                    <tr *ngIf="getHTTPEndpointList().length === 0">
+                      <td colspan="3" class="text-center">No server HTTP requests logged yet.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </mat-card>
+
+            <!-- Error Logs Section -->
+            <mat-card class="panel-card mat-elevation-z2">
+              <div class="section-toolbar">
+                <h3>API Error Logs</h3>
+                <mat-form-field appearance="outline" style="max-width: 300px;">
+                  <mat-label>Filter errors...</mat-label>
+                  <input matInput type="text" [(ngModel)]="errorLogSearch" placeholder="Path or status" />
+                  <mat-icon matSuffix>search</mat-icon>
+                </mat-form-field>
+              </div>
+
+              <div class="error-logs-container">
+                <div *ngFor="let err of filteredErrorLogs()" class="error-log-card">
+                  <div class="error-log-header">
+                    <span class="status-chip chip-retired">Status {{ err.statusCode }}</span>
+                    <span class="method-tag">{{ err.method }}</span>
+                    <code>{{ err.endpoint }}</code>
+                    <span class="timestamp">{{ err.timestamp | date:'short' }}</span>
+                  </div>
+                  <div class="error-log-body">
+                    <strong>Error Message:</strong> {{ err.error }}
+                    <span *ngIf="err.userId" class="user-sub">| User ID: {{ err.userId }}</span>
+                  </div>
+                </div>
+
+                <div *ngIf="filteredErrorLogs().length === 0" class="empty-state">
+                  🎉 No API errors recorded!
+                </div>
+              </div>
+            </mat-card>
+          </div>
+        </section>
+      </mat-tab>
+
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="tab-icon">people</mat-icon>
+          User Management
+        </ng-template>
+
+        <!-- TAB 3: USER MANAGEMENT VIEW -->
+        <section class="tab-content">
+          <div class="section-toolbar">
+            <div>
+              <h2>User Accounts Management</h2>
+              <p>List current users, track visit frequencies, prediction stats, and update or delete accounts.</p>
+            </div>
+            <button mat-stroked-button (click)="loadUsers()">
+              <mat-icon>refresh</mat-icon> Refresh Users
+            </button>
+          </div>
+
+          <div style="margin-bottom: 1rem;">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Search users</mat-label>
+              <input matInput type="text" [(ngModel)]="userSearch" placeholder="Search by display name, username or ID..." />
+              <mat-icon matSuffix>search</mat-icon>
+            </mat-form-field>
+          </div>
+
+          <div *ngIf="isLoadingUsers" class="loading-spinner-box">
+            <mat-spinner diameter="40"></mat-spinner>
+            <p>Loading user list and prediction stats...</p>
+          </div>
+
+          <mat-card *ngIf="!isLoadingUsers" class="panel-card mat-elevation-z2">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Display Name</th>
+                    <th>Last Logged In</th>
+                    <th>Visits</th>
+                    <th>Unique Predictions</th>
+                    <th>Total Predictions</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let u of filteredUsers()">
+                    <td>#{{ u.id }}</td>
+                    <td><strong>{{ u.username || '—' }}</strong></td>
+                    <td>{{ u.displayName }}</td>
+                    <td>
+                      <span *ngIf="u.lastLoggedIn">{{ u.lastLoggedIn | date:'short' }}</span>
+                      <span *ngIf="!u.lastLoggedIn" class="text-muted">Never</span>
+                    </td>
+                    <td><span class="status-chip chip-area">{{ u.visitCount }}</span></td>
+                    <td><span class="status-chip chip-code">{{ u.uniquePredictions }}</span></td>
+                    <td><span class="status-chip chip-active">{{ u.totalPredictions }}</span></td>
+                    <td>
+                      <div style="display: flex; gap: 0.5rem;">
+                        <button mat-stroked-button (click)="openEditUserModal(u)">
+                          <mat-icon>edit</mat-icon> Edit Name
+                        </button>
+                        <button mat-flat-button color="warn" (click)="openDeleteUserModal(u)">
+                          <mat-icon>delete</mat-icon> Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr *ngIf="filteredUsers().length === 0">
+                    <td colspan="8" class="text-center">No users match your criteria.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </mat-card>
+        </section>
+      </mat-tab>
+    </mat-tab-group>
+
+    <!-- COMPETITION DETAILS MODAL -->
+    <div *ngIf="selectedCompForDetail" class="modal-backdrop" (click)="closeCompDetail()">
+      <mat-card class="modal-card mat-elevation-z12" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>
+            <mat-icon color="primary">emoji_events</mat-icon>
+            {{ selectedCompForDetail.name }} ({{ selectedCompForDetail.code }}) - Seasons
+          </h3>
+          <button mat-icon-button (click)="closeCompDetail()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div *ngIf="compDetailLoading" class="loading-spinner-box">
+            <mat-spinner diameter="40"></mat-spinner>
+            <p>Fetching full season history from /v4/competitions...</p>
+          </div>
+
+          <div *ngIf="!compDetailLoading" class="seasons-history">
+            <h4>All Available Seasons</h4>
+            <div *ngIf="!selectedCompForDetail.seasons || selectedCompForDetail.seasons.length === 0" class="empty-state">
+              No season list returned for this competition.
+            </div>
+
+            <div *ngFor="let s of selectedCompForDetail.seasons" class="season-history-item">
+              <div style="display: flex; flex-direction: column; gap: 0.35rem; flex: 1;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                  <strong>Season #{{ s.id }}</strong>
+                  <span class="text-muted">({{ s.startDate }} to {{ s.endDate }})</span>
+                  <span *ngIf="s.isRetired" class="status-chip chip-retired">🛑 Retired</span>
+                  <span *ngIf="!s.isRetired && s.isFinished" class="status-chip chip-finished">🏁 Finished</span>
+                  <span *ngIf="!s.isRetired && !s.isFinished" class="status-chip chip-active">🟢 Active</span>
+                </div>
+                <div style="font-size: 0.85rem; color: #cbd5e1; display: flex; gap: 0.75rem;">
+                  <span>Matchday: {{ s.currentMatchday }}</span>
+                  <span *ngIf="s.winner" class="text-warning">🏆 Winner: {{ s.winner.name || s.winner.shortName }}</span>
+                </div>
+              </div>
+              <button *ngIf="s.isRetired" mat-stroked-button disabled title="Season is already retired">
+                Retired
+              </button>
+              <button *ngIf="!s.isRetired && !s.isFinished" mat-stroked-button disabled title="Season has not finished yet">
+                Not Ended
+              </button>
+              <button *ngIf="!s.isRetired && s.isFinished" mat-flat-button color="accent" (click)="openRetireModal(selectedCompForDetail, s)">
+                Retire
+              </button>
+            </div>
+          </div>
+        </div>
+      </mat-card>
+    </div>
+
+    <!-- ADD NEW COMPETITION MODAL -->
+    <div *ngIf="showAddModal" class="modal-backdrop" (click)="closeAddCompetitionModal()">
+      <mat-card class="modal-card modal-lg mat-elevation-z12" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3><mat-icon color="primary">add_circle</mat-icon> Add New Competitions</h3>
+          <button mat-icon-button (click)="closeAddCompetitionModal()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p class="text-muted" style="margin-bottom: 1rem;">Select available competitions fetched from Football-Data API <code>/v4/competitions</code>, add them to the queue, and submit to initialize:</p>
+          
+          <!-- Step 1: Selection Control -->
+          <div class="staging-select-box">
+            <label style="display: block; margin-bottom: 0.5rem; color: #e2e8f0;"><strong>Step 1: Select Competition</strong></label>
+            <div class="select-picker-row">
+              <mat-form-field appearance="outline" style="flex: 1;">
+                <mat-label>Choose competition to add</mat-label>
+                <mat-select [(ngModel)]="selectedCompToAdd">
+                  <mat-option [value]="null" disabled>-- Choose a competition --</mat-option>
+                  <mat-option *ngFor="let comp of unsupportedAvailableCompetitions()" [value]="comp">
+                    {{ comp.name }} ({{ comp.code }}) - {{ comp.area ? comp.area.name : 'International' }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+              <button mat-flat-button color="primary" (click)="stageSelectedCompetition()" [disabled]="!selectedCompToAdd">
+                <mat-icon>add</mat-icon> Add to Queue
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 2 & 3: Temporary Staging List -->
+          <div class="staged-section">
+            <div style="margin-bottom: 0.75rem;">
+              <h4 style="margin: 0; color: #a5b4fc;">Step 2 & 3: Staged Competitions Queue ({{ stagedCompetitions.length }})</h4>
+              <span *ngIf="stagedCompetitions.length === 0" class="text-muted">No competitions staged yet. Select from dropdown above or pick from list below.</span>
+            </div>
+
+            <div *ngIf="stagedCompetitions.length > 0" class="staged-items-grid">
+              <mat-chip-set>
+                <mat-chip *ngFor="let item of stagedCompetitions" (removed)="removeFromStaging(item)">
+                  <img [src]="item.emblem || 'assets/default-emblem.png'" class="emblem-xs" style="margin-right: 4px;" />
+                  <strong>{{ item.name }}</strong> ({{ item.code }})
+                  <button matChipRemove><mat-icon>cancel</mat-icon></button>
+                </mat-chip>
+              </mat-chip-set>
+            </div>
+          </div>
+
+          <!-- Searchable List for Direct Queue Addition -->
+          <div style="border-top: 1px solid #334155; padding-top: 1rem;">
+            <div class="section-toolbar">
+              <h4 style="margin: 0;">All Available API Options</h4>
+              <mat-form-field appearance="outline" style="max-width: 280px;">
+                <mat-label>Filter list...</mat-label>
+                <input matInput type="text" [(ngModel)]="competitionSearch" placeholder="Name, code or country" />
+                <mat-icon matSuffix>search</mat-icon>
+              </mat-form-field>
+            </div>
+
+            <div class="available-comps-list">
+              <div *ngFor="let comp of filteredAvailableCompetitions()" class="available-comp-row">
+                <div class="comp-row-left">
+                  <img [src]="comp.emblem || 'assets/default-emblem.png'" class="emblem-sm" />
+                  <div>
+                    <strong>{{ comp.name }}</strong>
+                    <span class="text-muted"> ({{ comp.code }})</span>
+                    <span *ngIf="comp.area" class="text-muted"> • {{ comp.area.name }}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <span *ngIf="isCompSupported(comp)" class="status-chip chip-active">✓ Active</span>
+                  <button 
+                    *ngIf="!isCompSupported(comp)" 
+                    mat-stroked-button 
+                    (click)="stageCompetition(comp)"
+                  >
+                    <mat-icon>add</mat-icon> Add to Queue
+                  </button>
+                </div>
+              </div>
+
+              <div *ngIf="filteredAvailableCompetitions().length === 0" class="empty-state">
+                No competitions match "{{ competitionSearch }}".
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="submitStagedError" class="alert-banner alert-error">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ submitStagedError }}</span>
+          </div>
+        </div>
+
+        <!-- Step 4: Submit Button -->
+        <div class="modal-footer">
+          <button mat-stroked-button (click)="closeAddCompetitionModal()">Cancel</button>
+          <button 
+            mat-flat-button 
+            color="primary" 
+            (click)="submitStagedCompetitions()" 
+            [disabled]="stagedCompetitions.length === 0 || isSubmittingStaged"
+          >
+            <span *ngIf="!isSubmittingStaged">🚀 Step 4: Submit {{ stagedCompetitions.length }} Competition(s)</span>
+            <span *ngIf="isSubmittingStaged">Initializing Competitions...</span>
+          </button>
+        </div>
+      </mat-card>
+    </div>
+
+    <!-- RETIRE SEASON MODAL -->
+    <div *ngIf="showRetireModal" class="modal-backdrop" (click)="closeRetireModal()">
+      <mat-card class="modal-card mat-elevation-z12" (click)="$event.stopPropagation()">
+        <div class="modal-header" style="background: rgba(239, 68, 68, 0.1);">
+          <h3 class="text-danger">
+            <mat-icon color="warn">warning</mat-icon>
+            Retire Competition Season
+          </h3>
+          <button mat-icon-button (click)="closeRetireModal()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p>Retiring a season for <strong>{{ retireCompName }}</strong> will:</p>
+          <ul class="warning-list">
+            <li>Archive current global standings to <code>0_{{ retireSeasonId }}.json</code></li>
+            <li>Reset user global points for this competition</li>
+            <li>Prune non-active users from private leagues</li>
+            <li>Purge predictions and powerups for this competition</li>
+            <li>Clear cached match data</li>
+          </ul>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Season Year / ID to Retire</mat-label>
+            <input matInput type="text" [(ngModel)]="retireSeasonId" />
+          </mat-form-field>
+
+          <div *ngIf="retireError" class="alert-banner alert-error">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ retireError }}</span>
+          </div>
+          <div *ngIf="retireSuccess" class="alert-banner alert-success">
+            <mat-icon>check_circle</mat-icon>
+            <span>{{ retireSuccess }}</span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button mat-stroked-button (click)="closeRetireModal()">Cancel</button>
+          <button mat-flat-button color="warn" (click)="confirmRetireSeason()" [disabled]="isRetiring">
+            {{ isRetiring ? 'Retiring Season...' : 'Confirm Retire Season' }}
+          </button>
+        </div>
+      </mat-card>
+    </div>
+
+    <!-- DELETE COMPETITION MODAL -->
+    <div *ngIf="showDeleteCompModal" class="modal-backdrop" (click)="closeDeleteCompModal()">
+      <mat-card class="modal-card mat-elevation-z12" (click)="$event.stopPropagation()">
+        <div class="modal-header" style="background: rgba(239, 68, 68, 0.1);">
+          <h3 class="text-danger">
+            <mat-icon color="warn">delete_forever</mat-icon>
+            Remove Competition
+          </h3>
+          <button mat-icon-button (click)="closeDeleteCompModal()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p>Are you sure you want to completely remove <strong>{{ deleteCompName }}</strong> (ID: {{ deleteCompId }})?</p>
+          <ul class="warning-list text-danger">
+            <li>Delete competition directory structure and global standings</li>
+            <li>Purge all cached schedule and match details data</li>
+            <li>Unassign competition from all user profiles</li>
+            <li>Purge user predictions and powerups for this competition</li>
+          </ul>
+
+          <div *ngIf="deleteCompError" class="alert-banner alert-error">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ deleteCompError }}</span>
+          </div>
+          <div *ngIf="deleteCompSuccess" class="alert-banner alert-success">
+            <mat-icon>check_circle</mat-icon>
+            <span>{{ deleteCompSuccess }}</span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button mat-stroked-button (click)="closeDeleteCompModal()">Cancel</button>
+          <button mat-flat-button color="warn" (click)="confirmDeleteCompetition()" [disabled]="isDeletingComp">
+            {{ isDeletingComp ? 'Removing Competition...' : 'Permanently Remove Competition' }}
+          </button>
+        </div>
+      </mat-card>
+    </div>
+
+    <!-- EDIT DISPLAY NAME MODAL -->
+    <div *ngIf="showEditUserModal" class="modal-backdrop" (click)="closeEditUserModal()">
+      <mat-card class="modal-card mat-elevation-z12" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3><mat-icon color="primary">edit</mat-icon> Edit User Display Name</h3>
+          <button mat-icon-button (click)="closeEditUserModal()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p>Updating display name for user ID <strong>#{{ editUserId }}</strong> (Current: {{ editUserCurrentName }})</p>
+          
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>New Display Name</mat-label>
+            <input matInput type="text" [(ngModel)]="editUserNewName" />
+          </mat-form-field>
+
+          <div *ngIf="editUserError" class="alert-banner alert-error">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ editUserError }}</span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button mat-stroked-button (click)="closeEditUserModal()">Cancel</button>
+          <button mat-flat-button color="primary" (click)="saveUserDisplayName()" [disabled]="isSavingUser">
+            {{ isSavingUser ? 'Saving...' : 'Save Display Name' }}
+          </button>
+        </div>
+      </mat-card>
+    </div>
+
+    <!-- DELETE USER CONFIRMATION MODAL -->
+    <div *ngIf="showDeleteUserModal" class="modal-backdrop" (click)="closeDeleteUserModal()">
+      <mat-card class="modal-card mat-elevation-z12" (click)="$event.stopPropagation()">
+        <div class="modal-header" style="background: rgba(239, 68, 68, 0.1);">
+          <h3 class="text-danger">
+            <mat-icon color="warn">person_remove</mat-icon>
+            Delete User Account
+          </h3>
+          <button mat-icon-button (click)="closeDeleteUserModal()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p>Are you sure you want to permanently delete user <strong>{{ deleteUserDisplayName }}</strong> (ID #{{ deleteUserId }})?</p>
+          <p class="text-danger">This action will erase user account credentials and remove all user prediction data!</p>
+
+          <div *ngIf="deleteUserError" class="alert-banner alert-error">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ deleteUserError }}</span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button mat-stroked-button (click)="closeDeleteUserModal()">Cancel</button>
+          <button mat-flat-button color="warn" (click)="confirmDeleteUser()" [disabled]="isDeletingUser">
+            {{ isDeletingUser ? 'Deleting User...' : 'Permanently Delete User' }}
+          </button>
+        </div>
+      </mat-card>
+    </div>
+  </div>
+</div>

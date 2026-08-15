@@ -9,8 +9,9 @@ import { PredictionLeague } from '../models/predictball.models';
 export class PredictionLeagueService {
   private api = inject(ApiService);
 
-  getPredictionLeague(competitionId: string | number, leagueId: string | number): Observable<any> {
-    return this.api.get<any>(`competition/${competitionId}/league/${leagueId}`);
+  getPredictionLeague(competitionId: string | number, leagueId: string | number, season?: string): Observable<any> {
+    const query = season ? `?season=${encodeURIComponent(season)}` : '';
+    return this.api.get<any>(`competition/${competitionId}/league/${leagueId}${query}`);
   }
 
   createPredictionLeague(competitionId: string | number, userId: string | number, name: string): Observable<PredictionLeague> {
@@ -22,8 +23,12 @@ export class PredictionLeagueService {
     return this.api.put<any>(`join/${competitionId}?user=${userId}`, {});
   }
 
-  getCompetitionLeagues(competitionId: string | number, userId: string | number): Observable<{ publicLeagues: any[], yourLeagues: any[] }> {
-    return this.api.get<{ publicLeagues: any[], yourLeagues: any[] }>(`competition/${competitionId}/get-leagues`, { user: userId });
+  getCompetitionLeagues(competitionId: string | number, userId: string | number, season?: string): Observable<{ publicLeagues: any[], yourLeagues: any[] }> {
+    const params: any = { user: userId };
+    if (season) {
+      params.season = season;
+    }
+    return this.api.get<{ publicLeagues: any[], yourLeagues: any[] }>(`competition/${competitionId}/get-leagues`, params);
   }
 
   joinLeagueByCode(competitionId: string | number, userId: string | number, joinCode: string): Observable<any> {

@@ -18,7 +18,7 @@
       @if (currentCompetition) {
       <div class="current-competition-link">
         <h3>
-          <a [routerLink]="['/competition', currentCompetition.code]">{{
+          <a [routerLink]="['/competition', currentCompetition.code]" [queryParams]="{ season: getCompSeason(currentCompetition) }">{{
             currentCompetition.name
           }}</a>
         </h3>
@@ -31,7 +31,7 @@
         <ng-container matColumnDef="name">
           <th mat-header-cell *matHeaderCellDef>League</th>
           <td mat-cell *matCellDef="let league">
-            <a [routerLink]="['/competition', selectedCompetitionId(), 'league', league.id]">{{ league.name }}</a>
+            <a [routerLink]="['/competition', selectedCompetitionId(), 'league', league.id]" [queryParams]="{ season: getCompSeason(currentCompetition) }">{{ league.name }}</a>
           </td>
         </ng-container>
 
