@@ -986,6 +986,92 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func (h *APIHandler) HandleGetCasualMatches(w http.ResponseWriter, r *http.Request) {
+	compId := r.PathValue("compId")
+	if compId == "" {
+		http.Error(w, "Competition ID required", http.StatusBadRequest)
+		return
+	}
+
+	season := r.URL.Query().Get("season")
+	casualIDs, byMatchday, err := h.Service.GetCasualMatchIDs(r.Context(), compId, season)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"casualMatchIds": casualIDs,
+		"byMatchday":     byMatchday,
+	})
+}
+
+func (h *APIHandler) HandleGenerateCasualMatches(w http.ResponseWriter, r *http.Request) {
+	compId := r.PathValue("compId")
+	if compId == "" {
+		http.Error(w, "Competition ID required", http.StatusBadRequest)
+		return
+	}
+
+	season := r.URL.Query().Get("season")
+	casualIDs, byMatchday, err := h.Service.GenerateCasualMatches(r.Context(), compId, season)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"casualMatchIds": casualIDs,
+		"byMatchday":     byMatchday,
+	})
+}
+
+func (h *APIHandler) HandleInitCasualLeague(w http.ResponseWriter, r *http.Request) {
+	compId := r.PathValue("compId")
+	if compId == "" {
+		http.Error(w, "Competition ID required", http.StatusBadRequest)
+		return
+	}
+
+	err := h.Service.InitGlobalCasualLeague(r.Context(), compId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Global Casual League initialized successfully"})
+}
+
+func (h *APIHandler) HandleUpdateLeagueViewPreference(w http.ResponseWriter, r *http.Request) {
+	userID := r.PathValue("id")
+	authID, ok := r.Context().Value(userIDKey).(string)
+	if !ok || authID != userID {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req struct {
+		LeagueID       string `json:"leagueId"`
+		ViewOnlyCasual bool   `json:"viewOnlyCasual"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid payload", http.StatusBadRequest)
+		return
+	}
+
+	err := h.Service.UpdateUserLeagueViewPreference(r.Context(), userID, req.LeagueID, req.ViewOnlyCasual)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Preference updated successfully"})
+}
+
 func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 	mux.HandleFunc("GET /competition/{id}/match-schedule", h.HandleGetMatchSchedule)
 	mux.HandleFunc("GET /match-details/{id}", h.HandleGetMatchDetails)
@@ -999,6 +1085,7 @@ func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 	mux.HandleFunc("PUT /user", h.HandlePutUser)
 	mux.HandleFunc("PUT /user/{id}/password", h.HandleChangePassword)
 	mux.HandleFunc("PUT /user/{id}/display-name", h.HandleUpdateDisplayName)
+	mux.HandleFunc("PUT /user/{id}/league-preferences", h.HandleUpdateLeagueViewPreference)
 	mux.HandleFunc("POST /user/{id}/delete", h.HandleDeleteUser)
 	mux.HandleFunc("POST /user/authenticate", h.HandleAuthenticateUser)
 	mux.HandleFunc("POST /user/logout", h.HandleLogout)
@@ -1008,6 +1095,7 @@ func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 	mux.HandleFunc("GET /competition/{id}/get-leagues", h.HandleGetCompetitionLeagues)
 	mux.HandleFunc("PUT /competition/{id}/join-by-code", h.HandleJoinLeagueByCode)
 	mux.HandleFunc("PUT /join/{id}", h.HandleJoinGlobalLeague)
+	mux.HandleFunc("GET /competition/{compId}/casual-matches", h.HandleGetCasualMatches)
 
 	mux.HandleFunc("POST /user/{id}/competition/{compId}/predictions", h.HandleGetPredictions)
 	mux.HandleFunc("PUT /user/{id}/competition/{compId}/prediction/{matchId}", h.HandlePutPrediction)
@@ -1026,6 +1114,8 @@ func RegisterRoutes(mux *http.ServeMux, h *APIHandler) http.Handler {
 	mux.HandleFunc("POST /admin/competition/{compId}/retire-season", h.HandleRetireSeason)
 	mux.HandleFunc("POST /admin/competition/{compId}/delete", h.HandleAdminDeleteCompetition)
 	mux.HandleFunc("DELETE /admin/competition/{compId}", h.HandleAdminDeleteCompetition)
+	mux.HandleFunc("POST /admin/competition/{compId}/generate-casual-matches", h.HandleGenerateCasualMatches)
+	mux.HandleFunc("POST /admin/competition/{compId}/init-casual-league", h.HandleInitCasualLeague)
 
 	mux.HandleFunc("GET /admin/stats", h.HandleGetStats)
 	mux.HandleFunc("GET /admin/users", h.HandleGetAdminUsers)

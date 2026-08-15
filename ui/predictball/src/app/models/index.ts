@@ -51,6 +51,7 @@ export interface User {
   password?: string;
   displayName: string;
   nameLastChanged: string;
+  leagueViewPreferences?: { [leagueId: string]: boolean };
 }
 
 export interface PredictionLeague {
@@ -59,6 +60,7 @@ export interface PredictionLeague {
   joinCode: string;
   public: boolean;
   userIds?: number[];
+  isCasual?: boolean;
 }
 
 export interface Prediction {

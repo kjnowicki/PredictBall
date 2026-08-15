@@ -170,10 +170,99 @@ func (s *PredictballAPIService) AddCompetition(ctx context.Context, compID strin
 		}
 	}
 
+	_ = s.InitGlobalCasualLeague(ctx, compIDStr)
+
 	// Trigger initial match schedule fetch to initialize competition matches cache
 	_, _ = s.GetMatchSchedule(ctx, compIDStr)
 
 	return comp, nil
+}
+
+func (s *PredictballAPIService) InitGlobalCasualLeague(ctx context.Context, competitionID string) error {
+	compID, err := s.ResolveCompetitionID(ctx, competitionID)
+	if err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	leaguesDir := filepath.Join("data", "competitions", compID, "leagues")
+	os.MkdirAll(leaguesDir, 0755)
+
+	globalLeagueFile := filepath.Join(leaguesDir, "0.json")
+	var globalUsers []models.LeagueUser
+	if gData, err := os.ReadFile(globalLeagueFile); err == nil {
+		var gLeague models.GlobalLeague
+		if err := json.Unmarshal(gData, &gLeague); err == nil {
+			globalUsers = gLeague.Users
+		}
+	}
+
+	casualLeagueFile := filepath.Join(leaguesDir, "C.json")
+	var casualLeague models.GlobalLeague
+
+	if cData, err := os.ReadFile(casualLeagueFile); err == nil {
+		json.Unmarshal(cData, &casualLeague)
+	}
+
+	casualLeague.PredictionLeague = models.PredictionLeague{
+		ID:       0,
+		Name:     "Global Casual League",
+		JoinCode: "",
+		Public:   true,
+		IsCasual: true,
+	}
+
+	userMap := make(map[int]models.LeagueUser)
+	for _, u := range casualLeague.Users {
+		userMap[u.UserID] = u
+	}
+
+	for _, u := range globalUsers {
+		if _, exists := userMap[u.UserID]; !exists {
+			userMap[u.UserID] = models.LeagueUser{
+				UserID: u.UserID,
+				Name:   u.Name,
+				Points: 0,
+			}
+		} else {
+			existing := userMap[u.UserID]
+			if u.Name != "" && existing.Name != u.Name {
+				existing.Name = u.Name
+				userMap[u.UserID] = existing
+			}
+		}
+	}
+
+	var newCasualUsers []models.LeagueUser
+	for _, u := range globalUsers {
+		if cu, ok := userMap[u.UserID]; ok {
+			newCasualUsers = append(newCasualUsers, cu)
+		}
+	}
+	// Also retain any casual-only users
+	for uid, cu := range userMap {
+		found := false
+		for _, gu := range globalUsers {
+			if gu.UserID == uid {
+				found = true
+				break
+			}
+		}
+		if !found {
+			newCasualUsers = append(newCasualUsers, cu)
+		}
+	}
+
+	casualLeague.Users = newCasualUsers
+
+	data, err := json.MarshalIndent(casualLeague, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to encode global casual league: %w", err)
+	}
+
+	return os.WriteFile(casualLeagueFile, data, 0644)
 }
 
 func (s *PredictballAPIService) DeleteCompetition(ctx context.Context, compCodeOrID string) error {
