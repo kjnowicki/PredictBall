@@ -240,17 +240,28 @@ export class HomePage implements OnInit {
     }
 
     const tasksRequests = this.competitions.map(comp => {
-      return this.matchService.getMatchSchedule(comp.code).pipe(
-        catchError(() => of([] as Match[])),
-        map(matches => (Array.isArray(matches) ? matches : [])),
-        switchMap(matches => {
+      return forkJoin({
+        matches: this.matchService.getMatchSchedule(comp.code).pipe(
+          catchError(() => of([] as Match[])),
+          map(matches => (Array.isArray(matches) ? matches : []))
+        ),
+        casualData: this.leagueService.getCasualMatches(comp.id).pipe(
+          catchError(() => of({ casualMatchIds: [], byMatchday: {} }))
+        )
+      }).pipe(
+        switchMap(({ matches, casualData }) => {
           if (matches.length === 0) {
-            return of({ comp, matches: [] as Match[], predictions: [] as any[] });
+            return of({ comp, matches: [] as Match[], predictions: [] as any[], casualMatchIds: [] as number[] });
           }
           const matchIds = matches.map(m => m.id);
           return this.competitionService.getPredictions(userId, comp.id.toString(), matchIds).pipe(
             catchError(() => of([] as any[])),
-            map(predictions => ({ comp, matches, predictions: Array.isArray(predictions) ? predictions : [] }))
+            map(predictions => ({
+              comp,
+              matches,
+              predictions: Array.isArray(predictions) ? predictions : [],
+              casualMatchIds: casualData?.casualMatchIds || []
+            }))
           );
         })
       );
@@ -262,9 +273,10 @@ export class HomePage implements OnInit {
       const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
       const oneDayFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-      results.forEach(({ comp, matches, predictions }) => {
+      results.forEach(({ comp, matches, predictions, casualMatchIds }) => {
         const safeMatches = Array.isArray(matches) ? matches : [];
         const safePredictions = Array.isArray(predictions) ? predictions : [];
+        const casualSet = new Set(casualMatchIds);
 
         if (safeMatches.length === 0) return;
 
@@ -330,11 +342,15 @@ export class HomePage implements OnInit {
         // Focus on the immediate next upcoming matchdays (e.g. earliest 2 unfinished matchdays)
         const targetGroups = unfinishedGroups.slice(0, 2);
 
+        const isCasualContext = casualSet.size > 0 && this.leagues.some(l => l.isCasual);
+
         targetGroups.forEach(g => {
-          // Count missing predictions
           let missingCount = 0;
           g.groupMatches.forEach(m => {
             if (m.status === 'FINISHED') {
+              return;
+            }
+            if (isCasualContext && !casualSet.has(m.id)) {
               return;
             }
             const p = predictionsMap[m.id];
@@ -344,7 +360,7 @@ export class HomePage implements OnInit {
               const awayScore = p.awayScore;
               const areScoresSet = homeScore !== null && homeScore !== undefined &&
                                    awayScore !== null && awayScore !== undefined &&
-                                   homeScore !== '' && awayScore !== '';
+                                   homeScore !== '';
               if (areScoresSet) {
                 const isDrawZero = (Number(homeScore) + Number(awayScore) === 0);
                 const isScorerSelected = !!p.scorerId && p.scorerId !== 0;

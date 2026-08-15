@@ -146,6 +146,14 @@ export class AdminService {
     return this.api.post<{ message: string }>(`admin/competition/${compId}/delete`, {});
   }
 
+  generateCasualMatches(compId: string | number): Observable<{ casualMatchIds: number[], byMatchday: { [key: string]: number[] } }> {
+    return this.api.post<{ casualMatchIds: number[], byMatchday: { [key: string]: number[] } }>(`admin/competition/${compId}/generate-casual-matches`, {});
+  }
+
+  initCasualLeague(compId: string | number): Observable<{ message: string }> {
+    return this.api.post<{ message: string }>(`admin/competition/${compId}/init-casual-league`, {});
+  }
+
   // Stats View API
   getStats(): Observable<StatsSummary> {
     return this.api.get<StatsSummary>('admin/stats');

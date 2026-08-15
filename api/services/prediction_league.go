@@ -21,24 +21,36 @@ func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, competi
 		return nil, err
 	}
 
-	idInt, err := strconv.Atoi(leagueID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid league id")
-	}
-
 	var filename string
-	if idInt <= 0 {
-		filename = "0.json"
+	if strings.EqualFold(leagueID, "C") {
+		filename = "C.json"
 		if len(season) > 0 && season[0] != "" {
 			comp, _ := s.GetCompetition(ctx, competitionID)
 			resolvedSeason := resolveSeasonString(comp, season[0])
-			archivedPath := filepath.Join("data", "competitions", compID, "leagues", "archive", fmt.Sprintf("0_%s.json", resolvedSeason))
+			archivedPath := filepath.Join("data", "competitions", compID, "leagues", "archive", fmt.Sprintf("C_%s.json", resolvedSeason))
 			if _, err := os.Stat(archivedPath); err == nil {
-				filename = filepath.Join("archive", fmt.Sprintf("0_%s.json", resolvedSeason))
+				filename = filepath.Join("archive", fmt.Sprintf("C_%s.json", resolvedSeason))
 			}
 		}
 	} else {
-		filename = fmt.Sprintf("%s.json", leagueID)
+		idInt, err := strconv.Atoi(leagueID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid league id")
+		}
+
+		if idInt <= 0 {
+			filename = "0.json"
+			if len(season) > 0 && season[0] != "" {
+				comp, _ := s.GetCompetition(ctx, competitionID)
+				resolvedSeason := resolveSeasonString(comp, season[0])
+				archivedPath := filepath.Join("data", "competitions", compID, "leagues", "archive", fmt.Sprintf("0_%s.json", resolvedSeason))
+				if _, err := os.Stat(archivedPath); err == nil {
+					filename = filepath.Join("archive", fmt.Sprintf("0_%s.json", resolvedSeason))
+				}
+			}
+		} else {
+			filename = fmt.Sprintf("%s.json", leagueID)
+		}
 	}
 
 	path := filepath.Join("data", "competitions", compID, "leagues", filename)
@@ -226,6 +238,38 @@ func (s *PredictballAPIService) JoinGlobalLeague(ctx context.Context, competitio
 
 	b, _ := json.MarshalIndent(globalLeague, "", "  ")
 	os.WriteFile(path, b, 0644)
+
+	// Also ensure user is in C.json
+	casualPath := filepath.Join(dir, "C.json")
+	var casualLeague models.GlobalLeague
+	if cData, err := os.ReadFile(casualPath); err == nil {
+		json.Unmarshal(cData, &casualLeague)
+	} else {
+		casualLeague.PredictionLeague = models.PredictionLeague{
+			ID:       0,
+			Name:     "Global Casual League",
+			Public:   true,
+			JoinCode: "CASUAL",
+			IsCasual: true,
+		}
+	}
+
+	foundInCasual := false
+	for _, u := range casualLeague.Users {
+		if u.UserID == uid {
+			foundInCasual = true
+			break
+		}
+	}
+	if !foundInCasual {
+		casualLeague.Users = append(casualLeague.Users, models.LeagueUser{
+			UserID: uid,
+			Name:   user.DisplayName,
+			Points: 0,
+		})
+		cB, _ := json.MarshalIndent(casualLeague, "", "  ")
+		os.WriteFile(casualPath, cB, 0644)
+	}
 
 	s.initUserLeagues()
 	compIDInt, _ := strconv.Atoi(compID)

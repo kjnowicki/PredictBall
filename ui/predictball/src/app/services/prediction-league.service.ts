@@ -14,8 +14,8 @@ export class PredictionLeagueService {
     return this.api.get<any>(`competition/${competitionId}/league/${leagueId}${query}`);
   }
 
-  createPredictionLeague(competitionId: string | number, userId: string | number, name: string): Observable<PredictionLeague> {
-    const league = { name: name };
+  createPredictionLeague(competitionId: string | number, userId: string | number, name: string, isCasual?: boolean): Observable<PredictionLeague> {
+    const league: any = { name: name, isCasual: !!isCasual };
     return this.api.put<PredictionLeague>(`competition/${competitionId}/league?user=${userId}`, league);
   }
 
@@ -33,5 +33,9 @@ export class PredictionLeagueService {
 
   joinLeagueByCode(competitionId: string | number, userId: string | number, joinCode: string): Observable<any> {
     return this.api.put<any>(`competition/${competitionId}/join-by-code?user=${userId}`, { joinCode });
+  }
+
+  getCasualMatches(competitionId: string | number): Observable<{ casualMatchIds: number[], byMatchday: { [key: string]: number[] } }> {
+    return this.api.get<{ casualMatchIds: number[], byMatchday: { [key: string]: number[] } }>(`competition/${competitionId}/casual-matches`);
   }
 }

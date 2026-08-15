@@ -350,3 +350,25 @@ func (s *PredictballAPIService) AdminUpdateDisplayName(ctx context.Context, user
 func (s *PredictballAPIService) GetStats(ctx context.Context) models.StatsSummary {
 	return GlobalStatsTracker.GetSummary()
 }
+
+func (s *PredictballAPIService) UpdateUserLeagueViewPreference(ctx context.Context, userID string, leagueID string, viewOnlyCasual bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.initUsers()
+
+	user, ok := s.users[userID]
+	if !ok {
+		return fmt.Errorf("user not found")
+	}
+
+	if user.LeagueViewPreferences == nil {
+		user.LeagueViewPreferences = make(map[string]bool)
+	}
+
+	user.LeagueViewPreferences[leagueID] = viewOnlyCasual
+	s.users[userID] = user
+	s.saveUsers()
+
+	return nil
+}

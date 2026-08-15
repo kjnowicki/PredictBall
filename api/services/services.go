@@ -49,4 +49,9 @@ type APIService interface {
 	AdminUpdateDisplayName(ctx context.Context, userID string, displayName string) error
 
 	GetStats(ctx context.Context) models.StatsSummary
+
+	GetCasualMatchIDs(ctx context.Context, competitionID string, season ...string) ([]int, map[string][]int, error)
+	GenerateCasualMatches(ctx context.Context, competitionID string, season ...string) ([]int, map[string][]int, error)
+	InitGlobalCasualLeague(ctx context.Context, competitionID string) error
+	UpdateUserLeagueViewPreference(ctx context.Context, userID string, leagueID string, viewOnlyCasual bool) error
 }

@@ -40,4 +40,8 @@ export class UserService {
   logout(): Observable<any> {
     return this.api.post('user/logout', {});
   }
+
+  updateLeagueViewPreference(userId: string | number, leagueId: string | number, viewOnlyCasual: boolean): Observable<any> {
+    return this.api.put(`user/${userId}/league-preferences`, { leagueId: String(leagueId), viewOnlyCasual });
+  }
 }
