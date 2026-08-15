@@ -57,6 +57,12 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Create environment files
+        shell: bash
+        run: |
+          cp -n src/environments/environment.ts.example src/environments/environment.ts || true
+          cp -n src/environments/environment.development.ts.example src/environments/environment.development.ts || true
+
       - name: Build UI
         run: npm run build
 
