@@ -1,4 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 
 import { TeamSelect } from './team-select';
 
@@ -8,7 +13,15 @@ describe('TeamSelect', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [TeamSelect]
+      imports: [TeamSelect],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: MatDialogRef, useValue: { close: jasmine.createSpy('close') } },
+        { provide: MAT_DIALOG_DATA, useValue: { match: { id: 1, homeTeamId: 1, awayTeamId: 2 } } }
+      ]
     })
     .compileComponents();
 
@@ -21,3 +34,4 @@ describe('TeamSelect', () => {
     expect(component).toBeTruthy();
   });
 });
+
