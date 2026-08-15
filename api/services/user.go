@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"predictball_api/models"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -321,8 +322,10 @@ func (s *PredictballAPIService) AdminDeleteUser(ctx context.Context, userID stri
 	s.saveUsers()
 
 	// Clean up user folder in data/users/{userID}
-	safeUserID := sanitizeSegment(userID)
-	userDir := filepath.Join("data", "users", safeUserID)
+	if strings.Contains(userID, "..") || strings.Contains(userID, "/") || strings.Contains(userID, "\\") {
+		userID = filepath.Base(filepath.Clean(userID))
+	}
+	userDir := filepath.Join("data", "users", filepath.Base(filepath.Clean(userID)))
 	_ = os.RemoveAll(userDir)
 
 	return nil

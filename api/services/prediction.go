@@ -8,13 +8,18 @@ import (
 	"path/filepath"
 	"predictball_api/models"
 	"strconv"
+	"strings"
 	"time"
 )
 
 func getPredictionsPath(userID, compID string) string {
-	safeUserID := sanitizeSegment(userID)
-	safeCompID := sanitizeSegment(compID)
-	return filepath.Join("data", "users", safeUserID, "competition", safeCompID, "predictions.json")
+	if strings.Contains(userID, "..") || strings.Contains(userID, "/") || strings.Contains(userID, "\\") {
+		userID = filepath.Base(filepath.Clean(userID))
+	}
+	if strings.Contains(compID, "..") || strings.Contains(compID, "/") || strings.Contains(compID, "\\") {
+		compID = filepath.Base(filepath.Clean(compID))
+	}
+	return filepath.Join("data", "users", filepath.Base(filepath.Clean(userID)), "competition", filepath.Base(filepath.Clean(compID)), "predictions.json")
 }
 
 func loadPredictions(userID, compID string) (map[int]models.Prediction, error) {
@@ -131,9 +136,13 @@ func (s *PredictballAPIService) PutPrediction(ctx context.Context, userID string
 }
 
 func getPowerupsPath(userID, compID string) string {
-	safeUserID := sanitizeSegment(userID)
-	safeCompID := sanitizeSegment(compID)
-	return filepath.Join("data", "users", safeUserID, "competition", safeCompID, "powerups.json")
+	if strings.Contains(userID, "..") || strings.Contains(userID, "/") || strings.Contains(userID, "\\") {
+		userID = filepath.Base(filepath.Clean(userID))
+	}
+	if strings.Contains(compID, "..") || strings.Contains(compID, "/") || strings.Contains(compID, "\\") {
+		compID = filepath.Base(filepath.Clean(compID))
+	}
+	return filepath.Join("data", "users", filepath.Base(filepath.Clean(userID)), "competition", filepath.Base(filepath.Clean(compID)), "powerups.json")
 }
 
 func (s *PredictballAPIService) GetPowerups(ctx context.Context, userID string, compID string) (*models.PowerupsData, error) {

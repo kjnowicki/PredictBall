@@ -16,22 +16,34 @@ import (
 )
 
 func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, competitionID string, leagueID string, season ...string) (any, error) {
+	if strings.Contains(competitionID, "..") || strings.Contains(competitionID, "/") || strings.Contains(competitionID, "\\") {
+		return nil, fmt.Errorf("invalid competition id")
+	}
 	compID, err := s.ResolveCompetitionID(ctx, competitionID)
 	if err != nil {
 		return nil, err
 	}
-	safeCompID := sanitizeSegment(compID)
+	if strings.Contains(compID, "..") || strings.Contains(compID, "/") || strings.Contains(compID, "\\") {
+		return nil, fmt.Errorf("invalid competition id")
+	}
+	compID = filepath.Base(filepath.Clean(compID))
 
 	var filename string
 	if strings.EqualFold(leagueID, "C") {
 		filename = "C.json"
 		if len(season) > 0 && season[0] != "" {
+			if strings.Contains(season[0], "..") || strings.Contains(season[0], "/") || strings.Contains(season[0], "\\") {
+				return nil, fmt.Errorf("invalid season")
+			}
 			comp, _ := s.GetCompetition(ctx, competitionID)
 			resolvedSeason := resolveSeasonString(comp, season[0])
-			safeSeason := sanitizeSegment(resolvedSeason)
-			archivedPath := filepath.Join("data", "competitions", safeCompID, "leagues", "archive", fmt.Sprintf("C_%s.json", safeSeason))
+			if strings.Contains(resolvedSeason, "..") || strings.Contains(resolvedSeason, "/") || strings.Contains(resolvedSeason, "\\") {
+				return nil, fmt.Errorf("invalid season")
+			}
+			resolvedSeason = filepath.Base(filepath.Clean(resolvedSeason))
+			archivedPath := filepath.Join("data", "competitions", compID, "leagues", "archive", fmt.Sprintf("C_%s.json", resolvedSeason))
 			if _, err := os.Stat(archivedPath); err == nil {
-				filename = filepath.Join("archive", fmt.Sprintf("C_%s.json", safeSeason))
+				filename = filepath.Join("archive", fmt.Sprintf("C_%s.json", resolvedSeason))
 			}
 		}
 	} else {
@@ -43,12 +55,18 @@ func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, competi
 		if idInt <= 0 {
 			filename = "0.json"
 			if len(season) > 0 && season[0] != "" {
+				if strings.Contains(season[0], "..") || strings.Contains(season[0], "/") || strings.Contains(season[0], "\\") {
+					return nil, fmt.Errorf("invalid season")
+				}
 				comp, _ := s.GetCompetition(ctx, competitionID)
 				resolvedSeason := resolveSeasonString(comp, season[0])
-				safeSeason := sanitizeSegment(resolvedSeason)
-				archivedPath := filepath.Join("data", "competitions", safeCompID, "leagues", "archive", fmt.Sprintf("0_%s.json", safeSeason))
+				if strings.Contains(resolvedSeason, "..") || strings.Contains(resolvedSeason, "/") || strings.Contains(resolvedSeason, "\\") {
+					return nil, fmt.Errorf("invalid season")
+				}
+				resolvedSeason = filepath.Base(filepath.Clean(resolvedSeason))
+				archivedPath := filepath.Join("data", "competitions", compID, "leagues", "archive", fmt.Sprintf("0_%s.json", resolvedSeason))
 				if _, err := os.Stat(archivedPath); err == nil {
-					filename = filepath.Join("archive", fmt.Sprintf("0_%s.json", safeSeason))
+					filename = filepath.Join("archive", fmt.Sprintf("0_%s.json", resolvedSeason))
 				}
 			}
 		} else {
@@ -56,8 +74,12 @@ func (s *PredictballAPIService) GetPredictionLeague(ctx context.Context, competi
 		}
 	}
 
-	path := filepath.Join("data", "competitions", safeCompID, "leagues", filename)
-	data, err := os.ReadFile(path)
+	path := filepath.Join("data", "competitions", compID, "leagues", filename)
+	cleanPath := filepath.Clean(path)
+	if !strings.HasPrefix(cleanPath, filepath.Clean("data")) {
+		return nil, fmt.Errorf("invalid path traversal")
+	}
+	data, err := os.ReadFile(cleanPath)
 	if err != nil {
 		return nil, fmt.Errorf("prediction league not found: %v", err)
 	}
@@ -125,8 +147,11 @@ func (s *PredictballAPIService) PutPredictionLeague(ctx context.Context, competi
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	safeCompID := sanitizeSegment(compID)
-	dir := filepath.Join("data", "competitions", safeCompID, "leagues")
+	if strings.Contains(compID, "..") || strings.Contains(compID, "/") || strings.Contains(compID, "\\") {
+		return nil, fmt.Errorf("invalid competition id")
+	}
+	compID = filepath.Base(filepath.Clean(compID))
+	dir := filepath.Join("data", "competitions", compID, "leagues")
 	os.MkdirAll(dir, 0755)
 
 	if league.ID == 0 { // This is a new league
@@ -209,8 +234,11 @@ func (s *PredictballAPIService) JoinGlobalLeague(ctx context.Context, competitio
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	safeCompID := sanitizeSegment(compID)
-	dir := filepath.Join("data", "competitions", safeCompID, "leagues")
+	if strings.Contains(compID, "..") || strings.Contains(compID, "/") || strings.Contains(compID, "\\") {
+		return nil, fmt.Errorf("invalid competition id")
+	}
+	compID = filepath.Base(filepath.Clean(compID))
+	dir := filepath.Join("data", "competitions", compID, "leagues")
 	os.MkdirAll(dir, 0755)
 	path := filepath.Join(dir, "0.json")
 
@@ -334,8 +362,11 @@ func (s *PredictballAPIService) GetCompetitionLeagues(ctx context.Context, compe
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	safeCompID := sanitizeSegment(compID)
-	dir := filepath.Join("data", "competitions", safeCompID, "leagues")
+	if strings.Contains(compID, "..") || strings.Contains(compID, "/") || strings.Contains(compID, "\\") {
+		return nil, fmt.Errorf("invalid competition id")
+	}
+	compID = filepath.Base(filepath.Clean(compID))
+	dir := filepath.Join("data", "competitions", compID, "leagues")
 	files, err := os.ReadDir(dir)
 
 	resp := LeaguesResponse{
@@ -355,10 +386,16 @@ func (s *PredictballAPIService) GetCompetitionLeagues(ctx context.Context, compe
 	// Determine global league file to read user points for requested season
 	globalPath := filepath.Join(dir, "0.json")
 	if len(season) > 0 && season[0] != "" {
+		if strings.Contains(season[0], "..") || strings.Contains(season[0], "/") || strings.Contains(season[0], "\\") {
+			return nil, fmt.Errorf("invalid season")
+		}
 		comp, _ := s.GetCompetition(ctx, competitionID)
 		resolvedSeason := resolveSeasonString(comp, season[0])
-		safeSeason := sanitizeSegment(resolvedSeason)
-		archivedPath := filepath.Join(dir, "archive", fmt.Sprintf("0_%s.json", safeSeason))
+		if strings.Contains(resolvedSeason, "..") || strings.Contains(resolvedSeason, "/") || strings.Contains(resolvedSeason, "\\") {
+			return nil, fmt.Errorf("invalid season")
+		}
+		resolvedSeason = filepath.Base(filepath.Clean(resolvedSeason))
+		archivedPath := filepath.Join(dir, "archive", fmt.Sprintf("0_%s.json", resolvedSeason))
 		if _, err := os.Stat(archivedPath); err == nil {
 			globalPath = archivedPath
 		}
@@ -477,8 +514,11 @@ func (s *PredictballAPIService) JoinLeagueByCode(ctx context.Context, competitio
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	safeCompID := sanitizeSegment(compID)
-	dir := filepath.Join("data", "competitions", safeCompID, "leagues")
+	if strings.Contains(compID, "..") || strings.Contains(compID, "/") || strings.Contains(compID, "\\") {
+		return nil, fmt.Errorf("invalid competition id")
+	}
+	compID = filepath.Base(filepath.Clean(compID))
+	dir := filepath.Join("data", "competitions", compID, "leagues")
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("competition leagues not found")

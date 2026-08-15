@@ -29,9 +29,19 @@ func (s *PredictballAPIService) GetMatchSchedule(ctx context.Context, compCode s
 		seasonStr = "2026"
 	}
 
-	safeCompID := sanitizeSegment(compIDStr)
-	safeCompCode := sanitizeSegment(compCodeStr)
-	safeSeason := sanitizeSegment(seasonStr)
+	if strings.Contains(compIDStr, "..") || strings.Contains(compIDStr, "/") || strings.Contains(compIDStr, "\\") {
+		compIDStr = filepath.Base(filepath.Clean(compIDStr))
+	}
+	if strings.Contains(compCodeStr, "..") || strings.Contains(compCodeStr, "/") || strings.Contains(compCodeStr, "\\") {
+		compCodeStr = filepath.Base(filepath.Clean(compCodeStr))
+	}
+	if strings.Contains(seasonStr, "..") || strings.Contains(seasonStr, "/") || strings.Contains(seasonStr, "\\") {
+		seasonStr = filepath.Base(filepath.Clean(seasonStr))
+	}
+
+	safeCompID := filepath.Base(filepath.Clean(compIDStr))
+	safeCompCode := filepath.Base(filepath.Clean(compCodeStr))
+	safeSeason := filepath.Base(filepath.Clean(seasonStr))
 
 	cacheBaseName := filepath.Join("cache", "schedules", fmt.Sprintf("%s_%s", safeCompID, safeSeason))
 	var existingSchedule []models.Match

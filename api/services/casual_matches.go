@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"predictball_api/models"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -28,6 +29,11 @@ func (s *PredictballAPIService) GetCasualMatchIDs(ctx context.Context, competiti
 		seasonStr = season[0]
 	}
 
+	if strings.Contains(compID, "..") || strings.Contains(compID, "/") || strings.Contains(compID, "\\") {
+		return nil, nil, fmt.Errorf("invalid competition id")
+	}
+	compID = filepath.Base(filepath.Clean(compID))
+
 	if seasonStr == "" {
 		if comp, err := s.GetCompetition(ctx, compID); err == nil && comp != nil {
 			seasonStr = resolveSeasonString(comp, "")
@@ -38,11 +44,13 @@ func (s *PredictballAPIService) GetCasualMatchIDs(ctx context.Context, competiti
 		seasonStr = "2026"
 	}
 
-	safeCompID := sanitizeSegment(compID)
-	safeSeasonStr := sanitizeSegment(seasonStr)
+	if strings.Contains(seasonStr, "..") || strings.Contains(seasonStr, "/") || strings.Contains(seasonStr, "\\") {
+		return nil, nil, fmt.Errorf("invalid season")
+	}
+	seasonStr = filepath.Base(filepath.Clean(seasonStr))
 
-	path := filepath.Join("data", "competitions", safeCompID, fmt.Sprintf("casual_matches_%s.json", safeSeasonStr))
-	fallbackPath := filepath.Join("data", "competitions", safeCompID, "casual_matches.json")
+	path := filepath.Join("data", "competitions", compID, fmt.Sprintf("casual_matches_%s.json", seasonStr))
+	fallbackPath := filepath.Join("data", "competitions", compID, "casual_matches.json")
 
 	s.mu.RLock()
 	data, err := os.ReadFile(path)
@@ -205,12 +213,19 @@ func (s *PredictballAPIService) GenerateCasualMatches(ctx context.Context, compe
 		return nil, nil, fmt.Errorf("failed to encode casual matches data: %w", err)
 	}
 
-	safeCompID := sanitizeSegment(compID)
-	safeSeasonStr := sanitizeSegment(seasonStr)
+	if strings.Contains(compID, "..") || strings.Contains(compID, "/") || strings.Contains(compID, "\\") {
+		return nil, nil, fmt.Errorf("invalid competition id")
+	}
+	compID = filepath.Base(filepath.Clean(compID))
 
-	dir := filepath.Join("data", "competitions", safeCompID)
+	if strings.Contains(seasonStr, "..") || strings.Contains(seasonStr, "/") || strings.Contains(seasonStr, "\\") {
+		return nil, nil, fmt.Errorf("invalid season")
+	}
+	seasonStr = filepath.Base(filepath.Clean(seasonStr))
+
+	dir := filepath.Join("data", "competitions", compID)
 	os.MkdirAll(dir, 0755)
-	seasonPath := filepath.Join(dir, fmt.Sprintf("casual_matches_%s.json", safeSeasonStr))
+	seasonPath := filepath.Join(dir, fmt.Sprintf("casual_matches_%s.json", seasonStr))
 	mainPath := filepath.Join(dir, "casual_matches.json")
 
 	s.mu.Lock()
