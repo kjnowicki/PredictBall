@@ -51,11 +51,24 @@ jobs:
           async function upload() {
             const client = new ftp.Client(30000);
             client.ftp.verbose = true;
+
+            let rawHost = (process.env.FTP_SERVER || '').trim();
+            let host = rawHost.replace(/^ftps?:\/\//i, '');
+            let port = 21;
+            if (host.includes(':')) {
+              const parts = host.split(':');
+              host = parts[0];
+              port = parseInt(parts[1], 10) || 21;
+            }
+            host = host.replace(/\/.*$/, '');
             
+            console.log('Normalized FTP Host:', host, 'Port:', port);
+
             const accessOptions = {
-              host: process.env.FTP_SERVER,
-              user: process.env.FTP_USERNAME,
-              password: process.env.FTP_PASSWORD
+              host,
+              port,
+              user: (process.env.FTP_USERNAME || '').trim(),
+              password: (process.env.FTP_PASSWORD || '').trim()
             };
 
             try {
@@ -128,6 +141,10 @@ jobs:
           node -e "
           const { Client } = require('ssh2');
           const conn = new Client();
+          
+          let rawHost = (process.env.HETZNER_HOST || '').trim();
+          let host = rawHost.replace(/^(https?|ssh|sftp):\/\//i, '').replace(/\/.*$/, '').split(':')[0];
+
           conn.on('ready', () => {
             console.log('Connected to Hetzner server via SSH.');
             conn.sftp((err, sftp) => {
@@ -135,14 +152,14 @@ jobs:
                 console.error('SFTP Error:', err);
                 process.exit(1);
               }
-              console.log('Uploading backend-linux binary...');
-              sftp.fastPut('backend-linux', '/root/backend-linux', (err) => {
+              console.log('Uploading backend-linux binary to /root/backend-linux.tmp...');
+              sftp.fastPut('backend-linux', '/root/backend-linux.tmp', (err) => {
                 if (err) {
                   console.error('Upload Error:', err);
                   process.exit(1);
                 }
-                console.log('Binary uploaded successfully. Restarting predictball service...');
-                conn.exec('chmod +x /root/backend-linux && systemctl restart predictball', (err, stream) => {
+                console.log('Binary uploaded successfully. Moving file and restarting predictball service...');
+                conn.exec('chmod +x /root/backend-linux.tmp && mv -f /root/backend-linux.tmp /root/backend-linux && systemctl restart predictball', (err, stream) => {
                   if (err) {
                     console.error('Exec Error:', err);
                     process.exit(1);
@@ -159,8 +176,8 @@ jobs:
             console.error('SSH Connection Error:', err);
             process.exit(1);
           }).connect({
-            host: process.env.HETZNER_HOST,
-            username: process.env.HETZNER_USERNAME,
-            password: process.env.HETZNER_PASSWORD
+            host,
+            username: (process.env.HETZNER_USERNAME || '').trim(),
+            password: (process.env.HETZNER_PASSWORD || '').trim()
           });
           "
