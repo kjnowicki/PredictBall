@@ -1,9 +1,23 @@
 package services
 
 import (
+	"path/filepath"
 	"predictball_api/models"
 	footballdata "predictball_api/models/football-data"
 )
+
+// sanitizeSegment extracts the base component of a path segment to prevent path traversal vulnerabilities.
+func sanitizeSegment(s string) string {
+	if s == "" {
+		return ""
+	}
+	base := filepath.Base(filepath.Clean(s))
+	if base == "." || base == ".." || base == "/" || base == "\\" {
+		return ""
+	}
+	return base
+}
+
 
 func resolveRegularTimeScore(score footballdata.MatchScore) (int, int) {
 	var homeScore, awayScore int

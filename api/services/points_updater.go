@@ -15,10 +15,12 @@ func (s *PredictballAPIService) StartPointsUpdater(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Minute)
 	go func() {
 		s.updateGlobalLeaguePoints(ctx)
+		s.updateGlobalCasualLeaguePoints(ctx)
 		for {
 			select {
 			case <-ticker.C:
 				s.updateGlobalLeaguePoints(ctx)
+				s.updateGlobalCasualLeaguePoints(ctx)
 			case <-ctx.Done():
 				ticker.Stop()
 				return
@@ -294,5 +296,171 @@ func getMatchdayMultiplier(numMatches int, N int) int {
 		return 2
 	}
 	return 1
+}
+
+func (s *PredictballAPIService) updateGlobalCasualLeaguePoints(ctx context.Context) {
+	scoring, err := s.GetScoringSystem(ctx)
+	if err != nil {
+		log.Println("Error reading scoring system:", err)
+		return
+	}
+
+	competitionsDir := "data/competitions"
+	files, err := os.ReadDir(competitionsDir)
+	if err != nil {
+		return
+	}
+
+	for _, file := range files {
+		if !file.IsDir() {
+			continue
+		}
+		compID := file.Name()
+		leaguePath := filepath.Join(competitionsDir, compID, "leagues", "C.json")
+
+		s.mu.RLock()
+		data, err := os.ReadFile(leaguePath)
+		s.mu.RUnlock()
+		if err != nil {
+			continue
+		}
+
+		var casualLeague models.GlobalLeague
+		if err := json.Unmarshal(data, &casualLeague); err != nil {
+			continue
+		}
+
+		casualIDs, _, err := s.GetCasualMatchIDs(ctx, compID)
+		if err != nil || len(casualIDs) == 0 {
+			continue
+		}
+
+		casualSet := make(map[int]bool)
+		for _, id := range casualIDs {
+			casualSet[id] = true
+		}
+
+		schedule, err := s.GetMatchSchedule(ctx, compID)
+		if err != nil {
+			continue
+		}
+
+		matchdayCounts := make(map[string]int)
+		for _, m := range schedule {
+			key := getMatchdayKey(m)
+			if key != "" {
+				matchdayCounts[key]++
+			}
+		}
+
+		N := 0
+		for _, count := range matchdayCounts {
+			if count > N {
+				N = count
+			}
+		}
+
+		matches := make(map[int]models.Match)
+		for _, m := range schedule {
+			if m.Status == "FINISHED" {
+				if detailedMatch, err := s.GetMatch(ctx, compID, strconv.Itoa(m.ID)); err == nil {
+					m = *detailedMatch
+				}
+			}
+			matches[m.ID] = m
+		}
+
+		updated := false
+		for i, user := range casualLeague.Users {
+			userIDStr := strconv.Itoa(user.UserID)
+
+			s.mu.RLock()
+			preds, err := loadPredictions(userIDStr, compID)
+			powerupBytes, _ := os.ReadFile(getPowerupsPath(userIDStr, compID))
+			s.mu.RUnlock()
+
+			if err != nil {
+				continue
+			}
+
+			var pData map[string]any
+			json.Unmarshal(powerupBytes, &pData)
+
+			powerupForMatch := make(map[int]string)
+			doubleScorerForMatch := make(map[int]int)
+
+			if matchdays, ok := pData["matchdays"].([]any); ok {
+				for _, md := range matchdays {
+					if mdMap, ok := md.(map[string]any); ok {
+						if dsmID, ok := mdMap["doubleScorerMatchId"].(float64); ok && dsmID != 0 {
+							powerupForMatch[int(dsmID)] = "doubleScorer"
+							if dsID, ok := mdMap["doubleScorerId"].(float64); ok {
+								doubleScorerForMatch[int(dsID)] = int(dsID)
+							}
+						}
+						if tsmID, ok := mdMap["tripleScoreMatchId"].(float64); ok && tsmID != 0 {
+							powerupForMatch[int(tsmID)] = "tripleScore"
+						}
+						if rsmID, ok := mdMap["reversalMatchId"].(float64); ok && rsmID != 0 {
+							powerupForMatch[int(rsmID)] = "reversal"
+						}
+					}
+				}
+			}
+
+			matchdayRawPoints := make(map[string]int)
+			fallbackPoints := 0
+			for _, pred := range preds {
+				if !casualSet[pred.MatchID] {
+					continue
+				}
+				if match, ok := matches[pred.MatchID]; ok {
+					activePowerup := powerupForMatch[match.ID]
+					doubleScorerID := doubleScorerForMatch[match.ID]
+
+					key := getMatchdayKey(match)
+					if key != "" {
+						numMatches := matchdayCounts[key]
+						mult := getMatchdayMultiplier(numMatches, N)
+						if activePowerup == "tripleScore" && mult > 1 {
+							activePowerup = ""
+						}
+						if activePowerup == "reversal" && numMatches <= 2 {
+							activePowerup = ""
+						}
+					}
+
+					pts := calculatePointsForPrediction(match, pred, activePowerup, doubleScorerID, scoring)
+
+					if key != "" {
+						matchdayRawPoints[key] += pts
+					} else {
+						fallbackPoints += pts
+					}
+				}
+			}
+
+			totalPoints := fallbackPoints
+			for key, rawSum := range matchdayRawPoints {
+				numMatches := matchdayCounts[key]
+				mult := getMatchdayMultiplier(numMatches, N)
+				totalPoints += rawSum * mult
+			}
+
+			if casualLeague.Users[i].Points != totalPoints {
+				casualLeague.Users[i].Points = totalPoints
+				updated = true
+			}
+		}
+
+		if updated {
+			b, err := json.MarshalIndent(casualLeague, "", "  ")
+			if err == nil {
+				s.mu.Lock()
+				os.WriteFile(leaguePath, b, 0644)
+				s.mu.Unlock()
+			}
+		}
+	}
 }
 

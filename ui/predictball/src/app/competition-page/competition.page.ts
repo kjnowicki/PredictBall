@@ -17,6 +17,7 @@ import { PredictionLeagueService } from '../services/prediction-league.service';
 import { MatchService } from '../services/match.service';
 import { TeamService } from '../services/team.service';
 import { ScoringSystemService } from '../services/scoring-system.service';
+import { UserService } from '../services/user.service';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { Match, ScoringSystem } from '../models';
@@ -107,6 +108,7 @@ export class CompetitionPage implements OnInit, OnDestroy {
   private document = inject(DOCUMENT);
   private platformId = inject(PLATFORM_ID);
   private predictionLeagueService = inject(PredictionLeagueService);
+  private userService = inject(UserService);
   private router = inject(Router);
   private teamService = inject(TeamService);
   private scoringSystemService = inject(ScoringSystemService);
@@ -304,6 +306,19 @@ export class CompetitionPage implements OnInit, OnDestroy {
 
   loadScheduleAndDetails() {
     if (!this.competitionCode) return;
+
+    if (this.competition?.id) {
+      this.predictionLeagueService.getCasualMatches(this.competition.id).subscribe({
+        next: (res) => {
+          if (res && res.casualMatchIds) {
+            this.casualMatchIds = new Set(res.casualMatchIds);
+            this.cdr.detectChanges();
+          }
+        },
+        error: () => {}
+      });
+    }
+
     this.matchService.getMatchSchedule(this.competitionCode, this.selectedSeason).subscribe({
       next: (matches) => {
         this.matches = Array.isArray(matches) ? matches : [];
@@ -452,15 +467,28 @@ export class CompetitionPage implements OnInit, OnDestroy {
     });
   }
 
+  casualMatchIds: Set<number> = new Set();
+  newLeagueIsCasual: boolean = false;
+  showOnlyMatchOfTheWeek: boolean = false;
+
+  toggleCasualView() {
+    this.showOnlyMatchOfTheWeek = !this.showOnlyMatchOfTheWeek;
+    if (this.userId && this.competitionCode) {
+      this.userService.updateLeagueViewPreference(this.userId, this.competitionCode, this.showOnlyMatchOfTheWeek).subscribe();
+    }
+    this.cdr.detectChanges();
+  }
+
   createLeague() {
     if (!this.newLeagueName.trim() || !this.competition || !this.competition.id || !this.userId) return;
     
     this.isCreatingLeague = true;
-    this.predictionLeagueService.createPredictionLeague(this.competition.id.toString(), this.userId, this.newLeagueName.trim())
+    this.predictionLeagueService.createPredictionLeague(this.competition.id.toString(), this.userId, this.newLeagueName.trim(), this.newLeagueIsCasual)
       .subscribe({
         next: (newLeague) => {
           this.isCreatingLeague = false;
           this.newLeagueName = '';
+          this.newLeagueIsCasual = false;
           this.loadLeagues();
           this.cdr.detectChanges();
           this.router.navigate(['/competition', this.competitionCode, 'league', newLeague.id]).catch(err => console.error('Navigation error:', err));
@@ -473,7 +501,16 @@ export class CompetitionPage implements OnInit, OnDestroy {
   }
 
   get filteredMatches() {
-    return this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === this.selectedMatchday);
+    const raw = this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === this.selectedMatchday);
+    let list = raw;
+    if (this.showOnlyMatchOfTheWeek) {
+      list = list.filter(m => this.casualMatchIds.has(m.id));
+    }
+    return list.slice().sort((a, b) => {
+      const aMotw = this.casualMatchIds.has(a.id) ? 1 : 0;
+      const bMotw = this.casualMatchIds.has(b.id) ? 1 : 0;
+      return bMotw - aMotw;
+    });
   }
 
   extractTeams() {
@@ -693,8 +730,30 @@ export class CompetitionPage implements OnInit, OnDestroy {
     return values.length > 0 ? Math.max(...values) : 0;
   }
 
+  get hiddenMatchPowerups(): string[] {
+    if (!this.showOnlyMatchOfTheWeek || !this.currentMatchdayPowerups) {
+      return [];
+    }
+    const hidden: string[] = [];
+    const p = this.currentMatchdayPowerups;
+    if (p.doubleScorerMatchId && p.doubleScorerMatchId > 0 && !this.casualMatchIds.has(p.doubleScorerMatchId)) {
+      hidden.push('Double Scorer');
+    }
+    if (p.tripleScoreMatchId && p.tripleScoreMatchId > 0 && !this.casualMatchIds.has(p.tripleScoreMatchId)) {
+      hidden.push('Triple Score');
+    }
+    if (p.reversalMatchId && p.reversalMatchId > 0 && !this.casualMatchIds.has(p.reversalMatchId)) {
+      hidden.push('Reversal');
+    }
+    return hidden;
+  }
+
+  get rawSelectedMatchdayMatchesCount(): number {
+    return this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === this.selectedMatchday).length;
+  }
+
   get currentMatchdayMultiplier(): number {
-    const numMatches = this.filteredMatches.length;
+    const numMatches = this.rawSelectedMatchdayMatchesCount;
     if (numMatches === 0) return 1;
     const N = this.maxMatchesPerMatchday;
     if (numMatches === 1) return 4;
@@ -725,7 +784,7 @@ export class CompetitionPage implements OnInit, OnDestroy {
         if (powerup === 'tripleScore' && this.currentMatchdayMultiplier > 1) {
           powerup = null;
         }
-        if (powerup === 'reversal' && this.filteredMatches.length <= 2) {
+        if (powerup === 'reversal' && this.rawSelectedMatchdayMatchesCount <= 2) {
           powerup = null;
         }
 

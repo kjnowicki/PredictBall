@@ -2,6 +2,7 @@ export interface User {
   id: string;
   displayName: string;
   email: string;
+  leagueViewPreferences?: { [leagueId: string]: boolean };
 }
 
 export interface Competition {
@@ -26,6 +27,7 @@ export interface PredictionLeague {
   joinCode?: string;
   public?: boolean;
   userIds?: number[];
+  isCasual?: boolean;
 }
 
 export interface LeagueUser {

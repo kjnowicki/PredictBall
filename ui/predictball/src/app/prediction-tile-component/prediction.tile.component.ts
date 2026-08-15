@@ -53,6 +53,7 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
   @Input() readOnly: boolean = false;
   @Input() isTripleScoreDisabled: boolean = false;
   @Input() isReversalDisabled: boolean = false;
+  @Input() isMatchOfTheWeek: boolean = false;
   @Output() predictionChanged = new EventEmitter<any>();
   @Output() isModifying = new EventEmitter<boolean>();
 

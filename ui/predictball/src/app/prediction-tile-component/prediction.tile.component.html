@@ -1,4 +1,7 @@
-<mat-card [ngStyle]="getCardStyle()">
+<mat-card [ngStyle]="getCardStyle()" [class.motw-card]="isMatchOfTheWeek">
+  <div *ngIf="isMatchOfTheWeek" class="motw-banner">
+    ⭐ Match of the Week
+  </div>
   <!-- Row 1: Team Names -->
   <mat-card-header style="display: flex; justify-content: center; text-align: center; padding-top: 1rem;">
     <mat-card-title style="font-size: 1.1rem; margin-bottom: 0; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">

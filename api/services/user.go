@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"predictball_api/models"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -321,7 +322,10 @@ func (s *PredictballAPIService) AdminDeleteUser(ctx context.Context, userID stri
 	s.saveUsers()
 
 	// Clean up user folder in data/users/{userID}
-	userDir := filepath.Join("data", "users", userID)
+	if strings.Contains(userID, "..") || strings.Contains(userID, "/") || strings.Contains(userID, "\\") {
+		userID = filepath.Base(filepath.Clean(userID))
+	}
+	userDir := filepath.Join("data", "users", filepath.Base(filepath.Clean(userID)))
 	_ = os.RemoveAll(userDir)
 
 	return nil
@@ -349,4 +353,26 @@ func (s *PredictballAPIService) AdminUpdateDisplayName(ctx context.Context, user
 
 func (s *PredictballAPIService) GetStats(ctx context.Context) models.StatsSummary {
 	return GlobalStatsTracker.GetSummary()
+}
+
+func (s *PredictballAPIService) UpdateUserLeagueViewPreference(ctx context.Context, userID string, leagueID string, viewOnlyCasual bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.initUsers()
+
+	user, ok := s.users[userID]
+	if !ok {
+		return fmt.Errorf("user not found")
+	}
+
+	if user.LeagueViewPreferences == nil {
+		user.LeagueViewPreferences = make(map[string]bool)
+	}
+
+	user.LeagueViewPreferences[leagueID] = viewOnlyCasual
+	s.users[userID] = user
+	s.saveUsers()
+
+	return nil
 }

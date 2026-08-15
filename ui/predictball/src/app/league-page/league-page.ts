@@ -154,71 +154,77 @@ export class LeaguePage implements OnInit {
     selection?.addRange(range);
   }
 
+  isCasual: boolean = false;
+
   loadLeague() {
     if (!this.competitionId || !this.leagueId) return;
 
-    forkJoin({
-      league: this.leagueService.getPredictionLeague(this.competitionId, this.leagueId, this.season || undefined),
-      globalLeague: this.leagueService.getPredictionLeague(this.competitionId, 0, this.season || undefined).pipe(catchError(() => of(null)))
-    }).subscribe({
-      next: ({ league, globalLeague }: { league: any, globalLeague: any }) => {
+    this.leagueService.getPredictionLeague(this.competitionId, this.leagueId, this.season || undefined).subscribe({
+      next: (league: any) => {
+        if (!league) return;
         this.errorMessage = null;
         this.leagueName = league.name || 'League';
+        this.isCasual = !!league.isCasual;
         this.leagueJoinCode = league.joinCode || '';
         this.cdr.detectChanges();
-        
-        let users = league.users || [];
-        if (users.length === 0 && league.userIds && league.userIds.length > 0) {
-          users = league.userIds.map((id: number) => ({
-            userId: id,
-            name: `Player ${id}`,
-            points: 0
-          }));
-        }
 
-        if (globalLeague && globalLeague.users) {
-          users.forEach((u: any) => {
-            const globalUser = globalLeague.users.find((gu: any) => gu.userId?.toString() === u.userId?.toString());
-            if (globalUser) {
-              u.points = globalUser.points || 0;
-              u.name = globalUser.name || u.name;
+        const globalSourceId = this.isCasual ? 'C' : 0;
+        this.leagueService.getPredictionLeague(this.competitionId!, globalSourceId, this.season || undefined)
+          .pipe(catchError(() => of(null)))
+          .subscribe((globalLeague: any) => {
+            let users = league.users || [];
+            if (users.length === 0 && league.userIds && league.userIds.length > 0) {
+              users = league.userIds.map((id: number) => ({
+                userId: id,
+                name: `Player ${id}`,
+                points: 0
+              }));
+            }
+
+            if (globalLeague && globalLeague.users) {
+              users.forEach((u: any) => {
+                const globalUser = globalLeague.users.find((gu: any) => gu.userId?.toString() === u.userId?.toString());
+                if (globalUser) {
+                  u.points = globalUser.points || 0;
+                  u.name = globalUser.name || u.name;
+                }
+              });
+            }
+
+            const userRequests = users
+              .filter((u: any) => u.name === `Player ${u.userId}`)
+              .map((u: any) =>
+                this.userService.getUser(u.userId.toString()).pipe(
+                  map(userDetails => {
+                    u.name = userDetails.displayName || u.name;
+                    return u;
+                  }),
+                  catchError(() => of(u))
+                )
+              );
+
+            const finalizePlayers = () => {
+              users.sort((a: any, b: any) => (b.points || 0) - (a.points || 0));
+              this.players = users.map((u: any, index: number) => ({
+                position: index + 1,
+                name: u.name,
+                points: u.points || 0,
+                userId: u.userId
+              }));
+              this.cdr.detectChanges();
+            };
+
+            if (userRequests.length > 0) {
+              forkJoin(userRequests).subscribe({
+                next: () => finalizePlayers(),
+                error: () => finalizePlayers()
+              });
+            } else {
+              finalizePlayers();
             }
           });
-        }
-
-        const userRequests = users
-          .filter((u: any) => u.name === `Player ${u.userId}`)
-          .map((u: any) =>
-            this.userService.getUser(u.userId.toString()).pipe(
-              map(userDetails => {
-                u.name = userDetails.displayName || u.name;
-                return u;
-              }),
-              catchError(() => of(u))
-            )
-          );
-
-        const finalizePlayers = () => {
-          users.sort((a: any, b: any) => (b.points || 0) - (a.points || 0));
-          this.players = users.map((u: any, index: number) => ({
-            position: index + 1,
-            name: u.name,
-            points: u.points || 0,
-            userId: u.userId
-          }));
-          this.cdr.detectChanges();
-        };
-
-        if (userRequests.length > 0) {
-          forkJoin(userRequests).subscribe({
-            next: () => finalizePlayers(),
-            error: () => finalizePlayers()
-          });
-        } else {
-          finalizePlayers();
-        }
       },
-      error: (err) => {
+      error: err => {
         console.error('Error fetching league details', err);
         this.errorMessage = 'You are not authorized to view this league, or it does not exist.';
         this.cdr.detectChanges();

@@ -193,6 +193,67 @@ export class AdminpanComponent implements OnInit {
     });
   }
 
+  casualActionMessages: Record<string, string> = {};
+  casualActionErrors: Record<string, string> = {};
+  casualActionLoading: Record<string, boolean> = {};
+
+  getCompKey(comp: AdminCompetition): string {
+    return (comp.code || comp.id).toString();
+  }
+
+  onGenerateCasualMatches(comp: AdminCompetition): void {
+    const key = this.getCompKey(comp);
+    this.casualActionMessages[key] = '';
+    this.casualActionErrors[key] = '';
+    this.casualActionLoading[key] = true;
+    this.cdr.markForCheck();
+
+    this.adminService.generateCasualMatches(key).subscribe({
+      next: (res) => {
+        this.casualActionLoading[key] = false;
+        const count = res?.casualMatchIds?.length || 0;
+        this.casualActionMessages[key] = `Successfully generated ${count} Matches of the Week for ${comp.name}!`;
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        this.casualActionLoading[key] = false;
+        if (err?.status === 401) {
+          this.onLogout();
+          this.loginError = 'Admin session expired or invalid. Please log in again.';
+        } else {
+          this.casualActionErrors[key] = err?.error || 'Failed to generate Match of the Week selection.';
+        }
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  onInitCasualLeague(comp: AdminCompetition): void {
+    const key = this.getCompKey(comp);
+    this.casualActionMessages[key] = '';
+    this.casualActionErrors[key] = '';
+    this.casualActionLoading[key] = true;
+    this.cdr.markForCheck();
+
+    this.adminService.initCasualLeague(key).subscribe({
+      next: (res) => {
+        this.casualActionLoading[key] = false;
+        this.casualActionMessages[key] = res?.message || `Global Casual League (C.json) initialized for ${comp.name}!`;
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        this.casualActionLoading[key] = false;
+        if (err?.status === 401) {
+          this.onLogout();
+          this.loginError = 'Admin session expired or invalid. Please log in again.';
+        } else {
+          this.casualActionErrors[key] = err?.error || 'Failed to initialize Global Casual League.';
+        }
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
   // Temporary Staging Queue for New Competitions
   stagedCompetitions: AdminCompetition[] = [];
   selectedCompToAdd: AdminCompetition | null = null;
