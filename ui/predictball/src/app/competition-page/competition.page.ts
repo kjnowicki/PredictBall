@@ -730,6 +730,24 @@ export class CompetitionPage implements OnInit, OnDestroy {
     return values.length > 0 ? Math.max(...values) : 0;
   }
 
+  get hiddenMatchPowerups(): string[] {
+    if (!this.showOnlyMatchOfTheWeek || !this.currentMatchdayPowerups) {
+      return [];
+    }
+    const hidden: string[] = [];
+    const p = this.currentMatchdayPowerups;
+    if (p.doubleScorerMatchId && p.doubleScorerMatchId > 0 && !this.casualMatchIds.has(p.doubleScorerMatchId)) {
+      hidden.push('Double Scorer');
+    }
+    if (p.tripleScoreMatchId && p.tripleScoreMatchId > 0 && !this.casualMatchIds.has(p.tripleScoreMatchId)) {
+      hidden.push('Triple Score');
+    }
+    if (p.reversalMatchId && p.reversalMatchId > 0 && !this.casualMatchIds.has(p.reversalMatchId)) {
+      hidden.push('Reversal');
+    }
+    return hidden;
+  }
+
   get rawSelectedMatchdayMatchesCount(): number {
     return this.matches.filter(m => (m.matchday > 0 ? m.matchday : m.stage) === this.selectedMatchday).length;
   }

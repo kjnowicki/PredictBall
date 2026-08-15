@@ -97,6 +97,10 @@
                 <span><mat-icon style="vertical-align: middle;">swap_horiz</mat-icon> <strong>Reversal:</strong>
                   Flips predictions if match outcome reverses.</span>
               </div>
+              <div *ngIf="hiddenMatchPowerups.length > 0" style="margin-top: 0.85rem; display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.5); color: #d97706; padding: 6px 14px; border-radius: 8px; font-size: 0.875rem; font-weight: 500;">
+                <mat-icon style="color: #f59e0b; font-size: 1.1rem; width: 1.1rem; height: 1.1rem; vertical-align: middle;">warning</mat-icon>
+                <span><strong>Warning:</strong> {{ hiddenMatchPowerups.join(', ') }} {{ hiddenMatchPowerups.length === 1 ? 'powerup is' : 'powerups are' }} active on a match not shown in this Matches of the Week view.</span>
+              </div>
             </div>
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
               @for (match of filteredMatches; track match.id) {
