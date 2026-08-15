@@ -3,13 +3,14 @@ package models
 import "time"
 
 type User struct {
-	ID              int       `json:"id"`
-	Username        string    `json:"username,omitempty"`
-	Password        string    `json:"password,omitempty"`
-	DisplayName     string    `json:"displayName"`
-	NameLastChanged time.Time `json:"nameLastChanged"`
-	LastLoggedIn    time.Time `json:"lastLoggedIn,omitempty"`
-	VisitCount      int       `json:"visitCount"`
+	ID                    int             `json:"id"`
+	Username              string          `json:"username,omitempty"`
+	Password              string          `json:"password,omitempty"`
+	DisplayName           string          `json:"displayName"`
+	NameLastChanged       time.Time       `json:"nameLastChanged"`
+	LastLoggedIn          time.Time       `json:"lastLoggedIn,omitempty"`
+	VisitCount            int             `json:"visitCount"`
+	LeagueViewPreferences map[string]bool `json:"leagueViewPreferences,omitempty"`
 }
 
 type AdminUserDetail struct {
@@ -41,14 +42,14 @@ type ErrorLogEntry struct {
 }
 
 type StatsSummary struct {
-	TotalHTTPRequests int64                   `json:"totalHttpRequests"`
-	APITotalRequests  int64                   `json:"apiTotalRequests"`
-	APICacheHits      int64                   `json:"apiCacheHits"`
-	APICacheMisses    int64                   `json:"apiCacheMisses"`
-	APICacheHitRate   float64                 `json:"apiCacheHitRate"`
+	TotalHTTPRequests int64                    `json:"totalHttpRequests"`
+	APITotalRequests  int64                    `json:"apiTotalRequests"`
+	APICacheHits      int64                    `json:"apiCacheHits"`
+	APICacheMisses    int64                    `json:"apiCacheMisses"`
+	APICacheHitRate   float64                  `json:"apiCacheHitRate"`
 	APIEndpointStats  map[string]*EndpointStat `json:"apiEndpointStats"`
 	HTTPEndpointStats map[string]*EndpointStat `json:"httpEndpointStats"`
-	RecentErrors      []ErrorLogEntry         `json:"recentErrors"`
+	RecentErrors      []ErrorLogEntry          `json:"recentErrors"`
 }
 
 type Match struct {
@@ -99,6 +100,7 @@ type PredictionLeague struct {
 	JoinCode string `json:"joinCode"`
 	Public   bool   `json:"public"`
 	UserIDs  []int  `json:"userIds,omitempty"`
+	IsCasual bool   `json:"isCasual,omitempty"`
 }
 
 type UserCompetitionLeagues struct {

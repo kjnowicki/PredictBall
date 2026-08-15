@@ -10,20 +10,18 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
   const document = inject(DOCUMENT);
 
-  let interceptedReq = req;
-  if (req.url.startsWith(environment.apiUrl)) {
-    let headers = req.headers;
-    if (typeof localStorage !== 'undefined') {
-      const adminToken = localStorage.getItem('adminToken');
-      if (adminToken) {
-        headers = headers.set('X-Admin-Token', adminToken);
-      }
+  let headers = req.headers;
+  if (typeof localStorage !== 'undefined') {
+    const adminToken = localStorage.getItem('adminToken');
+    if (adminToken) {
+      headers = headers.set('X-Admin-Token', adminToken);
     }
-    interceptedReq = req.clone({
-      withCredentials: true,
-      headers: headers
-    });
   }
+
+  const interceptedReq = req.clone({
+    withCredentials: true,
+    headers: headers
+  });
 
   return next(interceptedReq).pipe(
     catchError((error: any) => {

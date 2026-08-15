@@ -267,3 +267,19 @@ func (s *TemplateService) AdminUpdateDisplayName(ctx context.Context, userID str
 func (s *TemplateService) GetStats(ctx context.Context) models.StatsSummary {
 	return GlobalStatsTracker.GetSummary()
 }
+
+func (s *TemplateService) GetCasualMatchIDs(ctx context.Context, competitionID string, season ...string) ([]int, map[string][]int, error) {
+	return []int{1}, map[string][]int{"1": {1}}, nil
+}
+
+func (s *TemplateService) GenerateCasualMatches(ctx context.Context, competitionID string, season ...string) ([]int, map[string][]int, error) {
+	return []int{1}, map[string][]int{"1": {1}}, nil
+}
+
+func (s *TemplateService) InitGlobalCasualLeague(ctx context.Context, competitionID string) error {
+	return nil
+}
+
+func (s *TemplateService) UpdateUserLeagueViewPreference(ctx context.Context, userID string, leagueID string, viewOnlyCasual bool) error {
+	return nil
+}

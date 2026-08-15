@@ -49,15 +49,21 @@
             </div>
             }
 
-            <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem; gap: 1rem;">
+            <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap;">
               <button mat-button (click)="prevMatchday()" [disabled]="matchdaySteps.indexOf(selectedMatchday) <= 0">
                 <mat-icon>chevron_left</mat-icon>
               </button>
-              <h2 style="margin: 0; min-width: 150px; text-align: center;">{{ formatMatchdayHeader(selectedMatchday) }}
-              </h2>
+              <h2 style="margin: 0; min-width: 150px; text-align: center;">{{ formatMatchdayHeader(selectedMatchday) }}</h2>
               <button mat-button (click)="nextMatchday()"
                 [disabled]="matchdaySteps.indexOf(selectedMatchday) === -1 || matchdaySteps.indexOf(selectedMatchday) === matchdaySteps.length - 1">
                 <mat-icon>chevron_right</mat-icon>
+              </button>
+            </div>
+
+            <div style="display: flex; justify-content: center; margin-bottom: 1.5rem;">
+              <button mat-stroked-button color="accent" (click)="toggleCasualView()">
+                <mat-icon>{{ showOnlyMatchOfTheWeek ? 'apps' : 'star' }}</mat-icon>
+                {{ showOnlyMatchOfTheWeek ? 'View all matches' : 'View Matches of the Week only' }}
               </button>
             </div>
 
@@ -88,21 +94,23 @@
                 <span><mat-icon style="vertical-align: middle;">star_border</mat-icon> <strong>Triple Score:</strong>
                   Triples your point yield for the match.</span>
                 }
-                @if (filteredMatches.length > 2) {
-                <span><mat-icon style="vertical-align: middle;">swap_horiz</mat-icon> <strong>Reversal:</strong> Swap
-                  the predicted scoreline if the opposite team wins (cannot be used on draws).</span>
-                }
+                <span><mat-icon style="vertical-align: middle;">swap_horiz</mat-icon> <strong>Reversal:</strong>
+                  Flips predictions if match outcome reverses.</span>
+              </div>
+              <div *ngIf="hiddenMatchPowerups.length > 0" style="margin-top: 0.85rem; display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.5); color: #d97706; padding: 6px 14px; border-radius: 8px; font-size: 0.875rem; font-weight: 500;">
+                <mat-icon style="color: #f59e0b; font-size: 1.1rem; width: 1.1rem; height: 1.1rem; vertical-align: middle;">warning</mat-icon>
+                <span><strong>Warning:</strong> {{ hiddenMatchPowerups.join(', ') }} {{ hiddenMatchPowerups.length === 1 ? 'powerup is' : 'powerups are' }} active on a match not shown in this Matches of the Week view.</span>
               </div>
             </div>
-            <div class="predictions-grid"
-              style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
               @for (match of filteredMatches; track match.id) {
               <app-prediction-tile style="display: block;" [match]="match" [prediction]="predictions[match.id]"
                 [availablePowerups]="currentMatchdayPowerups" [scoringSystem]="scoringSystem"
                 [competition]="competition" [readOnly]="viewedUserId !== null" (isModifying)="onTileModifying($event)"
                 (predictionChanged)="onPredictionChanged(match.id, $event)"
                 [isTripleScoreDisabled]="currentMatchdayMultiplier > 1"
-                [isReversalDisabled]="filteredMatches.length <= 2"></app-prediction-tile>
+                [isReversalDisabled]="rawSelectedMatchdayMatchesCount <= 2"
+                [isMatchOfTheWeek]="casualMatchIds.has(match.id)"></app-prediction-tile>
               }
               @if (filteredMatches.length === 0) {
               <p style="text-align: center; color: gray; grid-column: 1 / -1;">No matches found for this matchday.</p>
@@ -118,7 +126,10 @@
               <ng-container matColumnDef="name">
                 <th mat-header-cell *matHeaderCellDef>League Name</th>
                 <td mat-cell *matCellDef="let league">
-                  <a [routerLink]="['/competition', competitionCode, 'league', league.id]" [queryParams]="{ season: selectedSeason }">{{ league.name }}</a>
+                  <a [routerLink]="['/competition', competitionCode, 'league', league.id]" [queryParams]="{ season: selectedSeason }">
+                    {{ league.name }}
+                    <span *ngIf="league.isCasual" style="margin-left: 6px; font-size: 0.75rem; background: #d97706; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Casual</span>
+                  </a>
                 </td>
               </ng-container>
 
@@ -147,7 +158,10 @@
               <ng-container matColumnDef="name">
                 <th mat-header-cell *matHeaderCellDef>League Name</th>
                 <td mat-cell *matCellDef="let league">
-                  <a [routerLink]="['/competition', competitionCode, 'league', league.id]" [queryParams]="{ season: selectedSeason }">{{ league.name }}</a>
+                  <a [routerLink]="['/competition', competitionCode, 'league', league.id]" [queryParams]="{ season: selectedSeason }">
+                    {{ league.name }}
+                    <span *ngIf="league.isCasual" style="margin-left: 6px; font-size: 0.75rem; background: #d97706; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Casual</span>
+                  </a>
                 </td>
               </ng-container>
 
@@ -171,21 +185,26 @@
               <tr mat-row *matRowDef="let row; columns: leaguesDisplayedColumns"></tr>
             </table>
 
-            <div style="display: flex; gap: 1rem; align-items: baseline;">
+            <h2>Join Private League</h2>
+            <div style="display: flex; gap: 1rem; align-items: baseline; margin-bottom: 2rem;">
               <mat-form-field>
                 <mat-label>Join Code</mat-label>
-                <input matInput [(ngModel)]="joinCode" placeholder="Enter code">
+                <input matInput [(ngModel)]="joinCode" placeholder="Enter join code">
               </mat-form-field>
-              <button mat-raised-button color="primary" [disabled]="!joinCode" (click)="joinLeague()">Join
+              <button mat-raised-button color="primary" [disabled]="!joinCode.trim()" (click)="joinLeague()">Join
                 League</button>
             </div>
 
             <h2 style="margin-top: 2rem;">Create Private League</h2>
-            <div style="display: flex; gap: 1rem; align-items: baseline;">
+            <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
               <mat-form-field>
                 <mat-label>League Name</mat-label>
                 <input matInput [(ngModel)]="newLeagueName" placeholder="Enter league name">
               </mat-form-field>
+              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" [(ngModel)]="newLeagueIsCasual" style="accent-color: #f59e0b; width: 18px; height: 18px;" />
+                <span>Casual League (Only Match of the Week counts)</span>
+              </label>
               <button mat-raised-button color="primary" [disabled]="!newLeagueName.trim() || isCreatingLeague"
                 (click)="createLeague()">
                 {{ isCreatingLeague ? 'Creating...' : 'Create' }}

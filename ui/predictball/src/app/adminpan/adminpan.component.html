@@ -158,14 +158,29 @@
                 </div>
               </div>
 
-              <div class="comp-card-actions">
-                <button mat-stroked-button class="btn-seasons" (click)="viewCompetitionDetail(comp)">
+              <div *ngIf="casualActionMessages[getCompKey(comp)]" class="alert-banner alert-success" style="margin: 0.5rem 1rem;">
+                <mat-icon>check_circle</mat-icon>
+                <span>{{ casualActionMessages[getCompKey(comp)] }}</span>
+              </div>
+              <div *ngIf="casualActionErrors[getCompKey(comp)]" class="alert-banner alert-error" style="margin: 0.5rem 1rem;">
+                <mat-icon>error_outline</mat-icon>
+                <span>{{ casualActionErrors[getCompKey(comp)] }}</span>
+              </div>
+
+              <div class="admin-action-grid">
+                <button mat-stroked-button class="admin-btn btn-seasons" (click)="viewCompetitionDetail(comp)">
                   <mat-icon>info</mat-icon> Seasons
                 </button>
-                <button *ngIf="!comp.currentSeason?.isRetired && comp.currentSeason?.isFinished" mat-flat-button color="accent" (click)="openRetireModal(comp)">
+                <button *ngIf="!comp.currentSeason?.isRetired" mat-stroked-button class="admin-btn btn-motw" (click)="onGenerateCasualMatches(comp)" [disabled]="casualActionLoading[getCompKey(comp)]" title="Generate semi-random Match of the Week selection">
+                  <mat-icon>star</mat-icon> Matches of Week
+                </button>
+                <button *ngIf="!comp.currentSeason?.isRetired" mat-stroked-button class="admin-btn btn-sync" (click)="onInitCasualLeague(comp)" [disabled]="casualActionLoading[getCompKey(comp)]" title="Initialize/Sync Global Casual League (C.json)">
+                  <mat-icon>style</mat-icon> Sync C.json
+                </button>
+                <button *ngIf="!comp.currentSeason?.isRetired && comp.currentSeason?.isFinished" mat-flat-button class="admin-btn btn-retire" (click)="openRetireModal(comp)">
                   <mat-icon>stop_circle</mat-icon> Retire
                 </button>
-                <button mat-flat-button color="warn" (click)="openDeleteCompModal(comp)">
+                <button mat-flat-button class="admin-btn btn-remove" (click)="openDeleteCompModal(comp)">
                   <mat-icon>delete</mat-icon> Remove
                 </button>
               </div>
