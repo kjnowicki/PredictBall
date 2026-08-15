@@ -44,19 +44,54 @@ jobs:
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
           FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR }}
-        shell: powershell
         run: |
-          $ftpServer = $env:FTP_SERVER
-          $username = $env:FTP_USERNAME
-          $password = $env:FTP_PASSWORD
-          $remoteDir = $env:FTP_SERVER_DIR
-          $localDir = "dist/predictball/browser"
+          npm install basic-ftp --no-save
+          node -e "
+          const ftp = require('basic-ftp');
+          async function upload() {
+            const client = new ftp.Client(30000);
+            client.ftp.verbose = true;
+            
+            const accessOptions = {
+              host: process.env.FTP_SERVER,
+              user: process.env.FTP_USERNAME,
+              password: process.env.FTP_PASSWORD
+            };
 
-          Get-ChildItem -Path $localDir -Recurse -File | ForEach-Object {
-              $relativePath = $_.FullName.Substring((Get-Item $localDir).FullName.Length + 1).Replace('\', '/')
-              $targetUrl = "ftp://$ftpServer/$remoteDir/$relativePath"
-              curl.exe -u "$($username):$($password)" --ftp-create-dirs -T $_.FullName $targetUrl
+            try {
+              try {
+                await client.access({ ...accessOptions, secure: false });
+              } catch (accessErr) {
+                console.log('Plain FTP failed, trying explicit FTPS (TLS)...');
+                await client.access({ ...accessOptions, secure: 'explicit', secureOptions: { rejectUnauthorized: false } });
+              }
+
+              const targetDir = process.env.FTP_SERVER_DIR || '/';
+              await client.ensureDir(targetDir);
+
+              try {
+                const list = await client.list();
+                for (const item of list) {
+                  if (item.isFile && /\.(js|html|css|map|json|ico|svg|png|jpg|txt)$/i.test(item.name)) {
+                    console.log('Removing old file:', item.name);
+                    await client.remove(item.name).catch(() => {});
+                  }
+                }
+              } catch (e) {
+                console.log('Note: Skipping old file cleanup step:', e.message);
+              }
+
+              console.log('Uploading UI bundle from dist/predictball/browser...');
+              await client.uploadFromDir('dist/predictball/browser');
+              console.log('UI successfully uploaded via FTP.');
+            } catch (err) {
+              console.error('FTP Deployment Error:', err);
+              process.exit(1);
+            }
+            client.close();
           }
+          upload();
+          "
 
   deploy-backend:
     name: Deploy Backend (Hetzner SSH)
@@ -88,22 +123,41 @@ jobs:
           HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
           HETZNER_USERNAME: ${{ secrets.HETZNER_USERNAME }}
           HETZNER_PASSWORD: ${{ secrets.HETZNER_PASSWORD }}
-        shell: powershell
         run: |
-          curl.exe -u "$($env:HETZNER_USERNAME):$($env:HETZNER_PASSWORD)" -T backend-linux "sftp://$($env:HETZNER_HOST)/root/backend-linux" --insecure
           npm install ssh2 --no-save
           node -e "
           const { Client } = require('ssh2');
           const conn = new Client();
           conn.on('ready', () => {
-            conn.exec('chmod +x /root/backend-linux && systemctl restart predictball', (err, stream) => {
-              if (err) throw err;
-              stream.on('close', (code) => {
-                console.log('Service restarted successfully.');
-                conn.end();
-                process.exit(code || 0);
-              }).on('data', data => process.stdout.write(data)).stderr.on('data', data => process.stderr.write(data));
+            console.log('Connected to Hetzner server via SSH.');
+            conn.sftp((err, sftp) => {
+              if (err) {
+                console.error('SFTP Error:', err);
+                process.exit(1);
+              }
+              console.log('Uploading backend-linux binary...');
+              sftp.fastPut('backend-linux', '/root/backend-linux', (err) => {
+                if (err) {
+                  console.error('Upload Error:', err);
+                  process.exit(1);
+                }
+                console.log('Binary uploaded successfully. Restarting predictball service...');
+                conn.exec('chmod +x /root/backend-linux && systemctl restart predictball', (err, stream) => {
+                  if (err) {
+                    console.error('Exec Error:', err);
+                    process.exit(1);
+                  }
+                  stream.on('close', (code) => {
+                    console.log('Service restarted successfully with exit code', code);
+                    conn.end();
+                    process.exit(code || 0);
+                  }).on('data', data => process.stdout.write(data)).stderr.on('data', data => process.stderr.write(data));
+                });
+              });
             });
+          }).on('error', (err) => {
+            console.error('SSH Connection Error:', err);
+            process.exit(1);
           }).connect({
             host: process.env.HETZNER_HOST,
             username: process.env.HETZNER_USERNAME,
