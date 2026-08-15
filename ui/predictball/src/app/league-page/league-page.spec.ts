@@ -1,4 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter, ActivatedRoute } from '@angular/router';
+import { of } from 'rxjs';
 
 import { LeaguePage } from './league-page';
 
@@ -8,7 +13,20 @@ describe('LeaguePage', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [LeaguePage]
+      imports: [LeaguePage],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            paramMap: of(new Map([['id', '1'], ['compId', '100']])),
+            parent: { snapshot: { paramMap: new Map([['id', '100']]) } }
+          }
+        }
+      ]
     })
     .compileComponents();
 
@@ -21,3 +39,4 @@ describe('LeaguePage', () => {
     expect(component).toBeTruthy();
   });
 });
+

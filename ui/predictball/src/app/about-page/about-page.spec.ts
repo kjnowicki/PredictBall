@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
 
 import { AboutPage } from './about-page';
 
@@ -8,7 +9,8 @@ describe('AboutPage', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AboutPage]
+      imports: [AboutPage],
+      providers: [provideZonelessChangeDetection()]
     })
     .compileComponents();
 
@@ -21,3 +23,4 @@ describe('AboutPage', () => {
     expect(component).toBeTruthy();
   });
 });
+
