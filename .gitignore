@@ -29,3 +29,11 @@ environment.development.ts
 #data files
 api/cache/
 api/data
+
+# IDE and Editor files
+.vscode/
+
+# Debug and compiled binaries
+__debug_bin*
+backend-linux
+api/backend-linux
