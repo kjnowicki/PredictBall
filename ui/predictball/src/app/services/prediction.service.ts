@@ -13,11 +13,7 @@ export class PredictionService {
     return this.api.get<Prediction>(`prediction/${predictionId}`);
   }
 
-  createPrediction(prediction: Prediction): Observable<Prediction> {
-    return this.api.put<Prediction>('prediction', prediction);
-  }
-
-  updatePrediction(predictionId: string, prediction: Prediction): Observable<Prediction> {
-    return this.api.patch<Prediction>(`prediction/${predictionId}`, prediction);
+  savePrediction(userId: string, compId: string, matchId: number, prediction: any): Observable<any> {
+    return this.api.put<any>(`user/${userId}/competition/${compId}/prediction/${matchId}`, prediction);
   }
 }

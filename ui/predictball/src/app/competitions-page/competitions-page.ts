@@ -356,20 +356,17 @@ export class CompetitionsPage implements OnInit, OnDestroy {
       doubleScorerId: predictionData.doubleScorerId
     };
 
-    if (oldPrediction && oldPrediction.id) {
-      this.predictionService.updatePrediction(oldPrediction.id, prediction).subscribe({
-        next: (updated) => {
-          tile.prediction = updated;
-        },
-        error: err => console.error('Error updating prediction:', err)
-      });
-    } else {
-      this.predictionService.createPrediction(prediction).subscribe({
-        next: (created) => {
-          tile.prediction = created;
-        },
-        error: err => console.error('Error creating prediction:', err)
-      });
-    }
+    this.competitionService.savePrediction(this.userId, tile.competition.id.toString(), matchId, prediction).subscribe({
+      next: (saved) => {
+        if (saved) {
+          saved.powerup = prediction.powerup;
+          tile.prediction = saved;
+        } else {
+          tile.prediction = prediction;
+        }
+        this.cdr.detectChanges();
+      },
+      error: err => console.error('Error saving prediction:', err)
+    });
   }
 }
