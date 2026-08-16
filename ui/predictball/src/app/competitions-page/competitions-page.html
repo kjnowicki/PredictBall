@@ -1,120 +1,73 @@
-<style>
-  .competitions-container {
-    display: flex;
-    gap: 2rem;
-    margin: 2rem;
-  }
-
-  .filter-field {
-    width: 100%;
-  }
-
-  .table-container {
-    overflow-x: auto;
-  }
-
-  @media (max-width: 1024px) {
-    .competitions-container {
-      flex-direction: column;
-    }
-  }
-</style>
-
-<div class="competitions-container">
-  <mat-card style="flex: 1; min-width: 0;">
-    <mat-card-header>
-      <mat-card-title>Your competitions</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <mat-form-field class="filter-field">
-        <mat-label>Search your competitions</mat-label>
-        <input matInput (keyup)="applyFilterMyComps($event)" placeholder="Ex. Premier League">
-      </mat-form-field>
-
-      <div class="table-container">
-        <table mat-table [dataSource]="myCompetitions">
-          <ng-container matColumnDef="name">
-            <th mat-header-cell *matHeaderCellDef> Name </th>
-            <td mat-cell *matCellDef="let comp">
-              <a [routerLink]="['/competition', comp.id]">{{ comp.name }}</a>
-            </td>
-          </ng-container>
-
-          <ng-container matColumnDef="score">
-            <th mat-header-cell *matHeaderCellDef> Your Score </th>
-            <td mat-cell *matCellDef="let comp"> {{ comp.score ?? '-' }} </td>
-          </ng-container>
-
-          <ng-container matColumnDef="globalRank">
-            <th mat-header-cell *matHeaderCellDef> Global Rank </th>
-            <td mat-cell *matCellDef="let comp"> {{ comp.globalRank ?? '-' }} </td>
-          </ng-container>
-
-          <ng-container matColumnDef="playersCount">
-            <th mat-header-cell *matHeaderCellDef> Players Count </th>
-            <td mat-cell *matCellDef="let comp"> {{ comp.playersCount }} </td>
-          </ng-container>
-
-          <ng-container matColumnDef="currentStage">
-            <th mat-header-cell *matHeaderCellDef> Current Stage </th>
-            <td mat-cell *matCellDef="let comp"> {{ comp.currentStage }} </td>
-          </ng-container>
-
-          <tr mat-header-row *matHeaderRowDef="myCompsColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: myCompsColumns;"></tr>
-
-          <tr class="mat-row" *matNoDataRow>
-            <td class="mat-cell" colspan="5">No competitions found.</td>
-          </tr>
-        </table>
+<div style="margin: 2rem;">
+  <mat-card>
+    <mat-card-header style="margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+      <mat-card-title style="margin: 0; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <mat-icon color="primary">calendar_month</mat-icon>
+        <span>Predictions Calendar</span>
+        <span style="font-size: 0.85rem; font-weight: 500; color: #1976d2; background: #e8f0fe; padding: 3px 10px; border-radius: 12px; margin-left: 0.25rem;">{{ dateRangeString }}</span>
+      </mat-card-title>
+      <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        @if (joinedCompetitions.length > 0) {
+          <mat-form-field appearance="outline" style="min-width: 220px; font-size: 0.9rem; margin-bottom: -1.25em;">
+            <mat-label>Filter Competitions</mat-label>
+            <mat-select [(ngModel)]="selectedCompIds" multiple (selectionChange)="onCompFilterChange()">
+              @for (comp of joinedCompetitions; track comp.id) {
+                <mat-option [value]="comp.id.toString()">{{ comp.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
+        <div style="font-size: 0.95rem; color: #555;">
+          {{ currentTime | date:'mediumTime' }} ({{ timeZoneString }})
+        </div>
       </div>
-    </mat-card-content>
-  </mat-card>
-
-  <mat-card style="flex: 1; min-width: 0;">
-    <mat-card-header>
-      <mat-card-title>Join competitions</mat-card-title>
     </mat-card-header>
+
     <mat-card-content>
-      <mat-form-field class="filter-field">
-        <mat-label>Search available competitions</mat-label>
-        <input matInput (keyup)="applyFilterJoinComps($event)" placeholder="Ex. World Cup">
-      </mat-form-field>
+      @if (loading) {
+        <div style="text-align: center; padding: 3rem; color: #666;">
+          <p>Loading predictions calendar...</p>
+        </div>
+      } @else if (visibleTiles.length === 0) {
+        <div style="text-align: center; padding: 3rem; color: #777;">
+          <mat-icon style="font-size: 3rem; width: 3rem; height: 3rem; margin-bottom: 1rem; color: #ccc;">event_busy</mat-icon>
+          <h3 style="margin-top: 0;">No matches in selected timeframe</h3>
+          <p>There are no matches scheduled between yesterday and {{ futureDaysToShow }} days in the future for the selected competition(s).</p>
+          @if (hasMoreMatches) {
+            <button mat-raised-button color="primary" (click)="loadMore()" style="margin-top: 0.5rem;">
+              Load more matches
+            </button>
+          } @else if (tiles.length === 0) {
+            <a mat-raised-button color="primary" routerLink="/home" style="margin-top: 0.5rem;">Go to Home & Join Competitions</a>
+          }
+        </div>
+      } @else {
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
+          @for (tile of visibleTiles; track (tile.match.id + '-' + tile.competition.id)) {
+            <app-prediction-tile
+              style="display: block;"
+              [match]="tile.match"
+              [prediction]="tile.prediction"
+              [availablePowerups]="tile.availablePowerups"
+              [scoringSystem]="scoringSystem"
+              [competition]="tile.competition"
+              [competitionName]="tile.competitionName"
+              [competitionCode]="tile.competitionCode"
+              [isMatchOfTheWeek]="tile.isMatchOfTheWeek"
+              [isReversalDisabled]="tile.rawSelectedMatchdayMatchesCount <= 2"
+              (predictionChanged)="onPredictionChanged(tile, $event)"
+            ></app-prediction-tile>
+          }
+        </div>
 
-      <div class="table-container">
-        <table mat-table [dataSource]="availableCompetitions">
-          <ng-container matColumnDef="name">
-            <th mat-header-cell *matHeaderCellDef> Name </th>
-            <td mat-cell *matCellDef="let comp">
-              <a [routerLink]="['/competition', comp.id]">{{ comp.name }}</a>
-            </td>
-          </ng-container>
-
-          <ng-container matColumnDef="playersCount">
-            <th mat-header-cell *matHeaderCellDef> Players Count </th>
-            <td mat-cell *matCellDef="let comp"> {{ comp.playersCount }} </td>
-          </ng-container>
-
-          <ng-container matColumnDef="currentStage">
-            <th mat-header-cell *matHeaderCellDef> Current Stage </th>
-            <td mat-cell *matCellDef="let comp"> {{ comp.currentStage }} </td>
-          </ng-container>
-
-          <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef> </th>
-            <td mat-cell *matCellDef="let comp">
-              <button mat-stroked-button color="primary" (click)="joinCompetition(comp)">Join</button>
-            </td>
-          </ng-container>
-
-          <tr mat-header-row *matHeaderRowDef="joinCompsColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: joinCompsColumns;"></tr>
-
-          <tr class="mat-row" *matNoDataRow>
-            <td class="mat-cell" colspan="4">No new competitions available.</td>
-          </tr>
-        </table>
-      </div>
+        @if (hasMoreMatches) {
+          <div style="text-align: center; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #eee;">
+            <button mat-stroked-button color="primary" (click)="loadMore()">
+              <mat-icon>expand_more</mat-icon> Load more
+            </button>
+          </div>
+        }
+      }
     </mat-card-content>
   </mat-card>
 </div>

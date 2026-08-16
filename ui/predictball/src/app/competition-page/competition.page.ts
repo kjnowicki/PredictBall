@@ -229,6 +229,16 @@ export class CompetitionPage implements OnInit, OnDestroy {
 
     if (this.userId == undefined || this.userId == null) {
       console.warn('User is not authenticated.');
+    } else {
+      this.userService.getUser(this.userId).subscribe({
+        next: user => {
+          if (user && user.leagueViewPreferences) {
+            this.userPreferences = user.leagueViewPreferences;
+            this.applyLeagueViewPreference();
+          }
+        },
+        error: () => {}
+      });
     }
 
     this.scoringSystemService.getScoringSystem().subscribe({
@@ -242,6 +252,19 @@ export class CompetitionPage implements OnInit, OnDestroy {
     this.route.queryParamMap.subscribe(queryParams => {
       this.viewedUserId = queryParams.get('viewUser');
       this.viewedUserName = queryParams.get('viewUserName');
+
+      const tabParam = queryParams.get('tab');
+      if (tabParam) {
+        if (tabParam === 'leagues' || tabParam === '1') {
+          this.selectedTabIndex = 1;
+        } else if (tabParam === 'predictions' || tabParam === '0') {
+          this.selectedTabIndex = 0;
+        } else if (tabParam === 'teams' || tabParam === '2') {
+          this.selectedTabIndex = 2;
+        } else if (tabParam === 'about' || tabParam === '3') {
+          this.selectedTabIndex = 3;
+        }
+      }
 
       const matchdayParam = queryParams.get('matchday');
       if (matchdayParam) {
@@ -282,6 +305,7 @@ export class CompetitionPage implements OnInit, OnDestroy {
             this.loadError = '';
             this.competitionName = comp.name;
             this.competition = comp;
+            this.applyLeagueViewPreference();
 
             this.availableSeasons = comp.seasons || (comp.currentSeason ? [comp.currentSeason] : []);
 
@@ -470,11 +494,29 @@ export class CompetitionPage implements OnInit, OnDestroy {
   casualMatchIds: Set<number> = new Set();
   newLeagueIsCasual: boolean = false;
   showOnlyMatchOfTheWeek: boolean = false;
+  userPreferences: { [leagueId: string]: boolean } | null = null;
+
+  applyLeagueViewPreference() {
+    if (!this.userPreferences) return;
+    const compIdStr = this.competition?.id ? this.competition.id.toString() : this.competitionCode;
+    if (compIdStr) {
+      const pref = this.userPreferences[compIdStr] ?? (this.competitionCode ? this.userPreferences[this.competitionCode] : undefined);
+      if (pref !== undefined) {
+        this.showOnlyMatchOfTheWeek = !!pref;
+        this.cdr.detectChanges();
+      }
+    }
+  }
 
   toggleCasualView() {
     this.showOnlyMatchOfTheWeek = !this.showOnlyMatchOfTheWeek;
-    if (this.userId && this.competitionCode) {
-      this.userService.updateLeagueViewPreference(this.userId, this.competitionCode, this.showOnlyMatchOfTheWeek).subscribe();
+    const targetCompId = this.competition?.id ? this.competition.id.toString() : this.competitionCode;
+    if (this.userId && targetCompId) {
+      if (!this.userPreferences) {
+        this.userPreferences = {};
+      }
+      this.userPreferences[targetCompId] = this.showOnlyMatchOfTheWeek;
+      this.userService.updateLeagueViewPreference(this.userId, targetCompId, this.showOnlyMatchOfTheWeek).subscribe();
     }
     this.cdr.detectChanges();
   }

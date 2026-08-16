@@ -120,150 +120,155 @@
         </mat-tab>
 
         <mat-tab label="Leagues">
-          <div style="padding-top: 1.5rem; padding-bottom: 1rem;">
-            <h2>Public Leagues</h2>
-            <table mat-table [dataSource]="publicLeagues" style="width: 100%; margin-bottom: 2rem;">
-              <ng-container matColumnDef="name">
-                <th mat-header-cell *matHeaderCellDef>League Name</th>
-                <td mat-cell *matCellDef="let league">
-                  <a [routerLink]="['/competition', competitionCode, 'league', league.id]" [queryParams]="{ season: selectedSeason }">
-                    {{ league.name }}
-                    <span *ngIf="league.isCasual" style="margin-left: 6px; font-size: 0.75rem; background: #d97706; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Casual</span>
-                  </a>
-                </td>
-              </ng-container>
+          <div class="leagues-tab-container">
+            <div class="leagues-content-wrapper">
+              <h2>Public Leagues</h2>
+              <table mat-table [dataSource]="publicLeagues" class="leagues-table">
+                <ng-container matColumnDef="name">
+                  <th mat-header-cell *matHeaderCellDef>League Name</th>
+                  <td mat-cell *matCellDef="let league">
+                    <a class="league-link" [routerLink]="['/competition', competitionCode, 'league', league.id]" [queryParams]="{ season: selectedSeason }">
+                      {{ league.name }}
+                      <span *ngIf="league.isCasual" class="casual-badge">Casual</span>
+                    </a>
+                  </td>
+                </ng-container>
 
-              <ng-container matColumnDef="participants">
-                <th mat-header-cell *matHeaderCellDef>Participants</th>
-                <td mat-cell *matCellDef="let league">{{ league.participants }}</td>
-              </ng-container>
+                <ng-container matColumnDef="participants">
+                  <th mat-header-cell *matHeaderCellDef style="text-align: center;">Participants</th>
+                  <td mat-cell *matCellDef="let league" style="text-align: center;">{{ league.participants }}</td>
+                </ng-container>
 
-              <ng-container matColumnDef="userPlace">
-                <th mat-header-cell *matHeaderCellDef> Your Place </th>
-                <td mat-cell *matCellDef="let league">
-                  @if (league.userPlace) {
-                    #{{ league.userPlace }}
-                  } @else {
-                    -
-                  }
-                </td>
-              </ng-container>
+                <ng-container matColumnDef="userPlace">
+                  <th mat-header-cell *matHeaderCellDef style="text-align: center;"> Your Place </th>
+                  <td mat-cell *matCellDef="let league" style="text-align: center;">
+                    @if (league.userPlace) {
+                      #{{ league.userPlace }}
+                    } @else {
+                      -
+                    }
+                  </td>
+                </ng-container>
 
-              <tr mat-header-row *matHeaderRowDef="leaguesDisplayedColumns"></tr>
-              <tr mat-row *matRowDef="let row; columns: leaguesDisplayedColumns"></tr>
-            </table>
+                <tr mat-header-row *matHeaderRowDef="leaguesDisplayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: leaguesDisplayedColumns"></tr>
+              </table>
 
-            <h2>Your Leagues</h2>
-            <table mat-table [dataSource]="yourLeagues" style="width: 100%; margin-bottom: 2rem;">
-              <ng-container matColumnDef="name">
-                <th mat-header-cell *matHeaderCellDef>League Name</th>
-                <td mat-cell *matCellDef="let league">
-                  <a [routerLink]="['/competition', competitionCode, 'league', league.id]" [queryParams]="{ season: selectedSeason }">
-                    {{ league.name }}
-                    <span *ngIf="league.isCasual" style="margin-left: 6px; font-size: 0.75rem; background: #d97706; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Casual</span>
-                  </a>
-                </td>
-              </ng-container>
+              <h2>Your Leagues</h2>
+              <table mat-table [dataSource]="yourLeagues" class="leagues-table">
+                <ng-container matColumnDef="name">
+                  <th mat-header-cell *matHeaderCellDef>League Name</th>
+                  <td mat-cell *matCellDef="let league">
+                    <a class="league-link" [routerLink]="['/competition', competitionCode, 'league', league.id]" [queryParams]="{ season: selectedSeason }">
+                      {{ league.name }}
+                      <span *ngIf="league.isCasual" class="casual-badge">Casual</span>
+                    </a>
+                  </td>
+                </ng-container>
 
-              <ng-container matColumnDef="participants">
-                <th mat-header-cell *matHeaderCellDef>Participants</th>
-                <td mat-cell *matCellDef="let league">{{ league.participants }}</td>
-              </ng-container>
+                <ng-container matColumnDef="participants">
+                  <th mat-header-cell *matHeaderCellDef style="text-align: center;">Participants</th>
+                  <td mat-cell *matCellDef="let league" style="text-align: center;">{{ league.participants }}</td>
+                </ng-container>
 
-              <ng-container matColumnDef="userPlace">
-                <th mat-header-cell *matHeaderCellDef> Your Place </th>
-                <td mat-cell *matCellDef="let league">
-                  @if (league.userPlace) {
-                    #{{ league.userPlace }}
-                  } @else {
-                    -
-                  }
-                </td>
-              </ng-container>
+                <ng-container matColumnDef="userPlace">
+                  <th mat-header-cell *matHeaderCellDef style="text-align: center;"> Your Place </th>
+                  <td mat-cell *matCellDef="let league" style="text-align: center;">
+                    @if (league.userPlace) {
+                      #{{ league.userPlace }}
+                    } @else {
+                      -
+                    }
+                  </td>
+                </ng-container>
 
-              <tr mat-header-row *matHeaderRowDef="leaguesDisplayedColumns"></tr>
-              <tr mat-row *matRowDef="let row; columns: leaguesDisplayedColumns"></tr>
-            </table>
+                <tr mat-header-row *matHeaderRowDef="leaguesDisplayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: leaguesDisplayedColumns"></tr>
+              </table>
 
-            <h2>Join Private League</h2>
-            <div style="display: flex; gap: 1rem; align-items: baseline; margin-bottom: 2rem;">
-              <mat-form-field>
-                <mat-label>Join Code</mat-label>
-                <input matInput [(ngModel)]="joinCode" placeholder="Enter join code">
-              </mat-form-field>
-              <button mat-raised-button color="primary" [disabled]="!joinCode.trim()" (click)="joinLeague()">Join
-                League</button>
-            </div>
+              <h2>Join Private League</h2>
+              <div style="display: flex; gap: 1rem; align-items: baseline; margin-bottom: 2rem; flex-wrap: wrap;">
+                <mat-form-field>
+                  <mat-label>Join Code</mat-label>
+                  <input matInput [(ngModel)]="joinCode" placeholder="Enter join code">
+                </mat-form-field>
+                <button mat-raised-button color="primary" [disabled]="!joinCode.trim()" (click)="joinLeague()">Join League</button>
+              </div>
 
-            <h2 style="margin-top: 2rem;">Create Private League</h2>
-            <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-              <mat-form-field>
-                <mat-label>League Name</mat-label>
-                <input matInput [(ngModel)]="newLeagueName" placeholder="Enter league name">
-              </mat-form-field>
-              <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                <input type="checkbox" [(ngModel)]="newLeagueIsCasual" style="accent-color: #f59e0b; width: 18px; height: 18px;" />
-                <span>Casual League (Only Match of the Week counts)</span>
-              </label>
-              <button mat-raised-button color="primary" [disabled]="!newLeagueName.trim() || isCreatingLeague"
-                (click)="createLeague()">
-                {{ isCreatingLeague ? 'Creating...' : 'Create' }}
-              </button>
+              <h2 style="margin-top: 1rem;">Create Private League</h2>
+              <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                <mat-form-field>
+                  <mat-label>League Name</mat-label>
+                  <input matInput [(ngModel)]="newLeagueName" placeholder="Enter league name">
+                </mat-form-field>
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                  <input type="checkbox" [(ngModel)]="newLeagueIsCasual" style="accent-color: #f59e0b; width: 18px; height: 18px;" />
+                  <span>Casual League (Only Match of the Week counts)</span>
+                </label>
+                <button mat-raised-button color="primary" [disabled]="!newLeagueName.trim() || isCreatingLeague"
+                  (click)="createLeague()">
+                  {{ isCreatingLeague ? 'Creating...' : 'Create' }}
+                </button>
+              </div>
             </div>
           </div>
         </mat-tab>
 
         <mat-tab label="Teams">
-          <div style="padding-top: 1.5rem; padding-bottom: 1rem;">
-            <h2>Participating Teams</h2>
-            <table mat-table [dataSource]="teams" style="width: 100%;">
-              <ng-container matColumnDef="crest">
-                <th mat-header-cell *matHeaderCellDef style="width: 50px; text-align: right;"> Crest </th>
-                <td mat-cell *matCellDef="let team" style="width: 50px; text-align: right;">
-                  @if (team.crest) {
-                  <img [src]="team.crest" alt="{{ team.name }}" style="width: 24px; height: 24px; object-fit: contain;">
-                  }
-                </td>
-              </ng-container>
+          <div class="leagues-tab-container">
+            <div class="leagues-content-wrapper">
+              <h2>Participating Teams</h2>
+              <table mat-table [dataSource]="teams" class="leagues-table">
+                <ng-container matColumnDef="crest">
+                  <th mat-header-cell *matHeaderCellDef style="width: 50px; text-align: right;"> Crest </th>
+                  <td mat-cell *matCellDef="let team" style="width: 50px; text-align: right;">
+                    @if (team.crest) {
+                    <img [src]="team.crest" alt="{{ team.name }}" style="width: 24px; height: 24px; object-fit: contain;">
+                    }
+                  </td>
+                </ng-container>
 
-              <ng-container matColumnDef="name">
-                <th mat-header-cell *matHeaderCellDef> Name </th>
-                <td mat-cell *matCellDef="let team"> {{ team.name }} </td>
-              </ng-container>
+                <ng-container matColumnDef="name">
+                  <th mat-header-cell *matHeaderCellDef> Name </th>
+                  <td mat-cell *matCellDef="let team"> {{ team.name }} </td>
+                </ng-container>
 
-              <tr mat-header-row *matHeaderRowDef="teamsDisplayedColumns"></tr>
-              <tr mat-row *matRowDef="let row; columns: teamsDisplayedColumns"></tr>
-            </table>
+                <tr mat-header-row *matHeaderRowDef="teamsDisplayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: teamsDisplayedColumns"></tr>
+              </table>
+            </div>
           </div>
         </mat-tab>
 
         <mat-tab label="About">
-          <div style="padding-top: 1.5rem;">
-            @if (competition) {
-            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;">
-              @if (competition.emblem) {
-              <img [src]="competition.emblem" alt="{{ competition.name }}"
-                style="width: 100px; height: 100px; object-fit: contain;">
-              }
-              <div>
-                <h2 style="margin: 0;">{{ competition.name }}</h2>
-                <p style="margin: 0; color: gray;">{{ competition.type }}</p>
+          <div class="leagues-tab-container">
+            <div class="leagues-content-wrapper">
+              @if (competition) {
+              <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;">
+                @if (competition.emblem) {
+                <img [src]="competition.emblem" alt="{{ competition.name }}"
+                  style="width: 100px; height: 100px; object-fit: contain;">
+                }
+                <div>
+                  <h2 style="margin: 0;">{{ competition.name }}</h2>
+                  <p style="margin: 0; color: gray;">{{ competition.type }}</p>
+                </div>
               </div>
-            </div>
 
-            @if (competition.currentSeason) {
-            <mat-card style="max-width: 400px;">
-              <mat-card-header>
-                <mat-card-title style="font-size: 1.25rem;">Current Season</mat-card-title>
-              </mat-card-header>
-              <mat-card-content style="padding-top: 1rem;">
-                <p><strong>Start Date:</strong> {{ competition.currentSeason.startDate | date }}</p>
-                <p><strong>End Date:</strong> {{ competition.currentSeason.endDate | date }}</p>
-                <p><strong>Current Matchday:</strong> {{ competition.currentSeason.currentMatchday }}</p>
-              </mat-card-content>
-            </mat-card>
-            }
-            }
+              @if (competition.currentSeason) {
+              <mat-card style="max-width: 400px; background: #ffffff;">
+                <mat-card-header>
+                  <mat-card-title style="font-size: 1.25rem;">Current Season</mat-card-title>
+                </mat-card-header>
+                <mat-card-content style="padding-top: 1rem;">
+                  <p><strong>Start Date:</strong> {{ competition.currentSeason.startDate | date }}</p>
+                  <p><strong>End Date:</strong> {{ competition.currentSeason.endDate | date }}</p>
+                  <p><strong>Current Matchday:</strong> {{ competition.currentSeason.currentMatchday }}</p>
+                </mat-card-content>
+              </mat-card>
+              }
+              }
+            </div>
           </div>
         </mat-tab>
       </mat-tab-group>

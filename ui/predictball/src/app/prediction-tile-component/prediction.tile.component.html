@@ -2,23 +2,34 @@
   <div *ngIf="isMatchOfTheWeek" class="motw-banner">
     ⭐ Match of the Week
   </div>
+  @if (competitionName || competition?.name) {
+  <div class="competition-card-header" style="text-align: center; padding-top: 0.75rem; font-size: 0.85rem; font-weight: 600;">
+    <a [routerLink]="['/competition', competitionCode || competition?.code || competition?.id]" style="color: #1976d2; text-decoration: none;">
+      {{ competitionName || competition?.name }}
+    </a>
+  </div>
+  }
   <!-- Row 1: Team Names -->
   <mat-card-header style="display: flex; justify-content: center; text-align: center; padding-top: 1rem;">
     <mat-card-title style="font-size: 1.1rem; margin-bottom: 0; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">
       @if (homeTeam) {
-        @if (homeTeam.crest || homeTeam.area.flag) {
-          <img [src]="homeTeam.crest || homeTeam.area.flag" height="18" style="border-radius: 2px; object-fit: contain; vertical-align: middle;" alt="crest">
-        }
-        {{ homeTeam.tla || homeTeam.shortName || homeTeam.name }}
+        <span [matTooltip]="homeTeam.name || homeTeam.shortName" matTooltipShowDelay="0" style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: help;">
+          @if (homeTeam.crest || homeTeam.area.flag) {
+            <img [src]="homeTeam.crest || homeTeam.area.flag" height="18" style="border-radius: 2px; object-fit: contain; vertical-align: middle;" alt="crest">
+          }
+          <span>{{ homeTeam.tla || homeTeam.shortName || homeTeam.name }}</span>
+        </span>
       } @else {
         Home
       }
       <span style="font-weight: normal; margin: 0 0.5rem;">vs</span>
       @if (awayTeam) {
-        {{ awayTeam.tla || awayTeam.shortName || awayTeam.name }}
-        @if (awayTeam.crest || awayTeam.area.flag) {
-          <img [src]="awayTeam.crest || awayTeam.area.flag" height="18" style="border-radius: 2px; object-fit: contain; vertical-align: middle;" alt="crest">
-        }
+        <span [matTooltip]="awayTeam.name || awayTeam.shortName" matTooltipShowDelay="0" style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: help;">
+          <span>{{ awayTeam.tla || awayTeam.shortName || awayTeam.name }}</span>
+          @if (awayTeam.crest || awayTeam.area.flag) {
+            <img [src]="awayTeam.crest || awayTeam.area.flag" height="18" style="border-radius: 2px; object-fit: contain; vertical-align: middle;" alt="crest">
+          }
+        </span>
       } @else {
         Away
       }

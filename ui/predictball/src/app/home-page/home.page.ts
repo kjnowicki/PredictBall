@@ -1,22 +1,35 @@
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
-import { Component, OnInit, signal, inject, PLATFORM_ID, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, signal, inject, PLATFORM_ID, ChangeDetectorRef, TemplateRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
-import { MatTableModule } from '@angular/material/table';
+import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatDialogModule, MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { UserService } from '../services/user.service';
 import { CompetitionService } from '../services/competition.service';
 import { PredictionLeagueService } from '../services/prediction-league.service';
 import { MatchService } from '../services/match.service';
-import { Competition } from '../models/competition';
+import { Competition as APICompetition } from '../models/competition';
 import { forkJoin, of } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
 import { PredictionLeague, GlobalLeague } from '../models/predictball.models';
 import { Match } from '../models';
+
+export interface CompetitionTableItem {
+  id: string | number;
+  code: string;
+  name: string;
+  score?: number;
+  globalRank?: number;
+  playersCount: number;
+  currentStage: string;
+  isRetired?: boolean;
+}
 
 interface Task {
   competitionId: number;
@@ -40,24 +53,36 @@ interface Task {
     MatTableModule,
     MatButtonModule,
     MatIconModule,
+    MatDialogModule,
+    MatCheckboxModule,
   ],
   templateUrl: './home.page.html',
   styleUrl: './home.page.css',
 })
 export class HomePage implements OnInit {
-  competitions: (Competition & { points?: number })[] = [];
+  myCompsColumns: string[] = ['name', 'score', 'globalRank', 'playersCount', 'currentStage'];
+  joinCompsColumns: string[] = ['name', 'playersCount', 'currentStage', 'actions'];
+
+  showInactiveCompetitions = false;
+
+  myCompetitionsData: CompetitionTableItem[] = [];
+  allCompetitionsData: CompetitionTableItem[] = [];
+
+  myCompetitions = new MatTableDataSource<CompetitionTableItem>();
+  availableCompetitions = new MatTableDataSource<CompetitionTableItem>();
+
+  competitions: (APICompetition & { points?: number })[] = [];
   leagues: (PredictionLeague & { participants?: number; rank?: number })[] = [];
   globalLeagues: { [competitionId: number]: GlobalLeague } = {};
   userLeaguesMap: { [competitionId: number]: number[] } = {};
 
   tasksFeatureEnabled = true;
-
   tasks: Task[] = [];
 
   selectedCompetitionId = signal(-1);
   currentUserId: number | null = null;
+  private dialogRef: MatDialogRef<any> | null = null;
 
-  leaguesDisplayedColumns: string[] = ['name', 'participants', 'rank'];
   tasksDisplayedColumns: string[] = ['goTo', 'competitionName', 'matchday', 'startTime', 'predictionsMissingCount'];
 
   private userService = inject(UserService);
@@ -67,6 +92,7 @@ export class HomePage implements OnInit {
   private document = inject(DOCUMENT);
   private platformId = inject(PLATFORM_ID);
   private cdr = inject(ChangeDetectorRef);
+  private dialog = inject(MatDialog);
 
   ngOnInit(): void {
     let userId: string | null = null;
@@ -89,56 +115,97 @@ export class HomePage implements OnInit {
     
     this.currentUserId = parseInt(userId, 10);
 
-    this.userService.getYourLeagues(userId).subscribe((userLeagues) => {
-      const comps = userLeagues.competitions || [];
-      this.userLeaguesMap = {};
-      comps.forEach(c => this.userLeaguesMap[c.competitionId] = c.leagueIds);
-      
-      const compIds = comps.map(c => c.competitionId);
+    this.competitionService.getAllCompetitions().subscribe(allComps => {
+      this.userService.getYourLeagues(userId!).subscribe(userLeagues => {
+        const myCompIds = new Set((userLeagues.competitions || []).map(c => c.competitionId.toString()));
 
-      if (compIds.length > 0) {
-        const compRequests = compIds.map(id =>
-          this.competitionService.getCompetition(id.toString()).pipe(
-            catchError(() => of(null))
-          )
-        );
-
-        forkJoin(compRequests).subscribe((comps: any[]) => {
-          this.competitions = comps.filter(c => c !== null).map(c => ({ ...c, points: 0 }));
-          
-          this.competitions.forEach(comp => {
-            const season = this.getCompSeason(comp);
-            this.leagueService.getPredictionLeague(comp.id, 0, season).subscribe({
-              next: (league: any) => {
-                if (league && league.users) {
-                  this.globalLeagues[comp.id] = league;
-                  const userRecord = league.users.find((u: any) => u.userId.toString() === userId);
-                  if (userRecord) {
-                    comp.points = userRecord.points;
-                  }
-                  
-                  if (this.selectedCompetitionId() === comp.id) {
-                    this.updateLeaguesData();
-                  }
-                  this.cdr.detectChanges();
-                }
-              },
-              error: () => {}
-            });
-          });
-
-          if (this.competitions.length > 0) {
-            this.selectedCompetitionId.set(this.competitions[0].id);
-            this.loadLeaguesForCompetition(this.competitions[0].id);
-          }
-          this.loadTasks(userId);
-          this.cdr.detectChanges();
+        const mappedComps: CompetitionTableItem[] = allComps.map((c: APICompetition) => {
+          const isRetired = !c.currentSeason || !!c.currentSeason.isRetired;
+          return {
+            id: c.id,
+            code: c.code,
+            name: c.name,
+            playersCount: 0,
+            currentStage: isRetired
+              ? 'Retired'
+              : (c.currentSeason?.currentMatchday != null ? `Matchday ${c.currentSeason.currentMatchday}` : 'Unknown'),
+            score: undefined,
+            globalRank: undefined,
+            isRetired
+          };
         });
+
+        this.myCompetitionsData = mappedComps.filter(c => myCompIds.has(c.id.toString()));
+        this.allCompetitionsData = mappedComps;
+        this.competitions = allComps.filter(c => myCompIds.has(c.id.toString()));
+
+        this.updateTables();
+
+        mappedComps.forEach(comp => {
+          this.leagueService.getPredictionLeague(comp.id, 0).subscribe({
+            next: (league: GlobalLeague) => {
+              comp.playersCount = league.users.length;
+              const sortedUsers = [...league.users].sort((a, b) => (b.points || 0) - (a.points || 0));
+              const userInLeague = sortedUsers.find(u => u.userId === Number(userId));
+              comp.score = userInLeague ? userInLeague.points : undefined;
+              const userIndex = sortedUsers.findIndex(u => u.userId === Number(userId));
+              comp.globalRank = userIndex !== -1 ? userIndex + 1 : undefined;
+              this.updateTables();
+            },
+            error: () => { }
+          });
+        });
+
+        this.loadTasks(userId!);
+      });
+    });
+  }
+
+  updateTables() {
+    const filteredMy = this.showInactiveCompetitions
+      ? this.myCompetitionsData
+      : this.myCompetitionsData.filter(c => !c.isRetired);
+    this.myCompetitions.data = [...filteredMy];
+
+    const myCompIds = new Set(this.myCompetitionsData.map(c => c.id.toString()));
+    const availableFiltered = this.showInactiveCompetitions
+      ? this.allCompetitionsData.filter(c => !myCompIds.has(c.id.toString()))
+      : this.allCompetitionsData.filter(c => !myCompIds.has(c.id.toString()) && !c.isRetired);
+    this.availableCompetitions.data = availableFiltered;
+    this.cdr.detectChanges();
+  }
+
+  openJoinModal(templateRef: TemplateRef<any>) {
+    this.dialogRef = this.dialog.open(templateRef, {
+      width: '600px',
+      maxWidth: '90vw'
+    });
+  }
+
+  closeJoinModal() {
+    if (this.dialogRef) {
+      this.dialogRef.close();
+      this.dialogRef = null;
+    }
+  }
+
+  joinCompetition(comp: CompetitionTableItem) {
+    if (!this.currentUserId) return;
+    this.leagueService.joinGlobalLeague(comp.id, this.currentUserId.toString()).subscribe(() => {
+      comp.playersCount++;
+      this.myCompetitionsData.push({ ...comp, score: 0, globalRank: 0 });
+      const apiComp = this.allCompetitionsData.find(c => c.id === comp.id);
+      if (apiComp) {
+        this.competitions.push(apiComp as any);
+      }
+      this.updateTables();
+      if (this.currentUserId) {
+        this.loadTasks(this.currentUserId.toString());
       }
     });
   }
 
-  getCompSeason(comp?: Competition): string {
+  getCompSeason(comp?: APICompetition): string {
     if (!comp) return '';
     if (comp.currentSeason?.startDate && comp.currentSeason.startDate.length >= 4) {
       return comp.currentSeason.startDate.substring(0, 4);
@@ -151,68 +218,6 @@ export class HomePage implements OnInit {
       if (s.id) return s.id.toString();
     }
     return comp.currentSeason?.id ? comp.currentSeason.id.toString() : '';
-  }
-
-  get currentCompetition(): (Competition & { points?: number }) | undefined {
-    return this.competitions.find(c => c.id === this.selectedCompetitionId());
-  }
-
-  onCompetitionChange(compId: number) {
-    this.selectedCompetitionId.set(compId);
-    this.loadLeaguesForCompetition(compId);
-  }
-
-  loadLeaguesForCompetition(compId: number) {
-    const leagueIds = this.userLeaguesMap[compId] || [];
-    if (leagueIds.length === 0) {
-      this.leagues = [];
-      this.cdr.detectChanges();
-      return;
-    }
-
-    const comp = this.competitions.find(c => c.id === compId);
-    const season = this.getCompSeason(comp);
-
-    const leagueReqs = leagueIds.map(id =>
-      this.leagueService.getPredictionLeague(compId, id.toString(), season).pipe(
-        catchError(() => of(null))
-      )
-    );
-    forkJoin(leagueReqs).subscribe(leagues => {
-      this.leagues = leagues.filter(l => l !== null);
-      this.updateLeaguesData();
-      this.cdr.detectChanges();
-    });
-  }
-
-  updateLeaguesData() {
-    const compId = this.selectedCompetitionId();
-    const globalLeague = this.globalLeagues[compId];
-
-    this.leagues = this.leagues.map(l => {
-      let participants = 0;
-      let rank = 0;
-      
-      const isGlobal = l.id === 0 || l.id === '0';
-      const actualLeague = isGlobal && globalLeague ? globalLeague : l;
-
-      if ((actualLeague as any).users) {
-         participants = (actualLeague as any).users.length;
-         if (this.currentUserId) {
-           const sortedUsers = [...(actualLeague as any).users].sort((a: any, b: any) => (b.points || 0) - (a.points || 0));
-           rank = sortedUsers.findIndex((u: any) => u.userId === this.currentUserId) + 1;
-         }
-      } else if (l.userIds) {
-         participants = l.userIds.length;
-         if (globalLeague && this.currentUserId && l.userIds.includes(this.currentUserId)) {
-           const leagueUsers = globalLeague.users.filter(u => l.userIds!.includes(u.userId));
-           const sortedUsers = leagueUsers.sort((a, b) => (b.points || 0) - (a.points || 0));
-           rank = sortedUsers.findIndex(u => u.userId === this.currentUserId) + 1;
-         }
-      }
-
-      return { ...l, participants, rank };
-    });
   }
 
   formatMatchdayHeader(val: number | string): string {
@@ -267,20 +272,22 @@ export class HomePage implements OnInit {
       );
     });
 
-    forkJoin(tasksRequests).subscribe(results => {
+    forkJoin({
+      user: this.userService.getUser(userId).pipe(catchError(() => of(null))),
+      taskResults: forkJoin(tasksRequests)
+    }).subscribe(({ user, taskResults }) => {
+      const prefs = user?.leagueViewPreferences || {};
       const allTasks: Task[] = [];
       const now = new Date();
-      const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
       const oneDayFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-      results.forEach(({ comp, matches, predictions, casualMatchIds }) => {
+      taskResults.forEach(({ comp, matches, predictions, casualMatchIds }) => {
         const safeMatches = Array.isArray(matches) ? matches : [];
         const safePredictions = Array.isArray(predictions) ? predictions : [];
         const casualSet = new Set(casualMatchIds);
 
         if (safeMatches.length === 0) return;
 
-        // Group matches by matchday or stage
         const matchdayGroups: { [key: string]: Match[] } = {};
         safeMatches.forEach(m => {
           if (m.homeTeamId === 0 || m.awayTeamId === 0) {
@@ -294,13 +301,11 @@ export class HomePage implements OnInit {
           matchdayGroups[key].push(m);
         });
 
-        // Map predictions by matchId
         const predictionsMap: { [key: number]: any } = {};
         safePredictions.forEach(p => {
           predictionsMap[p.matchId] = p;
         });
 
-        // Collect matchday summaries
         const groupSummaries: {
           matchday: number | string;
           firstMatchTime: Date;
@@ -333,16 +338,17 @@ export class HomePage implements OnInit {
           });
         });
 
-        // Filter for upcoming/active matchdays that have unfinished matches and haven't expired long ago
         const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
         const unfinishedGroups = groupSummaries
           .filter(g => g.hasUnfinished && g.firstMatchTime >= fourteenDaysAgo)
           .sort((a, b) => a.firstMatchTime.getTime() - b.firstMatchTime.getTime());
 
-        // Focus on the immediate next upcoming matchdays (e.g. earliest 2 unfinished matchdays)
         const targetGroups = unfinishedGroups.slice(0, 2);
 
-        const isCasualContext = casualSet.size > 0 && this.leagues.some(l => l.isCasual);
+        const pref = prefs[comp.id.toString()] ?? (comp.code ? prefs[comp.code] : undefined);
+        const isCasualContext = casualSet.size > 0 && (
+          pref !== undefined ? !!pref : false
+        );
 
         targetGroups.forEach(g => {
           let missingCount = 0;
@@ -388,7 +394,6 @@ export class HomePage implements OnInit {
         });
       });
 
-      // Grouped by competition (sort by competition name first, then chronologically by matchday start time)
       allTasks.sort((a, b) => {
         const compCompare = a.competitionName.localeCompare(b.competitionName);
         if (compCompare !== 0) return compCompare;
