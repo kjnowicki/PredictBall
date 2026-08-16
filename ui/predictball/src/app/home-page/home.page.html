@@ -4,13 +4,23 @@
       <mat-card-title>Your competitions</mat-card-title>
     </mat-card-header>
     <mat-card-content style="padding-top: 1rem;">
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 0.5rem;">
+        <mat-checkbox [(ngModel)]="showInactiveCompetitions" (change)="updateTables()">
+          Show non-active competitions
+        </mat-checkbox>
+      </div>
       <div class="table-container" style="overflow-x: auto;">
         <table mat-table [dataSource]="myCompetitions" class="data-table">
           <!-- Name Column -->
           <ng-container matColumnDef="name">
             <th mat-header-cell *matHeaderCellDef> Name </th>
             <td mat-cell *matCellDef="let comp">
-              <a mat-stroked-button color="primary" [routerLink]="['/competition', comp.code]">{{ comp.name }}</a>
+              <div style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                <a mat-stroked-button color="primary" [routerLink]="['/competition', comp.code]">{{ comp.name }}</a>
+                @if (comp.isRetired) {
+                  <span style="font-size: 0.75rem; background: #757575; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Retired</span>
+                }
+              </div>
             </td>
           </ng-container>
 
@@ -39,7 +49,7 @@
           </ng-container>
 
           <tr mat-header-row *matHeaderRowDef="myCompsColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: myCompsColumns;"></tr>
+          <tr mat-row *matRowDef="let row; columns: myCompsColumns;" [class.retired-row]="row.isRetired"></tr>
 
           <tr class="mat-row" *matNoDataRow>
             <td class="mat-cell" colspan="5">No competitions found.</td>
@@ -124,7 +134,12 @@
         <ng-container matColumnDef="name">
           <th mat-header-cell *matHeaderCellDef> Name </th>
           <td mat-cell *matCellDef="let comp">
-            <a mat-button color="primary" [routerLink]="['/competition', comp.code]" (click)="closeJoinModal()">{{ comp.name }}</a>
+            <div style="display: inline-flex; align-items: center; gap: 0.5rem;">
+              <a mat-button color="primary" [routerLink]="['/competition', comp.code]" (click)="closeJoinModal()">{{ comp.name }}</a>
+              @if (comp.isRetired) {
+                <span style="font-size: 0.75rem; background: #757575; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Retired</span>
+              }
+            </div>
           </td>
         </ng-container>
 
@@ -146,7 +161,7 @@
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="joinCompsColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: joinCompsColumns;"></tr>
+        <tr mat-row *matRowDef="let row; columns: joinCompsColumns;" [class.retired-row]="row.isRetired"></tr>
 
         <tr class="mat-row" *matNoDataRow>
           <td class="mat-cell" colspan="4">No new competitions available.</td>

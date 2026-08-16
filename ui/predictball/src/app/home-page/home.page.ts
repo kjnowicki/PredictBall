@@ -9,6 +9,7 @@ import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialogModule, MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { UserService } from '../services/user.service';
 import { CompetitionService } from '../services/competition.service';
 import { PredictionLeagueService } from '../services/prediction-league.service';
@@ -27,6 +28,7 @@ export interface CompetitionTableItem {
   globalRank?: number;
   playersCount: number;
   currentStage: string;
+  isRetired?: boolean;
 }
 
 interface Task {
@@ -52,6 +54,7 @@ interface Task {
     MatButtonModule,
     MatIconModule,
     MatDialogModule,
+    MatCheckboxModule,
   ],
   templateUrl: './home.page.html',
   styleUrl: './home.page.css',
@@ -59,6 +62,8 @@ interface Task {
 export class HomePage implements OnInit {
   myCompsColumns: string[] = ['name', 'score', 'globalRank', 'playersCount', 'currentStage'];
   joinCompsColumns: string[] = ['name', 'playersCount', 'currentStage', 'actions'];
+
+  showInactiveCompetitions = false;
 
   myCompetitionsData: CompetitionTableItem[] = [];
   allCompetitionsData: CompetitionTableItem[] = [];
@@ -114,15 +119,21 @@ export class HomePage implements OnInit {
       this.userService.getYourLeagues(userId!).subscribe(userLeagues => {
         const myCompIds = new Set((userLeagues.competitions || []).map(c => c.competitionId.toString()));
 
-        const mappedComps: CompetitionTableItem[] = allComps.map((c: APICompetition) => ({
-          id: c.id,
-          code: c.code,
-          name: c.name,
-          playersCount: 0,
-          currentStage: c.currentSeason?.currentMatchday != null ? `Matchday ${c.currentSeason.currentMatchday}` : 'Unknown',
-          score: undefined,
-          globalRank: undefined
-        }));
+        const mappedComps: CompetitionTableItem[] = allComps.map((c: APICompetition) => {
+          const isRetired = !c.currentSeason || !!c.currentSeason.isRetired;
+          return {
+            id: c.id,
+            code: c.code,
+            name: c.name,
+            playersCount: 0,
+            currentStage: isRetired
+              ? 'Retired'
+              : (c.currentSeason?.currentMatchday != null ? `Matchday ${c.currentSeason.currentMatchday}` : 'Unknown'),
+            score: undefined,
+            globalRank: undefined,
+            isRetired
+          };
+        });
 
         this.myCompetitionsData = mappedComps.filter(c => myCompIds.has(c.id.toString()));
         this.allCompetitionsData = mappedComps;
@@ -151,9 +162,16 @@ export class HomePage implements OnInit {
   }
 
   updateTables() {
-    this.myCompetitions.data = [...this.myCompetitionsData];
+    const filteredMy = this.showInactiveCompetitions
+      ? this.myCompetitionsData
+      : this.myCompetitionsData.filter(c => !c.isRetired);
+    this.myCompetitions.data = [...filteredMy];
+
     const myCompIds = new Set(this.myCompetitionsData.map(c => c.id.toString()));
-    this.availableCompetitions.data = this.allCompetitionsData.filter(c => !myCompIds.has(c.id.toString()));
+    const availableFiltered = this.showInactiveCompetitions
+      ? this.allCompetitionsData.filter(c => !myCompIds.has(c.id.toString()))
+      : this.allCompetitionsData.filter(c => !myCompIds.has(c.id.toString()) && !c.isRetired);
+    this.availableCompetitions.data = availableFiltered;
     this.cdr.detectChanges();
   }
 

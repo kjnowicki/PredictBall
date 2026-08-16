@@ -27,6 +27,10 @@
   font-weight: 500;
 }
 
+.retired-row {
+  opacity: 0.65;
+}
+
 @media (max-width: 1023px) {
   .home-container {
     flex-direction: column;
