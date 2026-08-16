@@ -267,13 +267,17 @@ export class HomePage implements OnInit {
       );
     });
 
-    forkJoin(tasksRequests).subscribe(results => {
+    forkJoin({
+      user: this.userService.getUser(userId).pipe(catchError(() => of(null))),
+      taskResults: forkJoin(tasksRequests)
+    }).subscribe(({ user, taskResults }) => {
+      const prefs = user?.leagueViewPreferences || {};
       const allTasks: Task[] = [];
       const now = new Date();
       const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
       const oneDayFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-      results.forEach(({ comp, matches, predictions, casualMatchIds }) => {
+      taskResults.forEach(({ comp, matches, predictions, casualMatchIds }) => {
         const safeMatches = Array.isArray(matches) ? matches : [];
         const safePredictions = Array.isArray(predictions) ? predictions : [];
         const casualSet = new Set(casualMatchIds);
@@ -342,7 +346,10 @@ export class HomePage implements OnInit {
         // Focus on the immediate next upcoming matchdays (e.g. earliest 2 unfinished matchdays)
         const targetGroups = unfinishedGroups.slice(0, 2);
 
-        const isCasualContext = casualSet.size > 0 && this.leagues.some(l => l.isCasual);
+        const pref = prefs[comp.id.toString()] ?? (comp.code ? prefs[comp.code] : undefined);
+        const isCasualContext = casualSet.size > 0 && (
+          pref !== undefined ? !!pref : this.leagues.some(l => l.isCasual)
+        );
 
         targetGroups.forEach(g => {
           let missingCount = 0;

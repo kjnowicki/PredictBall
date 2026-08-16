@@ -229,6 +229,16 @@ export class CompetitionPage implements OnInit, OnDestroy {
 
     if (this.userId == undefined || this.userId == null) {
       console.warn('User is not authenticated.');
+    } else {
+      this.userService.getUser(this.userId).subscribe({
+        next: user => {
+          if (user && user.leagueViewPreferences) {
+            this.userPreferences = user.leagueViewPreferences;
+            this.applyLeagueViewPreference();
+          }
+        },
+        error: () => {}
+      });
     }
 
     this.scoringSystemService.getScoringSystem().subscribe({
@@ -282,6 +292,7 @@ export class CompetitionPage implements OnInit, OnDestroy {
             this.loadError = '';
             this.competitionName = comp.name;
             this.competition = comp;
+            this.applyLeagueViewPreference();
 
             this.availableSeasons = comp.seasons || (comp.currentSeason ? [comp.currentSeason] : []);
 
@@ -470,11 +481,29 @@ export class CompetitionPage implements OnInit, OnDestroy {
   casualMatchIds: Set<number> = new Set();
   newLeagueIsCasual: boolean = false;
   showOnlyMatchOfTheWeek: boolean = false;
+  userPreferences: { [leagueId: string]: boolean } | null = null;
+
+  applyLeagueViewPreference() {
+    if (!this.userPreferences) return;
+    const compIdStr = this.competition?.id ? this.competition.id.toString() : this.competitionCode;
+    if (compIdStr) {
+      const pref = this.userPreferences[compIdStr] ?? (this.competitionCode ? this.userPreferences[this.competitionCode] : undefined);
+      if (pref !== undefined) {
+        this.showOnlyMatchOfTheWeek = !!pref;
+        this.cdr.detectChanges();
+      }
+    }
+  }
 
   toggleCasualView() {
     this.showOnlyMatchOfTheWeek = !this.showOnlyMatchOfTheWeek;
-    if (this.userId && this.competitionCode) {
-      this.userService.updateLeagueViewPreference(this.userId, this.competitionCode, this.showOnlyMatchOfTheWeek).subscribe();
+    const targetCompId = this.competition?.id ? this.competition.id.toString() : this.competitionCode;
+    if (this.userId && targetCompId) {
+      if (!this.userPreferences) {
+        this.userPreferences = {};
+      }
+      this.userPreferences[targetCompId] = this.showOnlyMatchOfTheWeek;
+      this.userService.updateLeagueViewPreference(this.userId, targetCompId, this.showOnlyMatchOfTheWeek).subscribe();
     }
     this.cdr.detectChanges();
   }
