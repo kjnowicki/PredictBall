@@ -1,0 +1,182 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-ui:
+    name: Deploy UI (FTP)
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: ui/predictball
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: ui/predictball/package-lock.json
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Create environment files
+        run: node -e "const fs = require('fs'); ['environment.ts', 'environment.development.ts'].forEach(f => { const target = 'src/environments/' + f; if (!fs.existsSync(target)) fs.copyFileSync(target + '.example', target); });"
+
+      - name: Build UI (Production)
+        run: npx ng build --configuration production
+
+      - name: Sync UI via FTP
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR }}
+        run: |
+          npm install basic-ftp --no-save
+          node -e "
+          const ftp = require('basic-ftp');
+          async function upload() {
+            const client = new ftp.Client(30000);
+            client.ftp.verbose = true;
+
+            let rawHost = (process.env.FTP_SERVER || '').trim();
+            let host = rawHost.replace(/^ftps?:\/\//i, '');
+            let port = 21;
+            if (host.includes(':')) {
+              const parts = host.split(':');
+              host = parts[0];
+              port = parseInt(parts[1], 10) || 21;
+            }
+            host = host.replace(/\/.*$/, '');
+            
+            console.log('Normalized FTP Host:', host, 'Port:', port);
+
+            const accessOptions = {
+              host,
+              port,
+              user: (process.env.FTP_USERNAME || '').trim(),
+              password: (process.env.FTP_PASSWORD || '').trim()
+            };
+
+            try {
+              try {
+                await client.access({ ...accessOptions, secure: false });
+              } catch (accessErr) {
+                console.log('Plain FTP failed, trying explicit FTPS (TLS)...');
+                await client.access({ ...accessOptions, secure: 'explicit', secureOptions: { rejectUnauthorized: false } });
+              }
+
+              const targetDir = process.env.FTP_SERVER_DIR || '/';
+              await client.ensureDir(targetDir);
+
+              try {
+                const list = await client.list();
+                for (const item of list) {
+                  if (item.isFile && /\.(js|html|css|map|json|ico|svg|png|jpg|txt)$/i.test(item.name)) {
+                    console.log('Removing old file:', item.name);
+                    await client.remove(item.name).catch(() => {});
+                  }
+                }
+              } catch (e) {
+                console.log('Note: Skipping old file cleanup step:', e.message);
+              }
+
+              console.log('Uploading UI bundle from dist/predictball/browser...');
+              await client.uploadFromDir('dist/predictball/browser');
+              console.log('UI successfully uploaded via FTP.');
+            } catch (err) {
+              console.error('FTP Deployment Error:', err);
+              process.exit(1);
+            }
+            client.close();
+          }
+          upload();
+          "
+
+  deploy-backend:
+    name: Deploy Backend (Hetzner SSH)
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: api
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache-dependency-path: api/go.sum
+
+      - name: Build backend for Linux
+        shell: powershell
+        run: |
+          $env:GOOS="linux"
+          $env:GOARCH="amd64"
+          $env:CGO_ENABLED="0"
+          go build -o backend-linux main.go
+
+      - name: Copy & Deploy Backend to Hetzner
+        env:
+          HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
+          HETZNER_USERNAME: ${{ secrets.HETZNER_USERNAME }}
+          HETZNER_PASSWORD: ${{ secrets.HETZNER_PASSWORD }}
+        run: |
+          npm install ssh2 --no-save
+          node -e "
+          const { Client } = require('ssh2');
+          const conn = new Client();
+          
+          let rawHost = (process.env.HETZNER_HOST || '').trim();
+          let host = rawHost.replace(/^(https?|ssh|sftp):\/\//i, '').replace(/\/.*$/, '').split(':')[0];
+
+          conn.on('ready', () => {
+            console.log('Connected to Hetzner server via SSH.');
+            conn.sftp((err, sftp) => {
+              if (err) {
+                console.error('SFTP Error:', err);
+                process.exit(1);
+              }
+              console.log('Uploading backend-linux binary to /root/backend-linux.tmp...');
+              sftp.fastPut('backend-linux', '/root/backend-linux.tmp', (err) => {
+                if (err) {
+                  console.error('Upload Error:', err);
+                  process.exit(1);
+                }
+                console.log('Binary uploaded successfully. Moving file and restarting predictball service...');
+                conn.exec('chmod +x /root/backend-linux.tmp && mv -f /root/backend-linux.tmp /root/backend-linux && systemctl restart predictball', (err, stream) => {
+                  if (err) {
+                    console.error('Exec Error:', err);
+                    process.exit(1);
+                  }
+                  stream.on('close', (code) => {
+                    console.log('Service restarted successfully with exit code', code);
+                    conn.end();
+                    process.exit(code || 0);
+                  }).on('data', data => process.stdout.write(data)).stderr.on('data', data => process.stderr.write(data));
+                });
+              });
+            });
+          }).on('error', (err) => {
+            console.error('SSH Connection Error:', err);
+            process.exit(1);
+          }).connect({
+            host,
+            username: (process.env.HETZNER_USERNAME || '').trim(),
+            password: (process.env.HETZNER_PASSWORD || '').trim()
+          });
+          "
