@@ -127,11 +127,16 @@ func (h *APIHandler) authorizeUser(r *http.Request, userID string) bool {
 
 type statusResponseWriter struct {
 	http.ResponseWriter
-	statusCode int
+	statusCode  int
+	wroteHeader bool
 }
 
 func (w *statusResponseWriter) WriteHeader(code int) {
+	if w.wroteHeader {
+		return
+	}
 	w.statusCode = code
+	w.wroteHeader = true
 	w.ResponseWriter.WriteHeader(code)
 }
 
@@ -183,7 +188,6 @@ func (h *APIHandler) AuthMiddleware(next http.Handler) http.Handler {
 				return
 			}
 			if !h.authorizeAdmin(r) {
-				sw.WriteHeader(http.StatusUnauthorized)
 				http.Error(sw, "Unauthorized: invalid or missing admin token", http.StatusUnauthorized)
 				services.GlobalStatsTracker.RecordError(path, r.Method, "", "Unauthorized admin access", http.StatusUnauthorized)
 				return
@@ -199,7 +203,6 @@ func (h *APIHandler) AuthMiddleware(next http.Handler) http.Handler {
 
 		cookie, err := r.Cookie("session")
 		if err != nil {
-			sw.WriteHeader(http.StatusUnauthorized)
 			http.Error(sw, "Unauthorized: missing session cookie", http.StatusUnauthorized)
 			services.GlobalStatsTracker.RecordError(path, r.Method, "", "Missing session cookie", http.StatusUnauthorized)
 			return
@@ -207,7 +210,6 @@ func (h *APIHandler) AuthMiddleware(next http.Handler) http.Handler {
 
 		userID, err := h.decryptSession(cookie.Value)
 		if err != nil {
-			sw.WriteHeader(http.StatusUnauthorized)
 			http.Error(sw, "Unauthorized: invalid session", http.StatusUnauthorized)
 			services.GlobalStatsTracker.RecordError(path, r.Method, "", "Invalid session", http.StatusUnauthorized)
 			return
