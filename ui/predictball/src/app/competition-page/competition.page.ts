@@ -253,6 +253,19 @@ export class CompetitionPage implements OnInit, OnDestroy {
       this.viewedUserId = queryParams.get('viewUser');
       this.viewedUserName = queryParams.get('viewUserName');
 
+      const tabParam = queryParams.get('tab');
+      if (tabParam) {
+        if (tabParam === 'leagues' || tabParam === '1') {
+          this.selectedTabIndex = 1;
+        } else if (tabParam === 'predictions' || tabParam === '0') {
+          this.selectedTabIndex = 0;
+        } else if (tabParam === 'teams' || tabParam === '2') {
+          this.selectedTabIndex = 2;
+        } else if (tabParam === 'about' || tabParam === '3') {
+          this.selectedTabIndex = 3;
+        }
+      }
+
       const matchdayParam = queryParams.get('matchday');
       if (matchdayParam) {
         const mdNum = parseInt(matchdayParam, 10);
