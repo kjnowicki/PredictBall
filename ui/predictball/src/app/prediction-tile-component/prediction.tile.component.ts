@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, OnDestroy, SimpleChanges, inject, ChangeDetectorRef, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -34,6 +35,7 @@ interface ScorerGroup {
   imports: [
     CommonModule,
     FormsModule,
+    RouterModule,
     MatCardModule,
     MatFormFieldModule,
     MatInputModule,
@@ -50,6 +52,8 @@ export class PredictionTileComponent implements OnInit, OnChanges, OnDestroy {
   @Input() availablePowerups?: any;
   @Input() scoringSystem?: any;
   @Input() competition?: any;
+  @Input() competitionName?: string;
+  @Input() competitionCode?: string;
   @Input() readOnly: boolean = false;
   @Input() isTripleScoreDisabled: boolean = false;
   @Input() isReversalDisabled: boolean = false;

@@ -1,62 +1,58 @@
 <div class="home-container">
   <mat-card class="column">
     <mat-card-header>
-      <mat-card-title>Your Leagues</mat-card-title>
+      <mat-card-title>Your competitions</mat-card-title>
     </mat-card-header>
-    <mat-card-content>
-      <div class="competition-selector">
-        <mat-form-field>
-          <mat-label>Select Competition</mat-label>
-          <mat-select [ngModel]="selectedCompetitionId()" (ngModelChange)="onCompetitionChange($event)">
-            @for (comp of competitions; track comp.id) {
-            <mat-option [value]="comp.id">{{ comp.name }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+    <mat-card-content style="padding-top: 1rem;">
+      <div class="table-container" style="overflow-x: auto;">
+        <table mat-table [dataSource]="myCompetitions" class="data-table">
+          <!-- Name Column -->
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef> Name </th>
+            <td mat-cell *matCellDef="let comp">
+              <a mat-stroked-button color="primary" [routerLink]="['/competition', comp.code]">{{ comp.name }}</a>
+            </td>
+          </ng-container>
+
+          <!-- Your Score Column -->
+          <ng-container matColumnDef="score">
+            <th mat-header-cell *matHeaderCellDef> Your Score </th>
+            <td mat-cell *matCellDef="let comp"> {{ comp.score ?? '-' }} </td>
+          </ng-container>
+
+          <!-- Global Rank Column -->
+          <ng-container matColumnDef="globalRank">
+            <th mat-header-cell *matHeaderCellDef> Global Rank </th>
+            <td mat-cell *matCellDef="let comp"> {{ comp.globalRank ?? '-' }} </td>
+          </ng-container>
+
+          <!-- Players Count Column -->
+          <ng-container matColumnDef="playersCount">
+            <th mat-header-cell *matHeaderCellDef> Players Count </th>
+            <td mat-cell *matCellDef="let comp"> {{ comp.playersCount }} </td>
+          </ng-container>
+
+          <!-- Current Stage Column -->
+          <ng-container matColumnDef="currentStage">
+            <th mat-header-cell *matHeaderCellDef> Current Stage </th>
+            <td mat-cell *matCellDef="let comp"> {{ comp.currentStage }} </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="myCompsColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: myCompsColumns;"></tr>
+
+          <tr class="mat-row" *matNoDataRow>
+            <td class="mat-cell" colspan="5">No competitions found.</td>
+          </tr>
+        </table>
       </div>
 
-      @if (currentCompetition) {
-      <div class="current-competition-link">
-        <h3>
-          <a [routerLink]="['/competition', currentCompetition.code]" [queryParams]="{ season: getCompSeason(currentCompetition) }">{{
-            currentCompetition.name
-          }}</a>
-        </h3>
-        <p class="current-points">Current points: {{ currentCompetition.points || 0 }}</p>
+      <div style="margin-top: 1.5rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <span style="font-weight: 500;">There are {{ availableCompetitions.data.length }} more competitions</span>
+        <button mat-raised-button color="primary" (click)="openJoinModal(joinDialogTpl)" [disabled]="availableCompetitions.data.length === 0">
+          Join now
+        </button>
       </div>
-      }
-
-      <table mat-table [dataSource]="leagues" class="data-table">
-        <!-- League Column -->
-        <ng-container matColumnDef="name">
-          <th mat-header-cell *matHeaderCellDef>League</th>
-          <td mat-cell *matCellDef="let league">
-            <a [routerLink]="['/competition', selectedCompetitionId(), 'league', league.id]" [queryParams]="{ season: getCompSeason(currentCompetition) }">{{ league.name }}</a>
-          </td>
-        </ng-container>
-
-        <!-- Participants Column -->
-        <ng-container matColumnDef="participants">
-          <th mat-header-cell *matHeaderCellDef>Participants</th>
-          <td mat-cell *matCellDef="let league">{{ league.participants }}</td>
-        </ng-container>
-
-        <!-- Rank Column -->
-        <ng-container matColumnDef="rank">
-          <th mat-header-cell *matHeaderCellDef>Your Rank</th>
-          <td mat-cell *matCellDef="let league">{{ league.rank || '-' }}</td>
-        </ng-container>
-
-        <tr mat-header-row *matHeaderRowDef="leaguesDisplayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: leaguesDisplayedColumns"></tr>
-
-        <!-- Row shown when there is no data. -->
-        <tr class="mat-row" *matNoDataRow>
-          <td class="mat-cell" colspan="3">
-            No leagues found.
-          </td>
-        </tr>
-      </table>
     </mat-card-content>
   </mat-card>
 
@@ -119,3 +115,46 @@
     </mat-card-content>
   </mat-card>
 </div>
+
+<ng-template #joinDialogTpl>
+  <h2 mat-dialog-title>Join competitions</h2>
+  <mat-dialog-content>
+    <div class="table-container" style="overflow-x: auto; min-width: 320px;">
+      <table mat-table [dataSource]="availableCompetitions" class="data-table">
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef> Name </th>
+          <td mat-cell *matCellDef="let comp">
+            <a mat-button color="primary" [routerLink]="['/competition', comp.code]" (click)="closeJoinModal()">{{ comp.name }}</a>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="playersCount">
+          <th mat-header-cell *matHeaderCellDef> Players Count </th>
+          <td mat-cell *matCellDef="let comp"> {{ comp.playersCount }} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="currentStage">
+          <th mat-header-cell *matHeaderCellDef> Current Stage </th>
+          <td mat-cell *matCellDef="let comp"> {{ comp.currentStage }} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef> </th>
+          <td mat-cell *matCellDef="let comp">
+            <button mat-stroked-button color="primary" (click)="joinCompetition(comp)">Join</button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="joinCompsColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: joinCompsColumns;"></tr>
+
+        <tr class="mat-row" *matNoDataRow>
+          <td class="mat-cell" colspan="4">No new competitions available.</td>
+        </tr>
+      </table>
+    </div>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button mat-dialog-close>Close</button>
+  </mat-dialog-actions>
+</ng-template>
