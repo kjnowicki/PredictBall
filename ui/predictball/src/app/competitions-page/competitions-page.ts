@@ -123,8 +123,13 @@ export class CompetitionsPage implements OnInit, OnDestroy {
   loadJoinedCalendar() {
     if (!this.userId) return;
 
-    this.userService.getYourLeagues(this.userId).subscribe(userLeagues => {
-      const myCompIds = new Set((userLeagues.competitions || []).map(c => c.competitionId.toString()));
+    forkJoin({
+      userLeagues: this.userService.getYourLeagues(this.userId),
+      user: this.userService.getUser(this.userId).pipe(catchError(() => of(null))),
+      allComps: this.competitionService.getAllCompetitions().pipe(catchError(() => of([])))
+    }).subscribe(({ userLeagues, user, allComps }) => {
+      const userPrefs = user?.leagueViewPreferences || {};
+      const myCompIds = new Set((userLeagues?.competitions || []).map(c => c.competitionId.toString()));
       if (myCompIds.size === 0) {
         this.tiles = [];
         this.joinedCompetitions = [];
@@ -134,100 +139,105 @@ export class CompetitionsPage implements OnInit, OnDestroy {
         return;
       }
 
-      this.competitionService.getAllCompetitions().subscribe(allComps => {
-        const joinedComps = allComps.filter(c => myCompIds.has(c.id.toString()));
+      const joinedComps = allComps.filter(c => myCompIds.has(c.id.toString()));
 
-        if (joinedComps.length === 0) {
-          this.tiles = [];
-          this.joinedCompetitions = [];
-          this.selectedCompIds = [];
-          this.loading = false;
-          this.cdr.detectChanges();
-          return;
-        }
+      if (joinedComps.length === 0) {
+        this.tiles = [];
+        this.joinedCompetitions = [];
+        this.selectedCompIds = [];
+        this.loading = false;
+        this.cdr.detectChanges();
+        return;
+      }
 
-        this.joinedCompetitions = joinedComps.map(c => ({ id: c.id, name: c.name, code: c.code }));
-        this.selectedCompIds = this.joinedCompetitions.map(c => c.id.toString());
+      this.joinedCompetitions = joinedComps.map(c => ({ id: c.id, name: c.name, code: c.code }));
+      this.selectedCompIds = this.joinedCompetitions.map(c => c.id.toString());
 
-        const compRequests = joinedComps.map(comp => {
-          return forkJoin({
-            comp: of(comp),
-            matches: this.matchService.getMatchSchedule(comp.code).pipe(
-              catchError(() => of([] as Match[])),
-              map(res => Array.isArray(res) ? res : [])
-            ),
-            powerups: this.competitionService.getPowerups(this.userId!, comp.id.toString()).pipe(
-              catchError(() => of({ season: '2024', matchdays: [] }))
-            ),
-            casualData: this.leagueService.getCasualMatches(comp.id).pipe(
-              catchError(() => of({ casualMatchIds: [], byMatchday: {} }))
-            )
-          }).pipe(
-            switchMap(({ comp, matches, powerups, casualData }: { comp: APICompetition, matches: Match[], powerups: any, casualData: any }) => {
-              if (matches.length === 0) {
-                return of({ comp, matches, predictions: {}, powerups, casualMatchIds: new Set<number>() });
-              }
-              const matchIds = matches.map((m: Match) => m.id);
-              return this.competitionService.getPredictions(this.userId!, comp.id.toString(), matchIds).pipe(
-                catchError(() => of([])),
-                map(preds => {
-                  const predictionsMap: { [matchId: number]: any } = {};
-                  if (Array.isArray(preds)) {
-                    preds.forEach((p: any) => predictionsMap[p.matchId] = p);
-                  }
-                  return {
-                    comp,
-                    matches,
-                    predictions: predictionsMap,
-                    powerups: powerups || { season: '2024', matchdays: [] },
-                    casualMatchIds: new Set(casualData?.casualMatchIds || [])
-                  };
-                })
-              );
-            })
-          );
-        });
+      const compRequests = joinedComps.map(comp => {
+        return forkJoin({
+          comp: of(comp),
+          matches: this.matchService.getMatchSchedule(comp.code).pipe(
+            catchError(() => of([] as Match[])),
+            map(res => Array.isArray(res) ? res : [])
+          ),
+          powerups: this.competitionService.getPowerups(this.userId!, comp.id.toString()).pipe(
+            catchError(() => of({ season: '2024', matchdays: [] }))
+          ),
+          casualData: this.leagueService.getCasualMatches(comp.id).pipe(
+            catchError(() => of({ casualMatchIds: [], byMatchday: {} }))
+          )
+        }).pipe(
+          switchMap(({ comp, matches, powerups, casualData }: { comp: APICompetition, matches: Match[], powerups: any, casualData: any }) => {
+            if (matches.length === 0) {
+              return of({ comp, matches, predictions: {}, powerups, casualMatchIds: new Set<number>() });
+            }
+            const matchIds = matches.map((m: Match) => m.id);
+            return this.competitionService.getPredictions(this.userId!, comp.id.toString(), matchIds).pipe(
+              catchError(() => of([])),
+              map(preds => {
+                const predictionsMap: { [matchId: number]: any } = {};
+                if (Array.isArray(preds)) {
+                  preds.forEach((p: any) => predictionsMap[p.matchId] = p);
+                }
+                return {
+                  comp,
+                  matches,
+                  predictions: predictionsMap,
+                  powerups: powerups || { season: '2024', matchdays: [] },
+                  casualMatchIds: new Set(casualData?.casualMatchIds || [])
+                };
+              })
+            );
+          })
+        );
+      });
 
-        forkJoin(compRequests).subscribe(results => {
-          const allTiles: JoinedMatchTile[] = [];
+      forkJoin(compRequests).subscribe(results => {
+        const allTiles: JoinedMatchTile[] = [];
 
-          results.forEach(({ comp, matches, predictions, powerups, casualMatchIds }: any) => {
-            const powerupsData = powerups && powerups.matchdays ? powerups : { season: '2024', matchdays: [] };
+        results.forEach(({ comp, matches, predictions, powerups, casualMatchIds }: any) => {
+          const powerupsData = powerups && powerups.matchdays ? powerups : { season: '2024', matchdays: [] };
+          const pref = userPrefs[comp.id.toString()] ?? (comp.code ? userPrefs[comp.code] : undefined);
+          const viewOnlyCasual = pref !== undefined ? !!pref : false;
 
-            matches.forEach((match: Match) => {
-              if (match.homeTeamId === 0 || match.awayTeamId === 0) {
-                return;
-              }
+          matches.forEach((match: Match) => {
+            if (match.homeTeamId === 0 || match.awayTeamId === 0) {
+              return;
+            }
 
-              const matchdayKey = match.matchday > 0 ? match.matchday : match.stage;
-              let mdPowerups = powerupsData.matchdays.find((m: any) => m.matchdayNumber === matchdayKey);
-              if (!mdPowerups) {
-                mdPowerups = { matchdayNumber: matchdayKey, doubleScorerMatchId: 0, doubleScorerId: 0, tripleScoreMatchId: 0, reversalMatchId: 0 };
-                powerupsData.matchdays.push(mdPowerups);
-              }
+            const isMotw = casualMatchIds.has(match.id);
+            if (viewOnlyCasual && !isMotw) {
+              return;
+            }
 
-              const groupMatchesCount = matches.filter((m: Match) => (m.matchday > 0 ? m.matchday : m.stage) === matchdayKey).length;
+            const matchdayKey = match.matchday > 0 ? match.matchday : match.stage;
+            let mdPowerups = powerupsData.matchdays.find((m: any) => m.matchdayNumber === matchdayKey);
+            if (!mdPowerups) {
+              mdPowerups = { matchdayNumber: matchdayKey, doubleScorerMatchId: 0, doubleScorerId: 0, tripleScoreMatchId: 0, reversalMatchId: 0 };
+              powerupsData.matchdays.push(mdPowerups);
+            }
 
-              allTiles.push({
-                match,
-                competition: comp,
-                competitionName: comp.name,
-                competitionCode: comp.code,
-                prediction: predictions[match.id],
-                availablePowerups: mdPowerups,
-                powerupsData,
-                isMatchOfTheWeek: casualMatchIds.has(match.id),
-                rawSelectedMatchdayMatchesCount: groupMatchesCount
-              });
+            const groupMatchesCount = matches.filter((m: Match) => (m.matchday > 0 ? m.matchday : m.stage) === matchdayKey).length;
+
+            allTiles.push({
+              match,
+              competition: comp,
+              competitionName: comp.name,
+              competitionCode: comp.code,
+              prediction: predictions[match.id],
+              availablePowerups: mdPowerups,
+              powerupsData,
+              isMatchOfTheWeek: isMotw,
+              rawSelectedMatchdayMatchesCount: groupMatchesCount
             });
           });
-
-          allTiles.sort((a, b) => new Date(a.match.startTime).getTime() - new Date(b.match.startTime).getTime());
-
-          this.tiles = allTiles;
-          this.loading = false;
-          this.cdr.detectChanges();
         });
+
+        allTiles.sort((a, b) => new Date(a.match.startTime).getTime() - new Date(b.match.startTime).getTime());
+
+        this.tiles = allTiles;
+        this.loading = false;
+        this.cdr.detectChanges();
       });
     });
   }
