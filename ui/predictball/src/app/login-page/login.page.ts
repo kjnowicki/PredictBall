@@ -6,6 +6,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { map } from 'rxjs/operators';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -19,7 +20,8 @@ import { UserService } from '../services/user.service';
     MatCardModule,
     MatFormFieldModule,
     MatInputModule,
-    MatButtonModule
+    MatButtonModule,
+    MatSnackBarModule
   ],
   styleUrls: ['./login.page.css']
 })
@@ -32,6 +34,7 @@ export class LoginPage {
 
   private breakpointObserver = inject(BreakpointObserver);
   private userService = inject(UserService);
+  private snackBar = inject(MatSnackBar);
 
   isMobile = toSignal(
     this.breakpointObserver.observe('(max-width: 719.98px)').pipe(
@@ -50,11 +53,16 @@ export class LoginPage {
     this.userService.authenticateUser(this.loginData as any).subscribe({
       next: (user) => {
         console.log('Logged in...', user);
+        this.snackBar.open('Logged in successfully!', 'Close', { duration: 3000 });
         this.handleSuccessfulAuth(user.id);
       },
       error: (err) => {
         console.error('Login failed', err);
-        this.loginError = 'Invalid username or password. Please try again.';
+        const msg = err.status === 0
+          ? 'Unable to connect to the authentication server. Please try again later.'
+          : (err.error?.error || err.error?.message || 'Invalid username or password. Please try again.');
+        this.loginError = msg;
+        this.snackBar.open(msg, 'Close', { duration: 5000 });
       }
     });
   }
@@ -64,16 +72,19 @@ export class LoginPage {
 
     if(this.registerData.username.length < 5 || this.registerData.username.length > 32) {
       this.registerError = 'Username must be from 5 to 32 characters long';
+      this.snackBar.open(this.registerError, 'Close', { duration: 4000 });
       return;
     }
 
     if (!/^[a-zA-Z0-9]+$/.test(this.registerData.username)) {
       this.registerError = 'Username can only contain letters and numbers';
+      this.snackBar.open(this.registerError, 'Close', { duration: 4000 });
       return;
     }
 
     if (this.registerData.password !== this.registerData.confirmPassword) {
       this.registerError = 'Passwords do not match.';
+      this.snackBar.open(this.registerError, 'Close', { duration: 4000 });
       return;
     }
 
@@ -82,11 +93,16 @@ export class LoginPage {
     this.userService.createUser(userPayload as any).subscribe({
       next: (user) => {
         console.log('Registered...', user);
+        this.snackBar.open('Registered successfully!', 'Close', { duration: 3000 });
         this.handleSuccessfulAuth(user.id);
       },
       error: (err) => {
         console.error('Registration failed', err);
-        this.registerError = 'Registration failed. Please try again.';
+        const msg = err.status === 0
+          ? 'Unable to connect to the authentication server. Please try again later.'
+          : (err.error?.error || err.error?.message || 'Registration failed. Please try again.');
+        this.registerError = msg;
+        this.snackBar.open(msg, 'Close', { duration: 5000 });
       }
     });
   }

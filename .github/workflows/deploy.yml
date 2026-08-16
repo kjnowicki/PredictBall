@@ -32,7 +32,7 @@ jobs:
         run: npm ci
 
       - name: Create environment files
-        run: node -e "const fs = require('fs'); ['environment.ts', 'environment.development.ts'].forEach(f => { const target = 'src/environments/' + f; if (!fs.existsSync(target)) fs.copyFileSync(target + '.example', target); });"
+        run: node -e "const fs = require('fs'); ['environment.ts', 'environment.development.ts'].forEach(f => { const target = 'src/environments/' + f; fs.copyFileSync(target + '.example', target); });"
 
       - name: Build UI (Production)
         run: npx ng build --configuration production
